@@ -1,0 +1,156 @@
+import React, { useEffect, useState } from 'react'
+import {
+  Table, Button, Typography, Modal, Form, Input, Select,
+  DatePicker, InputNumber, message, Space, Tag,
+} from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import api from '../api/client'
+import type { AssetDisposal, Asset, PaginatedResponse } from '../types'
+
+const { Title } = Typography
+
+const DISPOSAL_TYPES = [
+  { value: 'sale', label: 'Продаж' },
+  { value: 'liquidation', label: 'Ліквідація' },
+  { value: 'free_transfer', label: 'Безоплатна передача' },
+  { value: 'shortage', label: 'Нестача' },
+  { value: 'other', label: 'Інше' },
+]
+
+const DisposalsPage: React.FC = () => {
+  const [disposals, setDisposals] = useState<AssetDisposal[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form] = Form.useForm()
+
+  const loadDisposals = async (p = page) => {
+    setLoading(true)
+    const { data } = await api.get<PaginatedResponse<AssetDisposal>>('/assets/disposals/', { params: { page: p } })
+    setDisposals(data.results)
+    setTotal(data.count)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadDisposals()
+    api.get('/assets/items/', { params: { status: 'active', page_size: 1000 } }).then((res) => {
+      setAssets(res.data.results || res.data)
+    })
+  }, [])
+
+  const handleSubmit = async (values: Record<string, unknown>) => {
+    try {
+      await api.post('/assets/disposals/', {
+        ...values,
+        document_date: (values.document_date as dayjs.Dayjs).format('YYYY-MM-DD'),
+      })
+      message.success('Вибуття оформлено')
+      setModalOpen(false)
+      form.resetFields()
+      loadDisposals()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка')
+    }
+  }
+
+  const columns = [
+    { title: 'Номер документа', dataIndex: 'document_number', key: 'doc' },
+    {
+      title: 'Дата',
+      dataIndex: 'document_date',
+      key: 'date',
+      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
+    },
+    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true },
+    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv' },
+    {
+      title: 'Тип вибуття',
+      dataIndex: 'disposal_type_display',
+      key: 'type',
+      render: (text: string) => <Tag>{text}</Tag>,
+    },
+    {
+      title: 'Залишкова вартість',
+      dataIndex: 'book_value_at_disposal',
+      key: 'book',
+      render: (v: string) => `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`,
+    },
+    {
+      title: 'Сума продажу',
+      dataIndex: 'sale_amount',
+      key: 'sale',
+      render: (v: string) => Number(v) > 0
+        ? `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`
+        : '—',
+    },
+  ]
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Вибуття основних засобів</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)} danger>
+          Оформити вибуття
+        </Button>
+      </div>
+
+      <Table
+        dataSource={disposals}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          current: page, total, pageSize: 25,
+          onChange: (p) => { setPage(p); loadDisposals(p) },
+        }}
+        size="small"
+      />
+
+      <Modal
+        title="Вибуття ОЗ"
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={() => form.submit()}
+        okText="Оформити"
+        cancelText="Скасувати"
+      >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Form.Item name="asset" label="Основний засіб" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label" placeholder="Оберіть ОЗ"
+              options={assets.map(a => ({
+                value: a.id,
+                label: `${a.inventory_number} — ${a.name} (${Number(a.current_book_value).toLocaleString('uk-UA')} грн)`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="disposal_type" label="Тип вибуття" rules={[{ required: true }]}>
+            <Select options={DISPOSAL_TYPES} />
+          </Form.Item>
+          <Space size="large">
+            <Form.Item name="document_number" label="Номер документа" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="document_date" label="Дата документа" rules={[{ required: true }]}>
+              <DatePicker format="DD.MM.YYYY" />
+            </Form.Item>
+          </Space>
+          <Form.Item name="reason" label="Причина вибуття" rules={[{ required: true }]}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="sale_amount" label="Сума продажу, грн (якщо продаж)">
+            <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Примітки">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  )
+}
+
+export default DisposalsPage

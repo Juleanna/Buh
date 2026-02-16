@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:factor.academy)",
+      "Bash(python:*)",
+      "Bash(./venv/Scripts/python.exe manage.py makemigrations:*)",
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(PYTHONIOENCODING=utf-8 ./venv/Scripts/python.exe:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./venv/Scripts/pip.exe install:*)",
+      "Bash(npx vite build:*)"
+    ]
+  }
+}

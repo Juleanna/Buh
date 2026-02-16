@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: buh_postgres
+    environment:
+      POSTGRES_DB: buh_assets
+      POSTGRES_USER: buh_user
+      POSTGRES_PASSWORD: buh_secret_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: buh_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://buh_user:buh_secret_2024@db:5432/buh_assets
+      DJANGO_SECRET_KEY: django-insecure-change-me-in-production
+      DEBUG: "True"
+
+  frontend:
+    build: ./frontend
+    container_name: buh_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
