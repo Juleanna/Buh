@@ -1,10 +1,15 @@
 """
-Генерація PDF-документів для обліку основних засобів:
-- ОЗ-1: Інвентарна картка обліку ОЗ
-- ОЗ-1: Акт приймання-передачі ОЗ
-- ОЗ-3: Акт списання ОЗ
-- ОЗ-6: Відомість нарахування амортизації
-- Інв-1: Інвентаризаційний опис ОЗ
+Генерація PDF-документів для обліку основних засобів.
+
+Типові форми Мінфіну України:
+- ОЗ-1: Акт приймання-передачі (внутрішнього переміщення) основних засобів
+- ОЗ-3: Акт списання основних засобів
+- ОЗ-4: Акт списання автотранспортних засобів
+- ОЗ-6: Інвентарна картка обліку основних засобів
+- Інв-1: Інвентаризаційний опис основних засобів
+
+Додатково:
+- Відомість нарахування амортизації
 - Журнал проводок
 """
 import io
@@ -53,6 +58,8 @@ for font_path in [
             pass
 
 FONT_NAME = 'UkrFont' if FONT_REGISTERED else 'Helvetica'
+
+APPROVAL_ORDER = 'наказом Мiнфiну України\nвiд 13.09.2016 №818'
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +125,32 @@ def _get_styles():
         fontName=FONT_NAME,
         fontSize=9,
         leading=12,
+        alignment=TA_LEFT,
+    ))
+    styles.add(ParagraphStyle(
+        'UkrFormStamp',
+        parent=styles['Normal'],
+        fontName=FONT_NAME,
+        fontSize=7,
+        leading=9,
+        alignment=TA_RIGHT,
+    ))
+    styles.add(ParagraphStyle(
+        'UkrFormTitle',
+        parent=styles['Normal'],
+        fontName=FONT_NAME,
+        fontSize=11,
+        leading=14,
+        alignment=TA_CENTER,
+        spaceAfter=3 * mm,
+        spaceBefore=2 * mm,
+    ))
+    styles.add(ParagraphStyle(
+        'UkrSignature',
+        parent=styles['Normal'],
+        fontName=FONT_NAME,
+        fontSize=8,
+        leading=11,
         alignment=TA_LEFT,
     ))
     return styles
@@ -187,13 +220,209 @@ def _p(text, style):
     return Paragraph(str(text), style)
 
 
+# ---------------------------------------------------------------------------
+# Official form helpers
+# ---------------------------------------------------------------------------
+
+def _form_header_block(org, form_number, form_name, styles):
+    """
+    Build the standard official Minfin form header.
+
+    Returns a list of flowables:
+    - Two-column table: left = org info, right = form stamp + EDRPOU
+    - Centered form title
+    """
+    elements = []
+
+    # Left column: org info
+    org_name = org.name if org else '________________________________'
+    org_edrpou = org.edrpou if org else '________'
+    org_address = org.address if org and org.address else ''
+
+    left_lines = f'{org_name}'
+    if org_address:
+        left_lines += f'<br/>{org_address}'
+
+    # Right column: form stamp
+    right_lines = (
+        f'Типова форма №{form_number}<br/>'
+        f'ЗАТВЕРДЖЕНО<br/>'
+        f'{APPROVAL_ORDER.replace(chr(10), "<br/>")}<br/>'
+        f'<br/>Код ЄДРПОУ  {org_edrpou}'
+    )
+
+    header_data = [[
+        _p(left_lines, styles['UkrNormal']),
+        _p(right_lines, styles['UkrFormStamp']),
+    ]]
+    header_table = Table(header_data, colWidths=[95 * mm, 85 * mm])
+    header_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 4 * mm))
+
+    # Centered title
+    elements.append(Paragraph(form_name, styles['UkrFormTitle']))
+
+    return elements
+
+
+def _approval_block(org, styles):
+    """
+    Build the "ЗАТВЕРДЖУЮ" approval block.
+
+    Returns a list of flowables.
+    """
+    director = org.director if org and org.director else '________________'
+
+    approval_data = [[
+        '',
+        _p(
+            'ЗАТВЕРДЖУЮ<br/>'
+            f'Керiвник ____________ {director}<br/>'
+            '<br/>'
+            '"___" ____________ 20__ р.',
+            styles['UkrRight'],
+        ),
+    ]]
+    approval_table = Table(approval_data, colWidths=[95 * mm, 85 * mm])
+    approval_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    return [approval_table, Spacer(1, 3 * mm)]
+
+
+def _commission_signatures_block(head_user, members_qs, styles):
+    """
+    Build individual signature lines for commission members.
+
+    Returns a list of flowables with named signature lines.
+    """
+    elements = []
+    elements.append(Spacer(1, 10 * mm))
+
+    sig_data = []
+
+    # Commission head
+    head_name = head_user.get_full_name() if head_user else '________________'
+    sig_data.append([
+        _p('Голова комiсiї:', styles['UkrSignature']),
+        '____________',
+        _p(head_name, styles['UkrSignature']),
+    ])
+
+    # Commission members
+    if members_qs:
+        member_list = list(members_qs)
+        for i, member in enumerate(member_list):
+            label = 'Члени комiсiї:' if i == 0 else ''
+            sig_data.append([
+                _p(label, styles['UkrSignature']),
+                '____________',
+                _p(member.get_full_name(), styles['UkrSignature']),
+            ])
+    else:
+        # Blank lines for commission members
+        for i in range(3):
+            label = 'Члени комiсiї:' if i == 0 else ''
+            sig_data.append([
+                _p(label, styles['UkrSignature']),
+                '____________',
+                '________________',
+            ])
+
+    sig_table = Table(sig_data, colWidths=[40 * mm, 35 * mm, 80 * mm])
+    sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+        ('TOPPADDING', (0, 0), (-1, -1), 3 * mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+    ]))
+    elements.append(sig_table)
+
+    # Signature labels
+    label_data = [['', _p('(пiдпис)', styles['UkrSmall']),
+                   _p('(прiзвище, iнiцiали)', styles['UkrSmall'])]]
+    label_table = Table(label_data, colWidths=[40 * mm, 35 * mm, 80 * mm])
+    label_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('ALIGN', (1, 0), (2, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(label_table)
+
+    return elements
+
+
+def _official_signatures(roles_and_names, styles):
+    """
+    Build signature lines for specific roles.
+
+    roles_and_names: list of (role_label, name_or_blank) tuples
+    Returns a list of flowables.
+    """
+    elements = []
+    elements.append(Spacer(1, 12 * mm))
+
+    sig_data = []
+    for role, name in roles_and_names:
+        sig_data.append([
+            _p(f'{role}:', styles['UkrSignature']),
+            '____________',
+            _p(name or '________________', styles['UkrSignature']),
+        ])
+
+    sig_table = Table(sig_data, colWidths=[50 * mm, 35 * mm, 70 * mm])
+    sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+        ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+    ]))
+    elements.append(sig_table)
+
+    label_data = [['', _p('(пiдпис)', styles['UkrSmall']),
+                   _p('(прiзвище, iнiцiали)', styles['UkrSmall'])]]
+    label_table = Table(label_data, colWidths=[50 * mm, 35 * mm, 70 * mm])
+    label_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('ALIGN', (1, 0), (2, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(label_table)
+
+    return elements
+
+
 # ============================================================================
-# 1. AssetCardPDFView  --  ОЗ-1 Інвентарна картка обліку ОЗ
+# 1. AssetCardPDFView  --  ОЗ-6 Інвентарна картка обліку ОЗ
 # ============================================================================
 
 class AssetCardPDFView(APIView):
     """
-    ОЗ-1 — Інвентарна картка обліку основних засобів.
+    ОЗ-6 -- Iнвентарна картка облiку основних засобiв.
 
     GET /documents/asset/<pk>/card/
     """
@@ -204,27 +433,50 @@ class AssetCardPDFView(APIView):
             'group', 'responsible_person', 'organization',
         ).get(pk=pk)
 
+        org = asset.organization
         styles = _get_styles()
         elements = []
 
-        # -- Title --
-        elements.append(Paragraph(
-            'Iнвентарна картка облiку основних засобiв (ОЗ-1)',
-            styles['UkrTitle'],
+        # -- Official header --
+        elements.extend(_form_header_block(
+            org, 'ОЗ-6',
+            'IНВЕНТАРНА КАРТКА облiку основних засобiв',
+            styles,
         ))
         elements.append(Spacer(1, 2 * mm))
 
-        if asset.organization:
-            elements.append(Paragraph(
-                f'Пiдприємство: {asset.organization}',
-                styles['UkrCenter'],
-            ))
-            elements.append(Spacer(1, 2 * mm))
+        # -- Card info line --
+        card_info = [
+            [
+                'Картка №', asset.inventory_number,
+                'Дата вiдкриття',
+                asset.commissioning_date.strftime('%d.%m.%Y'),
+                'Дата закриття',
+                asset.disposal_date.strftime('%d.%m.%Y') if asset.disposal_date else '—',
+            ],
+        ]
+        card_table = Table(card_info, colWidths=[
+            22 * mm, 30 * mm, 28 * mm, 25 * mm, 28 * mm, 25 * mm,
+        ])
+        card_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (0, 0), colors.Color(0.93, 0.93, 0.93)),
+            ('BACKGROUND', (2, 0), (2, 0), colors.Color(0.93, 0.93, 0.93)),
+            ('BACKGROUND', (4, 0), (4, 0), colors.Color(0.93, 0.93, 0.93)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('TOPPADDING', (0, 0), (-1, -1), 1.5 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5 * mm),
+        ]))
+        elements.append(card_table)
+        elements.append(Spacer(1, 3 * mm))
 
-        # -- Main asset data (two-column key/value) --
+        # -- Main asset data --
         info_rows = [
+            ['Назва об\'єкта:', _p(asset.name, styles['UkrNormal'])],
             ['Iнвентарний номер:', asset.inventory_number],
-            ['Назва:', asset.name],
             ['Група ОЗ:', str(asset.group)],
             ['Рахунок облiку:', asset.group.account_number],
             ['Рахунок зносу:', asset.group.depreciation_account],
@@ -233,9 +485,14 @@ class AssetCardPDFView(APIView):
              asset.commissioning_date.strftime('%d.%m.%Y')],
             ['Дата початку амортизацiї:',
              asset.depreciation_start_date.strftime('%d.%m.%Y')],
-            ['Дата вибуття:',
-             asset.disposal_date.strftime('%d.%m.%Y') if asset.disposal_date else '-'],
+            ['МВО:', (asset.responsible_person.get_full_name()
+                      if asset.responsible_person else '—')],
+            ['Мiсцезнаходження:', asset.location or '—'],
         ]
+        if asset.description:
+            info_rows.append(['Опис / характеристики:',
+                              _p(asset.description, styles['UkrNormal'])])
+
         info_table = Table(info_rows, colWidths=[65 * mm, 105 * mm])
         info_table.setStyle(_header_table_style())
         elements.append(info_table)
@@ -276,23 +533,6 @@ class AssetCardPDFView(APIView):
         depr_table.setStyle(_header_table_style())
         elements.append(depr_table)
         elements.append(Spacer(1, 4 * mm))
-
-        # -- Responsible person & location --
-        elements.append(Paragraph(
-            'Вiдповiдальна особа та мiсцезнаходження',
-            styles['UkrSubtitle'],
-        ))
-        resp_rows = [
-            ['МВО:', (asset.responsible_person.get_full_name()
-                      if asset.responsible_person else '-')],
-            ['Мiсцезнаходження:', asset.location or '-'],
-        ]
-        if asset.description:
-            resp_rows.append(['Опис / характеристики:', asset.description])
-        resp_table = Table(resp_rows, colWidths=[65 * mm, 105 * mm])
-        resp_table.setStyle(_header_table_style())
-        elements.append(resp_table)
-        elements.append(Spacer(1, 6 * mm))
 
         # -- Depreciation history (last 12 records) --
         records = DepreciationRecord.objects.filter(asset=asset).order_by(
@@ -402,6 +642,12 @@ class AssetCardPDFView(APIView):
             rt.setStyle(ts)
             elements.append(rt)
 
+        # -- Accountant signature --
+        accountant = org.accountant if org and org.accountant else '________________'
+        elements.extend(_official_signatures([
+            ('Картку заповнив', accountant),
+        ], styles))
+
         # -- Build PDF --
         buf = io.BytesIO()
         _build_pdf(buf, elements)
@@ -412,12 +658,12 @@ class AssetCardPDFView(APIView):
 
 
 # ============================================================================
-# 2. DepreciationReportPDFView  --  ОЗ-6 Відомість нарахування амортизації
+# 2. DepreciationReportPDFView  --  Відомість нарахування амортизації
 # ============================================================================
 
 class DepreciationReportPDFView(APIView):
     """
-    ОЗ-6 — Вiдомiсть нарахування амортизацiї за мiсяць.
+    Вiдомiсть нарахування амортизацiї за мiсяць.
 
     GET /documents/depreciation-report/?year=2025&month=3
     """
@@ -438,7 +684,7 @@ class DepreciationReportPDFView(APIView):
 
         # -- Title --
         elements.append(Paragraph(
-            f'Вiдомiсть нарахування амортизацiї (ОЗ-6)',
+            f'Вiдомiсть нарахування амортизацiї',
             styles['UkrTitle'],
         ))
         elements.append(Paragraph(
@@ -526,7 +772,7 @@ class DepreciationReportPDFView(APIView):
 
 class InventoryReportPDFView(APIView):
     """
-    Iнв-1 — Iнвентаризацiйний опис основних засобiв.
+    Iнв-1 -- Iнвентаризацiйний опис основних засобiв.
 
     GET /documents/inventory/<pk>/report/
     """
@@ -538,18 +784,24 @@ class InventoryReportPDFView(APIView):
         ).select_related('commission_head').get(pk=pk)
 
         items = inventory.items.select_related(
-            'asset', 'asset__group',
+            'asset', 'asset__group', 'asset__organization',
         ).order_by('asset__inventory_number')
+
+        # Detect organization from first item
+        org = None
+        first_item = items.first()
+        if first_item and first_item.asset.organization:
+            org = first_item.asset.organization
 
         styles = _get_styles()
         elements = []
 
-        # -- Title --
-        elements.append(Paragraph(
-            'Iнвентаризацiйний опис основних засобiв (Iнв-1)',
-            styles['UkrTitle'],
+        # -- Official header --
+        elements.extend(_form_header_block(
+            org, 'Iнв-1',
+            'IНВЕНТАРИЗАЦIЙНИЙ ОПИС основних засобiв',
+            styles,
         ))
-        elements.append(Spacer(1, 2 * mm))
 
         # -- Inventory header info --
         inv_rows = [
@@ -558,19 +810,9 @@ class InventoryReportPDFView(APIView):
              inventory.date.strftime('%d.%m.%Y')],
             ['Наказ:', f'№{inventory.order_number} вiд '
                        f'{inventory.order_date.strftime("%d.%m.%Y")}'],
-            ['Мiсце проведення:', inventory.location or '-'],
+            ['Мiсце проведення:', inventory.location or '—'],
             ['Статус:', inventory.get_status_display()],
         ]
-        if inventory.commission_head:
-            inv_rows.append([
-                'Голова комiсiї:',
-                inventory.commission_head.get_full_name(),
-            ])
-        members = inventory.commission_members.all()
-        if members.exists():
-            member_names = ', '.join(m.get_full_name() for m in members)
-            inv_rows.append(['Члени комiсiї:', member_names])
-
         inv_table = Table(inv_rows, colWidths=[55 * mm, 115 * mm])
         inv_table.setStyle(_header_table_style())
         elements.append(inv_table)
@@ -649,16 +891,35 @@ class InventoryReportPDFView(APIView):
         summary_table.setStyle(_header_table_style())
         elements.append(summary_table)
 
-        # -- Signatures --
-        elements.append(Spacer(1, 12 * mm))
-        sig_rows = [['Голова комiсiї: ________________', '',
-                     'Члени комiсiї: ________________']]
-        sig_table = Table(sig_rows, colWidths=[65 * mm, 30 * mm, 65 * mm])
-        sig_table.setStyle(TableStyle([
+        # -- Commission signatures (individual lines) --
+        members = inventory.commission_members.all()
+        elements.extend(_commission_signatures_block(
+            inventory.commission_head, members, styles,
+        ))
+
+        # -- MVO signature --
+        elements.append(Spacer(1, 8 * mm))
+        mvo_data = [[
+            _p('Матерiально вiдповiдальна особа:', styles['UkrSignature']),
+            '____________',
+            '________________',
+        ]]
+        mvo_table = Table(mvo_data, colWidths=[60 * mm, 35 * mm, 60 * mm])
+        mvo_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
         ]))
-        elements.append(sig_table)
+        elements.append(mvo_table)
+
+        # -- Date line --
+        elements.append(Spacer(1, 8 * mm))
+        elements.append(Paragraph(
+            f'Дата складання iнвентаризацiйного опису: '
+            f'{inventory.date.strftime("%d.%m.%Y")}',
+            styles['UkrNormal'],
+        ))
 
         # -- Build PDF --
         buf = io.BytesIO()
@@ -675,7 +936,7 @@ class InventoryReportPDFView(APIView):
 
 class AssetReceiptActPDFView(APIView):
     """
-    ОЗ-1 — Акт приймання-передачi основного засобу.
+    ОЗ-1 -- Акт приймання-передачi (внутрiшнього перемiщення) основних засобiв.
 
     GET /documents/receipt/<pk>/act/
     """
@@ -687,68 +948,73 @@ class AssetReceiptActPDFView(APIView):
             'asset__organization', 'created_by',
         ).get(pk=pk)
         asset = receipt.asset
+        org = asset.organization
 
         styles = _get_styles()
         elements = []
 
-        # -- Title --
-        elements.append(Paragraph(
-            'Акт приймання-передачi основного засобу (ОЗ-1)',
-            styles['UkrTitle'],
+        # -- Official header --
+        elements.extend(_form_header_block(
+            org, 'ОЗ-1',
+            'АКТ приймання-передачi (внутрiшнього перемiщення)<br/>'
+            'основних засобiв',
+            styles,
         ))
-        elements.append(Spacer(1, 2 * mm))
 
-        if asset.organization:
-            elements.append(Paragraph(
-                f'Пiдприємство: {asset.organization}',
-                styles['UkrCenter'],
-            ))
-            elements.append(Spacer(1, 2 * mm))
+        # -- Approval block --
+        elements.extend(_approval_block(org, styles))
 
         # -- Document info --
+        elements.append(Paragraph(
+            f'Акт №{receipt.document_number} вiд '
+            f'{receipt.document_date.strftime("%d.%m.%Y")}',
+            styles['UkrCenter'],
+        ))
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 1: Document details --
         doc_rows = [
-            ['Номер документа:', receipt.document_number],
-            ['Дата документа:',
-             receipt.document_date.strftime('%d.%m.%Y')],
             ['Тип надходження:', receipt.get_receipt_type_display()],
-            ['Постачальник / джерело:', receipt.supplier or '-'],
+            ['Постачальник / джерело:', receipt.supplier or '—'],
         ]
         doc_table = Table(doc_rows, colWidths=[55 * mm, 115 * mm])
         doc_table.setStyle(_header_table_style())
         elements.append(doc_table)
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 4 * mm))
 
-        # -- Asset info --
+        # -- Section 2: Asset info --
         elements.append(Paragraph(
-            'Iнформацiя про основний засiб', styles['UkrSubtitle'],
+            'Вiдомостi про об\'єкт основних засобiв',
+            styles['UkrSubtitle'],
         ))
         elements.append(Spacer(1, 2 * mm))
 
         asset_rows = [
             ['Iнвентарний номер:', asset.inventory_number],
-            ['Назва:', asset.name],
+            ['Назва:', _p(asset.name, styles['UkrNormal'])],
             ['Група ОЗ:', str(asset.group)],
             ['Рахунок облiку:', asset.group.account_number],
+            ['Рахунок зносу:', asset.group.depreciation_account],
             ['Дата введення в експлуатацiю:',
              asset.commissioning_date.strftime('%d.%m.%Y')],
             ['Метод амортизацiї:',
              asset.get_depreciation_method_display()],
             ['Строк корисного використання (мiс.):',
              str(asset.useful_life_months)],
-            ['Мiсцезнаходження:', asset.location or '-'],
+            ['Мiсцезнаходження:', asset.location or '—'],
             ['МВО:', (asset.responsible_person.get_full_name()
-                      if asset.responsible_person else '-')],
+                      if asset.responsible_person else '—')],
         ]
         if asset.description:
-            asset_rows.append(['Опис:', asset.description[:120]])
+            asset_rows.append(['Опис:', _p(asset.description[:200], styles['UkrNormal'])])
         asset_table = Table(asset_rows, colWidths=[55 * mm, 115 * mm])
         asset_table.setStyle(_header_table_style())
         elements.append(asset_table)
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 4 * mm))
 
-        # -- Cost info --
+        # -- Section 3: Cost --
         elements.append(Paragraph(
-            'Вартiсть', styles['UkrSubtitle'],
+            'Вартiсть об\'єкта', styles['UkrSubtitle'],
         ))
         elements.append(Spacer(1, 2 * mm))
 
@@ -769,20 +1035,23 @@ class AssetReceiptActPDFView(APIView):
             ))
 
         # -- Signatures --
-        elements.append(Spacer(1, 15 * mm))
-        sig_data = [
-            ['Здав: ________________________', '',
-             'Прийняв: ________________________'],
-            ['', '', ''],
-            ['М.П.', '', 'М.П.'],
-        ]
-        sig_table = Table(sig_data, colWidths=[70 * mm, 25 * mm, 70 * mm])
-        sig_table.setStyle(TableStyle([
+        elements.extend(_official_signatures([
+            ('Здав', ''),
+            ('Прийняв', (asset.responsible_person.get_full_name()
+                         if asset.responsible_person else '')),
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+        ], styles))
+
+        # -- Stamp place --
+        elements.append(Spacer(1, 5 * mm))
+        stamp_data = [['М.П.', '', 'М.П.']]
+        stamp_table = Table(stamp_data, colWidths=[50 * mm, 55 * mm, 50 * mm])
+        stamp_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TOPPADDING', (0, 0), (-1, -1), 3 * mm),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ]))
-        elements.append(sig_table)
+        elements.append(stamp_table)
 
         # -- Build PDF --
         buf = io.BytesIO()
@@ -799,7 +1068,7 @@ class AssetReceiptActPDFView(APIView):
 
 class AssetDisposalActPDFView(APIView):
     """
-    ОЗ-3 — Акт списання основного засобу.
+    ОЗ-3 -- Акт списання основних засобiв.
 
     GET /documents/disposal/<pk>/act/
     """
@@ -811,45 +1080,48 @@ class AssetDisposalActPDFView(APIView):
             'asset__organization', 'created_by',
         ).get(pk=pk)
         asset = disposal.asset
+        org = asset.organization
 
         styles = _get_styles()
         elements = []
 
-        # -- Title --
-        elements.append(Paragraph(
-            'Акт списання основного засобу (ОЗ-3)',
-            styles['UkrTitle'],
+        # -- Official header --
+        elements.extend(_form_header_block(
+            org, 'ОЗ-3',
+            'АКТ списання основних засобiв',
+            styles,
         ))
-        elements.append(Spacer(1, 2 * mm))
 
-        if asset.organization:
-            elements.append(Paragraph(
-                f'Пiдприємство: {asset.organization}',
-                styles['UkrCenter'],
-            ))
-            elements.append(Spacer(1, 2 * mm))
+        # -- Approval block --
+        elements.extend(_approval_block(org, styles))
 
         # -- Document info --
+        elements.append(Paragraph(
+            f'Акт №{disposal.document_number} вiд '
+            f'{disposal.document_date.strftime("%d.%m.%Y")}',
+            styles['UkrCenter'],
+        ))
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Document details --
         doc_rows = [
-            ['Номер документа:', disposal.document_number],
-            ['Дата документа:',
-             disposal.document_date.strftime('%d.%m.%Y')],
             ['Тип вибуття:', disposal.get_disposal_type_display()],
         ]
         doc_table = Table(doc_rows, colWidths=[55 * mm, 115 * mm])
         doc_table.setStyle(_header_table_style())
         elements.append(doc_table)
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 4 * mm))
 
         # -- Asset info --
         elements.append(Paragraph(
-            'Iнформацiя про основний засiб', styles['UkrSubtitle'],
+            'Вiдомостi про об\'єкт основних засобiв',
+            styles['UkrSubtitle'],
         ))
         elements.append(Spacer(1, 2 * mm))
 
         asset_rows = [
             ['Iнвентарний номер:', asset.inventory_number],
-            ['Назва:', asset.name],
+            ['Назва:', _p(asset.name, styles['UkrNormal'])],
             ['Група ОЗ:', str(asset.group)],
             ['Рахунок облiку:', asset.group.account_number],
             ['Дата введення в експлуатацiю:',
@@ -859,16 +1131,16 @@ class AssetDisposalActPDFView(APIView):
             ['Строк корисного використання (мiс.):',
              str(asset.useful_life_months)],
             ['МВО:', (asset.responsible_person.get_full_name()
-                      if asset.responsible_person else '-')],
+                      if asset.responsible_person else '—')],
         ]
         asset_table = Table(asset_rows, colWidths=[55 * mm, 115 * mm])
         asset_table.setStyle(_header_table_style())
         elements.append(asset_table)
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 4 * mm))
 
-        # -- Financial details of disposal --
+        # -- Financial details --
         elements.append(Paragraph(
-            'Фiнансовi дані на дату списання', styles['UkrSubtitle'],
+            'Фiнансовi данi на дату списання', styles['UkrSubtitle'],
         ))
         elements.append(Spacer(1, 2 * mm))
 
@@ -886,11 +1158,11 @@ class AssetDisposalActPDFView(APIView):
         fin_table = Table(fin_rows, colWidths=[65 * mm, 60 * mm])
         fin_table.setStyle(_header_table_style())
         elements.append(fin_table)
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 4 * mm))
 
-        # -- Reason --
+        # -- Commission conclusion / Reason --
         elements.append(Paragraph(
-            'Причина вибуття', styles['UkrSubtitle'],
+            'Висновок комiсiї / причина списання', styles['UkrSubtitle'],
         ))
         elements.append(Spacer(1, 2 * mm))
         elements.append(Paragraph(disposal.reason, styles['UkrNormal']))
@@ -902,22 +1174,14 @@ class AssetDisposalActPDFView(APIView):
                 f'Примiтки: {disposal.notes}', styles['UkrNormal'],
             ))
 
-        # -- Signatures --
-        elements.append(Spacer(1, 15 * mm))
-        sig_data = [
-            ['Голова комiсiї: ________________________', '',
-             'Члени комiсiї: ________________________'],
-            ['', '', ''],
-            ['Гол. бухгалтер: ________________________', '',
-             'Керiвник: ________________________'],
-        ]
-        sig_table = Table(sig_data, colWidths=[70 * mm, 25 * mm, 70 * mm])
-        sig_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TOPPADDING', (0, 0), (-1, -1), 3 * mm),
-        ]))
-        elements.append(sig_table)
+        # -- Commission signatures --
+        elements.extend(_commission_signatures_block(None, None, styles))
+
+        # -- Official signatures --
+        elements.extend(_official_signatures([
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Керiвник', org.director if org and org.director else ''),
+        ], styles))
 
         # -- Build PDF --
         buf = io.BytesIO()
@@ -929,7 +1193,160 @@ class AssetDisposalActPDFView(APIView):
 
 
 # ============================================================================
-# 6. AccountEntriesReportPDFView  --  Журнал проводок
+# 6. VehicleDisposalActPDFView  --  ОЗ-4 Акт списання автотранспорту
+# ============================================================================
+
+class VehicleDisposalActPDFView(APIView):
+    """
+    ОЗ-4 -- Акт списання автотранспортних засобiв.
+
+    GET /documents/disposal/<pk>/vehicle-act/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        disposal = AssetDisposal.objects.select_related(
+            'asset', 'asset__group', 'asset__responsible_person',
+            'asset__organization', 'created_by',
+        ).get(pk=pk)
+        asset = disposal.asset
+        org = asset.organization
+
+        styles = _get_styles()
+        elements = []
+
+        # -- Official header --
+        elements.extend(_form_header_block(
+            org, 'ОЗ-4',
+            'АКТ списання автотранспортних засобiв',
+            styles,
+        ))
+
+        # -- Approval block --
+        elements.extend(_approval_block(org, styles))
+
+        # -- Document info --
+        elements.append(Paragraph(
+            f'Акт №{disposal.document_number} вiд '
+            f'{disposal.document_date.strftime("%d.%m.%Y")}',
+            styles['UkrCenter'],
+        ))
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 1: General vehicle info --
+        elements.append(Paragraph(
+            'I. Загальнi вiдомостi про автотранспортний засiб',
+            styles['UkrSubtitle'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+        vehicle_rows = [
+            ['Назва:', _p(asset.name, styles['UkrNormal'])],
+            ['Iнвентарний номер:', asset.inventory_number],
+            ['Група ОЗ:', str(asset.group)],
+            ['Дата введення в експлуатацiю:',
+             asset.commissioning_date.strftime('%d.%m.%Y')],
+            ['Рiк випуску:', '________________'],
+            ['Марка, модель:', '________________'],
+            ['Державний номерний знак:', '________________'],
+            ['Номер двигуна:', '________________'],
+            ['Номер шасi (рами):', '________________'],
+            ['Номер кузова:', '________________'],
+            ['VIN-код:', '________________'],
+            ['Пробiг з початку експлуатацiї, км:', '________________'],
+            ['МВО:', (asset.responsible_person.get_full_name()
+                      if asset.responsible_person else '—')],
+        ]
+        vehicle_table = Table(vehicle_rows, colWidths=[65 * mm, 105 * mm])
+        vehicle_table.setStyle(_header_table_style())
+        elements.append(vehicle_table)
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 2: Financial data --
+        elements.append(Paragraph(
+            'II. Вартiснi данi на дату списання', styles['UkrSubtitle'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+        fin_rows = [
+            ['Первiсна вартiсть, грн:', _fmt(asset.initial_cost)],
+            ['Накопичений знос, грн:',
+             _fmt(disposal.accumulated_depreciation_at_disposal)],
+            ['Залишкова вартiсть, грн:',
+             _fmt(disposal.book_value_at_disposal)],
+        ]
+        if disposal.sale_amount and disposal.sale_amount > 0:
+            fin_rows.append([
+                'Сума продажу, грн:', _fmt(disposal.sale_amount),
+            ])
+        fin_table = Table(fin_rows, colWidths=[65 * mm, 60 * mm])
+        fin_table.setStyle(_header_table_style())
+        elements.append(fin_table)
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 3: Reason --
+        elements.append(Paragraph(
+            'III. Причина списання', styles['UkrSubtitle'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+        elements.append(Paragraph(disposal.reason, styles['UkrNormal']))
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 4: Commission conclusion --
+        elements.append(Paragraph(
+            'IV. Висновок комiсiї', styles['UkrSubtitle'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+        elements.append(Paragraph(
+            '________________________________________________________________________<br/>'
+            '________________________________________________________________________<br/>'
+            '________________________________________________________________________',
+            styles['UkrNormal'],
+        ))
+        elements.append(Spacer(1, 4 * mm))
+
+        # -- Section 5: Disposal results --
+        elements.append(Paragraph(
+            'V. Результати списання', styles['UkrSubtitle'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+        result_rows = [
+            ['Виручка вiд реалiзацiї матерiалiв, грн:', '________________'],
+            ['Витрати на лiквiдацiю, грн:', '________________'],
+            ['Фiнансовий результат, грн:', '________________'],
+        ]
+        result_table = Table(result_rows, colWidths=[65 * mm, 60 * mm])
+        result_table.setStyle(_header_table_style())
+        elements.append(result_table)
+
+        # -- Notes --
+        if disposal.notes:
+            elements.append(Spacer(1, 3 * mm))
+            elements.append(Paragraph(
+                f'Примiтки: {disposal.notes}', styles['UkrNormal'],
+            ))
+
+        # -- Commission signatures --
+        elements.extend(_commission_signatures_block(None, None, styles))
+
+        # -- Official signatures --
+        elements.extend(_official_signatures([
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Керiвник', org.director if org and org.director else ''),
+        ], styles))
+
+        # -- Build PDF --
+        buf = io.BytesIO()
+        _build_pdf(buf, elements)
+        return _make_response(
+            buf,
+            f'vehicle_disposal_{disposal.document_number}.pdf',
+        )
+
+
+# ============================================================================
+# 7. AccountEntriesReportPDFView  --  Журнал проводок
 # ============================================================================
 
 class AccountEntriesReportPDFView(APIView):
