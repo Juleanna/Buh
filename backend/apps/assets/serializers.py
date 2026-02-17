@@ -241,6 +241,7 @@ class AssetRevaluationSerializer(serializers.ModelSerializer):
         model = AssetRevaluation
         fields = '__all__'
         read_only_fields = [
+            'revaluation_type',
             'old_initial_cost', 'old_depreciation', 'old_book_value',
             'new_initial_cost', 'new_depreciation', 'new_book_value',
             'revaluation_amount', 'created_by', 'created_at',

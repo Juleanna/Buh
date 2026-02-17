@@ -134,7 +134,7 @@ const RevaluationsPage: React.FC = () => {
             <Form.Item name="date" label="Дата переоцінки" rules={[{ required: true }]}>
               <DatePicker format="DD.MM.YYYY" />
             </Form.Item>
-            <Form.Item name="document_number" label="Номер документа">
+            <Form.Item name="document_number" label="Номер документа" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Space>

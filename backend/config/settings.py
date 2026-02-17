@@ -122,8 +122,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 25,
-    'DATE_FORMAT': '%d.%m.%Y',
-    'DATE_INPUT_FORMATS': ['%d.%m.%Y', '%Y-%m-%d'],
+    'DATE_FORMAT': 'iso-8601',
+    'DATE_INPUT_FORMATS': ['iso-8601', '%d.%m.%Y', '%Y-%m-%d'],
 }
 
 # JWT

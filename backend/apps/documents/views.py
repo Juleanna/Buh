@@ -25,7 +25,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -46,6 +46,7 @@ from apps.documents.excel_utils import (
     write_form_header, write_form_header_landscape, write_approval_block,
     write_text_row, write_signatures_block, write_commission_signatures,
     write_merged_header, write_column_numbers_row,
+    TITLE_FONT as XLSX_TITLE_FONT, SUBTITLE_FONT as XLSX_SUBTITLE_FONT,
 )
 
 
@@ -380,116 +381,124 @@ def _approval_block(org, styles):
     return [approval_table, Spacer(1, 3 * mm)]
 
 
-def _commission_signatures_block(head_user, members_qs, styles):
+def _commission_signatures_block(head_user, members_qs, styles,
+                                  page_width=170 * mm, compact=False):
     """
     Build individual signature lines for commission members.
 
     Returns a list of flowables with named signature lines.
     """
     elements = []
-    elements.append(Spacer(1, 10 * mm))
+    top_spacer = 3 * mm if compact else 8 * mm
+    row_top_pad = 3 * mm if compact else 6 * mm
+    elements.append(Spacer(1, top_spacer))
 
-    sig_data = []
+    col_w = [page_width * 0.28, page_width * 0.30, page_width * 0.42]
 
-    # Commission head
-    head_name = head_user.get_full_name() if head_user else '________________'
-    sig_data.append([
-        _p('Голова комiсiї:', styles['UkrSignature']),
-        '____________',
-        _p(head_name, styles['UkrSignature']),
-    ])
+    # Collect rows: (label, name)
+    head_name = head_user.get_full_name() if head_user else ''
+    rows = [('Голова комiсiї:', head_name)]
 
-    # Commission members
     if members_qs:
-        member_list = list(members_qs)
-        for i, member in enumerate(member_list):
+        for i, member in enumerate(list(members_qs)):
             label = 'Члени комiсiї:' if i == 0 else ''
-            sig_data.append([
-                _p(label, styles['UkrSignature']),
-                '____________',
-                _p(member.get_full_name(), styles['UkrSignature']),
-            ])
+            rows.append((label, member.get_full_name()))
     else:
-        # Blank lines for commission members
         for i in range(3):
             label = 'Члени комiсiї:' if i == 0 else ''
-            sig_data.append([
-                _p(label, styles['UkrSignature']),
-                '____________',
-                '________________',
-            ])
+            rows.append((label, ''))
 
-    sig_table = Table(sig_data, colWidths=[40 * mm, 35 * mm, 80 * mm])
-    sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
-        ('TOPPADDING', (0, 0), (-1, -1), 3 * mm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
-        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
-    ]))
-    elements.append(sig_table)
+    for role, name in rows:
+        row_data = [[
+            _p(role, styles['UkrSignature']),
+            '',
+            _p(name, styles['UkrSignature']),
+        ]]
+        row_table = Table(row_data, colWidths=col_w)
+        row_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), row_top_pad),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+            ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ]))
+        elements.append(row_table)
 
-    # Signature labels
-    label_data = [['', _p('(пiдпис)', styles['UkrSmall']),
+    # Labels only once after the last row
+    label_data = [['',
+                   _p('(пiдпис)', styles['UkrSmall']),
                    _p('(прiзвище, iнiцiали)', styles['UkrSmall'])]]
-    label_table = Table(label_data, colWidths=[40 * mm, 35 * mm, 80 * mm])
+    label_table = Table(label_data, colWidths=col_w)
     label_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
         ('ALIGN', (1, 0), (2, 0), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(label_table)
 
-    return elements
+    return [KeepTogether(elements)]
 
 
-def _official_signatures(roles_and_names, styles):
+def _official_signatures(roles_and_names, styles, page_width=170 * mm,
+                         compact=False):
     """
     Build signature lines for specific roles.
 
     roles_and_names: list of (role_label, name_or_blank) tuples
+    compact: if True, use tighter spacing (for single-page forms)
     Returns a list of flowables.
     """
     elements = []
-    elements.append(Spacer(1, 12 * mm))
+    top_spacer = 4 * mm if compact else 10 * mm
+    row_top_pad = 4 * mm if compact else 8 * mm
+    elements.append(Spacer(1, top_spacer))
 
-    sig_data = []
+    col_w = [page_width * 0.32, page_width * 0.30, page_width * 0.38]
+
     for role, name in roles_and_names:
-        sig_data.append([
+        row_data = [[
             _p(f'{role}:', styles['UkrSignature']),
-            '____________',
-            _p(name or '________________', styles['UkrSignature']),
-        ])
+            '',
+            _p(name or '', styles['UkrSignature']),
+        ]]
+        row_table = Table(row_data, colWidths=col_w)
+        row_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), row_top_pad),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+            ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ]))
+        elements.append(row_table)
 
-    sig_table = Table(sig_data, colWidths=[50 * mm, 35 * mm, 70 * mm])
-    sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
-        ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
-        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
-    ]))
-    elements.append(sig_table)
+        label_data = [['',
+                       _p('(пiдпис)', styles['UkrSmall']),
+                       _p('(прiзвище, iнiцiали)', styles['UkrSmall'])]]
+        label_table = Table(label_data, colWidths=col_w)
+        label_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('ALIGN', (1, 0), (2, 0), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(label_table)
 
-    label_data = [['', _p('(пiдпис)', styles['UkrSmall']),
-                   _p('(прiзвище, iнiцiали)', styles['UkrSmall'])]]
-    label_table = Table(label_data, colWidths=[50 * mm, 35 * mm, 70 * mm])
-    label_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-        ('ALIGN', (1, 0), (2, 0), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    elements.append(label_table)
-
-    return elements
+    return [KeepTogether(elements)]
 
 
 def _get_org_from_request_or_default(request):
@@ -513,7 +522,7 @@ class AssetCardPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, asset):
-        org = asset.organization
+        org = asset.organization or _get_org_from_request_or_default(None)
         num_cols = 6
         wb, ws = create_workbook('Картка ОЗ')
         row = 1
@@ -643,7 +652,7 @@ class AssetCardPDFView(APIView):
         if fmt == 'xlsx':
             return self._build_xlsx(asset)
 
-        org = asset.organization
+        org = asset.organization or _get_org_from_request_or_default(request)
         styles = _get_styles()
         elements = []
 
@@ -882,17 +891,49 @@ class DepreciationReportPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, records, year, month):
+        num_cols = 11
         wb, ws = create_workbook(f'Амортизація {month:02d}.{year}')
         row = 1
 
-        headers = [
-            'Субрахунок', 'Інв.номер', 'Назва',
-            'Вартість що амортизується', 'Річна сума',
-            'К-ть місяців', 'Знос на початок',
-            'Нарахована амортизація', 'Знос на кінець',
-            'Субрахунок витрат', 'Примітка',
+        # -- Determine org from first record --
+        org = None
+        if records.exists():
+            first_asset = records.first().asset
+            if first_asset.organization:
+                org = first_asset.organization
+        if org is None:
+            org = Organization.objects.first()
+
+        # -- Landscape header --
+        approval_text = 'Наказ Мiнiстерства фiнансiв України\n13.09.2016 № 818'
+        row = write_form_header_landscape(
+            ws, row, org,
+            'Розрахунок амортизацiї основних засобiв (крiм iнших необоротних матерiальних активiв)',
+            num_cols,
+            approval_text=approval_text,
+        )
+
+        # -- Year subtitle --
+        row = write_text_row(ws, row, f'за {year} р.', num_cols)
+        row += 1
+
+        # -- 2-row merged header + column numbers --
+        header_spec = [
+            {'text': 'Субрахунок', 'row': 0, 'col': 1, 'merge_rows': 2},
+            {'text': 'Iнвентарний номер', 'row': 0, 'col': 2, 'merge_rows': 2},
+            {'text': 'Назва об\'єкта', 'row': 0, 'col': 3, 'merge_rows': 2},
+            {'text': 'Вартiсть, яка амортизується', 'row': 0, 'col': 4, 'merge_rows': 2},
+            {'text': 'Рiчна сума амортизацiї', 'row': 0, 'col': 5, 'merge_rows': 2},
+            {'text': 'Кiлькiсть мiсяцiв корисного використання (експлуатацiї) у перiодi', 'row': 0, 'col': 6, 'merge_rows': 2},
+            {'text': 'Сума зносу на початок перiоду', 'row': 0, 'col': 7, 'merge_rows': 2},
+            {'text': 'Сума нарахованої амортизацiї за перiод', 'row': 0, 'col': 8, 'merge_rows': 2},
+            {'text': 'Сума зносу на кiнець перiоду (гр. 7 + гр. 8)', 'row': 0, 'col': 9, 'merge_rows': 2},
+            {'text': 'Субрахунок витрат', 'row': 0, 'col': 10, 'merge_rows': 2},
+            {'text': 'Примiтка', 'row': 0, 'col': 11, 'merge_rows': 2},
         ]
-        write_header_row(ws, row, headers); row += 1
+        row = write_merged_header(ws, row, header_spec)
+        row = write_column_numbers_row(ws, row, num_cols)
+
         money = {4, 5, 7, 8, 9}
 
         total_depreciable = Decimal('0.00')
@@ -938,6 +979,7 @@ class DepreciationReportPDFView(APIView):
             total_amount += period_amount
             total_wear_end += wear_end
 
+        # -- Totals row --
         write_total_row(ws, row, [
             '', '', 'РАЗОМ:',
             float(total_depreciable),
@@ -948,8 +990,31 @@ class DepreciationReportPDFView(APIView):
             float(total_wear_end),
             '', '',
         ], money_cols=money)
+        row += 2
 
-        auto_width(ws, 11)
+        # -- Footer text --
+        month_names = [
+            '', 'сiчень', 'лютий', 'березень', 'квiтень', 'травень',
+            'червень', 'липень', 'серпень', 'вересень', 'жовтень',
+            'листопад', 'грудень',
+        ]
+        month_name = month_names[month] if 1 <= month <= 12 else str(month)
+        row = write_text_row(ws, row, f'Всього записiв: {records.count()}', num_cols)
+        row = write_text_row(
+            ws, row,
+            f'Усього нарахована амортизацiя за {month_name} {year} р.: '
+            f'{float(total_amount):.2f} грн',
+            num_cols,
+        )
+
+        # -- Signatures --
+        accountant = org.accountant if org and org.accountant else ''
+        row = write_signatures_block(ws, row, [
+            ('Головний бухгалтер', accountant),
+            ('Виконавець', ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(wb, f'depreciation_{year}_{month:02d}.xlsx')
 
     def get(self, request):
@@ -1162,26 +1227,117 @@ class InventoryReportPDFView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def _build_xlsx(self, inventory, items):
-        wb, ws = create_workbook('Інвентаризація')
+    def _build_xlsx(self, inventory, items, request=None):
+        num_cols = 16
+        wb, ws = create_workbook('Iнвентаризацiя')
         row = 1
 
-        # -- Info rows --
-        write_info_row(ws, row, 'Номер:', inventory.number); row += 1
-        write_info_row(ws, row, 'Дата:', inventory.date.strftime('%d.%m.%Y') if inventory.date else ''); row += 1
-        write_info_row(ws, row, 'Наказ:', f'№{inventory.order_number} від {inventory.order_date.strftime("%d.%m.%Y") if inventory.order_date else ""}'); row += 1
-        write_info_row(ws, row, 'Місце:', inventory.location.name if inventory.location else ''); row += 1
-        write_info_row(ws, row, 'Статус:', inventory.get_status_display() if hasattr(inventory, 'get_status_display') else ''); row += 1
+        # -- Determine org --
+        org = None
+        first_item = items.first()
+        if first_item and first_item.asset.organization:
+            org = first_item.asset.organization
+        if not org:
+            org = _get_org_from_request_or_default(request)
+
+        # -- Landscape header --
+        approval_text = 'Наказ Мiнiстерства фiнансiв України\n17.06.2015  № 572'
+        row = write_form_header_landscape(
+            ws, row, org,
+            'Iнвентаризацiйний опис необоротних активiв',
+            num_cols,
+            approval_text=approval_text,
+            subtitle='(основнi засоби, нематерiальнi активи, iншi необоротнi матерiальнi активи, капiтальнi iнвестицiї)',
+        )
+
+        # -- Date line --
+        inv_year = inventory.date.year if inventory.date else '____'
+        row = write_text_row(
+            ws, row,
+            f'\u00ab____\u00bb ______________ {inv_year} р.',
+            num_cols,
+        )
+
+        # -- Descriptive text block --
+        inv_location = inventory.location.name if inventory.location else '______________________'
+        row = write_text_row(
+            ws, row,
+            f'На пiдставi розпорядчого документа '
+            f'№{inventory.order_number} вiд {inventory.order_date.strftime("%d.%m.%Y") if inventory.order_date else "________"}  '
+            f'виконано знiмання фактичних залишкiв',
+            num_cols,
+        )
+        row = write_text_row(
+            ws, row,
+            'основних засобiв, нематерiальних активiв, iнших необоротних '
+            'матерiальних активiв, капiтальнi iнвестицiї (необхiдне пiдкреслити), '
+            'якi облiковуються на субрахунку(ах)',
+            num_cols,
+        )
+        row = write_text_row(ws, row, '_____________________________________________________________', num_cols)
+        row = write_text_row(ws, row, f'та зберiгаються {inv_location}', num_cols)
+        if inventory.date:
+            row = write_text_row(
+                ws, row,
+                f'станом на \u00ab{inventory.date.strftime("%d")}\u00bb '
+                f'{inventory.date.strftime("%m")} '
+                f'{inventory.date.year} р.',
+                num_cols,
+            )
         row += 1
 
-        headers = [
-            '№ з/п', 'Найменування', 'Рік випуску', 'Інв.номер',
-            'Завод.номер', 'Паспорт', 'Од.виміру', 'Факт к-ть',
-            'Факт вартість', 'Вибуття', 'Бухоблік к-ть',
-            'Бухоблік вартість', 'Знос', 'Балансова вартість',
-            'Строк використання',
+        # -- Розписка --
+        row = write_text_row(ws, row, 'Розписка', num_cols, font=XLSX_SUBTITLE_FONT)
+        row = write_text_row(
+            ws, row,
+            'До початку проведення iнвентаризацiї всi видатковi та прибутковi '
+            'документи на необоротнi активи зданi в бухгалтерську службу i всi '
+            'необоротнi активи, що надiйшли на мою вiдповiдальнiсть, '
+            'оприбуткованi, а тi, що вибули, списанi.',
+            num_cols,
+        )
+        row += 1
+
+        # -- Інвентаризація dates --
+        row = write_text_row(
+            ws, row,
+            f'Iнвентаризацiя:    розпочата \u00ab______\u00bb _________ '
+            f'{inv_year} р.',
+            num_cols,
+        )
+        row = write_text_row(
+            ws, row,
+            f'                        закiнчена \u00ab____\u00bb ____________ '
+            f'{inv_year} р.',
+            num_cols,
+        )
+        row = write_text_row(ws, row, 'При iнвентаризацiї встановлено таке:', num_cols)
+        row += 1
+
+        # -- 16-column table with multi-level header (4 rows) --
+        header_spec = [
+            {'text': '№ з/п', 'row': 0, 'col': 1, 'merge_rows': 3},
+            {'text': 'Найменування, стисла характеристика та призначення об\'єкта', 'row': 0, 'col': 2, 'merge_rows': 3},
+            {'text': 'Рiк випуску (будiвництва) чи дата придбання (введення в експлуатацiю) та виготовлювач', 'row': 0, 'col': 3, 'merge_rows': 3},
+            {'text': 'Номер', 'row': 0, 'col': 4, 'merge_cols': 3},
+            {'text': 'Один. вимiр.', 'row': 0, 'col': 7, 'merge_rows': 3},
+            {'text': 'Фактична наявнiсть', 'row': 0, 'col': 8, 'merge_cols': 2, 'merge_rows': 2},
+            {'text': 'Вiдмiтка про вибуття', 'row': 0, 'col': 10, 'merge_rows': 3},
+            {'text': 'За даними бухгалтерського облiку', 'row': 0, 'col': 11, 'merge_cols': 5, 'merge_rows': 2},
+            {'text': '', 'row': 0, 'col': 16, 'merge_rows': 3},
+            {'text': 'iнвентарний/ номенклатурний', 'row': 1, 'col': 4, 'merge_rows': 2},
+            {'text': 'заводський', 'row': 1, 'col': 5, 'merge_rows': 2},
+            {'text': 'паспорта', 'row': 1, 'col': 6, 'merge_rows': 2},
+            {'text': 'кiлькiсть', 'row': 2, 'col': 8},
+            {'text': 'первiсна (переоцiнена) вартiсть', 'row': 2, 'col': 9},
+            {'text': 'кiлькiсть', 'row': 2, 'col': 11},
+            {'text': 'первiсна (переоцiнена) вартiсть', 'row': 2, 'col': 12},
+            {'text': 'сума зносу (накопиченої амортизацiї)', 'row': 2, 'col': 13},
+            {'text': 'балансова вартiсть', 'row': 2, 'col': 14},
+            {'text': 'строк корисного використання', 'row': 2, 'col': 15},
         ]
-        write_header_row(ws, row, headers); row += 1
+        row = write_merged_header(ws, row, header_spec)
+        row = write_column_numbers_row(ws, row, num_cols)
         money = {9, 12, 13, 14}
 
         total_fact_qty = 0
@@ -1193,6 +1349,7 @@ class InventoryReportPDFView(APIView):
 
         for i, item in enumerate(items, 1):
             asset = item.asset
+
             year_or_date = ''
             if asset.manufacture_year:
                 year_or_date = str(asset.manufacture_year)
@@ -1222,6 +1379,7 @@ class InventoryReportPDFView(APIView):
                 float(asset.accumulated_depreciation),
                 float(asset.current_book_value),
                 asset.useful_life_months,
+                '',  # col 16
             ], money_cols=money)
             row += 1
 
@@ -1232,9 +1390,11 @@ class InventoryReportPDFView(APIView):
             total_depreciation += asset.accumulated_depreciation
             total_balance += asset.current_book_value
 
-        # "Разом на сторінці" row
+        total_items = items.count()
+
+        # "Разом на сторiнцi" row
         write_total_row(ws, row, [
-            '', 'Разом на сторінці', '', '', '', '', '',
+            '', 'Разом на сторiнцi', '', '', '', '', '',
             total_fact_qty,
             float(total_fact_value),
             '',
@@ -1242,7 +1402,7 @@ class InventoryReportPDFView(APIView):
             float(total_book_value),
             float(total_depreciation),
             float(total_balance),
-            '',
+            '', '',
         ], money_cols=money)
         row += 1
 
@@ -1256,10 +1416,91 @@ class InventoryReportPDFView(APIView):
             float(total_book_value),
             float(total_depreciation),
             float(total_balance),
-            '',
+            '', '',
         ], money_cols=money)
+        row += 2
 
-        auto_width(ws, 15)
+        # -- Page summary text --
+        row = write_text_row(
+            ws, row,
+            f'Число порядкових номерiв на сторiнцi: {total_items} '
+            f'(з 1 по {total_items})     '
+            f'Загальна кiлькiсть у натуральних вимiрах фактично на сторiнцi: {total_fact_qty}',
+            num_cols,
+        )
+        row = write_text_row(
+            ws, row,
+            f'Загальна кiлькiсть у натуральних вимiрах за даними бухоблiку на сторiнцi: {total_book_qty}',
+            num_cols,
+        )
+        row += 1
+
+        # -- "Разом за описом" summary block --
+        row = write_text_row(ws, row, 'Разом за описом:    а) кiлькiсть порядкових номерiв ______ ', num_cols)
+        row = write_text_row(ws, row, f'б) загальна кiлькiсть одиниць,  фактично - {total_fact_qty} ', num_cols)
+        row = write_text_row(ws, row, f'в) вартiсть фактична - {float(total_fact_value):.2f}', num_cols)
+        row = write_text_row(ws, row, f'г) загальна кiлькiсть одиниць,  за даними бухгалтерського облiку - {total_book_qty}', num_cols)
+        row = write_text_row(ws, row, f'\u0491) вартiсть за даними бухгалтерського облiку - {float(total_book_value):.2f}', num_cols)
+        row += 1
+
+        # -- Commission signatures --
+        head_name = ''
+        if inventory.commission_head:
+            head_name = inventory.commission_head.get_full_name()
+
+        members = list(inventory.commission_members.all())
+        member_names = [m.get_full_name() for m in members]
+
+        row = write_commission_signatures(
+            ws, row,
+            head_name=head_name,
+            member_names=member_names,
+            num_cols=num_cols,
+        )
+        row += 1
+
+        # -- МВО text and signature --
+        row = write_text_row(
+            ws, row,
+            'Усi цiнностi, пронумерованi в цьому iнвентаризацiйному описi '
+            f'з №1 до №{total_items}'
+            ', перевiренi комiсiєю в натурi в моїй присутностi '
+            'та внесенi в опис, у зв\'язку з чим претензiй до '
+            'iнвентаризацiйної комiсiї не маю. Цiнностi, перелiченi '
+            'в описi, знаходяться на моєму вiдповiдальному зберiганнi.',
+            num_cols,
+        )
+        row = write_signatures_block(ws, row, [
+            ('Матерiально вiдповiдальна особа', ''),
+        ], num_cols=num_cols)
+
+        if inventory.date:
+            row = write_text_row(
+                ws, row,
+                f'\u00ab___\u00bb _________________ {inventory.date.year} р.',
+                num_cols,
+            )
+        row += 1
+
+        # -- "Інформацію за даними бухобліку вніс:" --
+        row = write_text_row(ws, row, 'Iнформацiю за даними бухгалтерського облiку внiс:', num_cols)
+        row = write_signatures_block(ws, row, [
+            ('', ''),
+        ], num_cols=num_cols)
+
+        # -- "Вказані у цьому описі дані перевірив:" --
+        row = write_text_row(ws, row, 'Вказанi у цьому описi данi перевiрив:', num_cols)
+        if inventory.date:
+            row = write_text_row(
+                ws, row,
+                f'\u00ab____\u00bb _________________ {inventory.date.year} р.',
+                num_cols,
+            )
+        row = write_signatures_block(ws, row, [
+            ('', ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(wb, f'inventory_{inventory.number}.xlsx')
 
     def get(self, request, pk):
@@ -1274,23 +1515,26 @@ class InventoryReportPDFView(APIView):
 
         fmt = request.query_params.get('export')
         if fmt == 'xlsx':
-            return self._build_xlsx(inventory, items)
+            return self._build_xlsx(inventory, items, request)
 
-        # Detect organization from first item
+        # Detect organization from first item or fallback
         org = None
         first_item = items.first()
         if first_item and first_item.asset.organization:
             org = first_item.asset.organization
+        if not org:
+            org = _get_org_from_request_or_default(request)
 
         styles = _get_styles()
         elements = []
 
         page_w = landscape(A4)[0] - 24 * mm
 
-        # -- Top-right approval stamp --
+        # -- Top: org name + EDRPOU (left) + approval stamp (right) --
         org_name = org.name if org else '________________________________'
+        org_edrpou = org.edrpou if org else '________'
         approval_data = [[
-            _p(org_name, styles['UkrNormal']),
+            _p(f'{org_name}<br/>Код ЄДРПОУ  {org_edrpou}', styles['UkrNormal']),
             _p(
                 'ЗАТВЕРДЖЕНО<br/>'
                 'Наказ Мiнiстерства фiнансiв України<br/>'
@@ -1308,11 +1552,7 @@ class InventoryReportPDFView(APIView):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(approval_table)
-        elements.append(Spacer(1, 2 * mm))
-        elements.append(Paragraph(
-            '(установа)', styles['UkrSmallCenter'],
-        ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 3 * mm))
 
         # -- Title and subtitle --
         elements.append(Paragraph(
@@ -1324,15 +1564,14 @@ class InventoryReportPDFView(APIView):
             'матерiальнi активи, капiтальнi iнвестицiї)',
             styles['UkrSmallCenter'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         # -- Date line --
-        inv_date = inventory.date.strftime('%d.%m.%Y') if inventory.date else ''
         elements.append(Paragraph(
             f'\u00ab____\u00bb ______________ {inventory.date.year if inventory.date else "____"} р.',
             styles['UkrCenter'],
         ))
-        elements.append(Spacer(1, 3 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Descriptive text block --
         inv_location = (
@@ -1350,7 +1589,7 @@ class InventoryReportPDFView(APIView):
             'якi облiковуються на субрахунку(ах)',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(
             '_____________________________________________________________',
             styles['UkrNormal'],
@@ -1373,13 +1612,10 @@ class InventoryReportPDFView(APIView):
             f'{inventory.date.year} р.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Розписка --
-        elements.append(Paragraph(
-            'Розписка',
-            styles['UkrCenter'],
-        ))
+        elements.append(Paragraph('Розписка', styles['UkrCenter']))
         elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(
             'До початку проведення iнвентаризацiї всi видатковi та прибутковi '
@@ -1388,21 +1624,26 @@ class InventoryReportPDFView(APIView):
             'оприбуткованi, а тi, що вибули, списанi.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 3 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
-        # -- МВО signature in Розписка --
+        # -- МВО signature in Розписка (LINEBELOW) --
+        mvo_col_w = [55 * mm, 35 * mm, 30 * mm, 50 * mm]
         mvo_rozp = [[
             _p('Матерiально вiдповiдальна особа:', styles['UkrSignature']),
-            '____________',
-            '____________',
-            '________________',
+            '', '', '',
         ]]
-        mvo_rozp_table = Table(mvo_rozp, colWidths=[55 * mm, 35 * mm, 30 * mm, 50 * mm])
+        mvo_rozp_table = Table(mvo_rozp, colWidths=mvo_col_w)
         mvo_rozp_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+            ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+            ('LINEBELOW', (3, 0), (3, 0), 0.5, colors.black),
         ]))
         elements.append(mvo_rozp_table)
         mvo_label = [[
@@ -1411,12 +1652,14 @@ class InventoryReportPDFView(APIView):
             _p('(пiдпис)', styles['UkrSmallCenter']),
             _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
         ]]
-        mvo_label_table = Table(mvo_label, colWidths=[55 * mm, 35 * mm, 30 * mm, 50 * mm])
+        mvo_label_table = Table(mvo_label, colWidths=mvo_col_w)
         mvo_label_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
             ('FONTSIZE', (0, 0), (-1, -1), 6),
             ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(mvo_label_table)
@@ -1433,13 +1676,9 @@ class InventoryReportPDFView(APIView):
             f'{inventory.date.year if inventory.date else "____"} р.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 3 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Pre-table text --
-        elements.append(Paragraph(
-            '_______________________________________',
-            styles['UkrNormal'],
-        ))
         elements.append(Paragraph(
             'При iнвентаризацiї встановлено таке:',
             styles['UkrNormal'],
@@ -1676,246 +1915,160 @@ class InventoryReportPDFView(APIView):
             f'Загальна кiлькiсть у натуральних вимiрах за даними бухоблiку на сторiнцi: {total_book_qty}',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 3 * mm))
 
         # -- "Разом за описом" summary block --
+        summary_style = styles['UkrNormal']
         elements.append(Paragraph(
-            f'Разом за описом:    а) кiлькiсть порядкових номерiв ______ ',
-            styles['UkrNormal'],
-        ))
-        elements.append(Paragraph(
-            '(прописом)',
-            styles['UkrSmallCenter'],
+            'Разом за описом:    а) кiлькiсть порядкових номерiв ______ ',
+            summary_style,
         ))
         elements.append(Paragraph(
             f'б) загальна кiлькiсть одиниць,  фактично - {total_fact_qty} ',
-            styles['UkrNormal'],
-        ))
-        elements.append(Paragraph(
-            '(прописом)',
-            styles['UkrSmallCenter'],
+            summary_style,
         ))
         elements.append(Paragraph(
             f'в) вартiсть фактична - {_fmt(total_fact_value)}',
-            styles['UkrNormal'],
+            summary_style,
         ))
-        elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(
             f'г) загальна кiлькiсть одиниць,  за даними бухгалтерського облiку - {total_book_qty}',
-            styles['UkrNormal'],
-        ))
-        elements.append(Paragraph(
-            '(прописом)',
-            styles['UkrSmallCenter'],
+            summary_style,
         ))
         elements.append(Paragraph(
             f'\u0491) вартiсть за даними бухгалтерського облiку - {_fmt(total_book_value)}',
-            styles['UkrNormal'],
+            summary_style,
         ))
-        elements.append(Paragraph(
-            '(прописом)',
-            styles['UkrSmallCenter'],
-        ))
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 3 * mm))
 
-        # -- Commission signatures --
-        # Голова комiсiї
+        # -- Commission signatures (LINEBELOW) --
         head_name = ''
         if inventory.commission_head:
             head_name = inventory.commission_head.get_full_name()
 
-        sig_data = [[
-            _p('Голова комiсiї:', styles['UkrSignature']),
-            '____________',
-            '____________',
-            _p(head_name or '________________', styles['UkrSignature']),
-        ]]
-        sig_label = [[
-            '',
-            _p('(посада)', styles['UkrSmallCenter']),
-            _p('(пiдпис)', styles['UkrSmallCenter']),
-            _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
-        ]]
-
-        # Члени комiсiї
         members = list(inventory.commission_members.all())
-        for idx in range(max(len(members), 4)):
+        sig_rows = [('Голова комiсiї:', head_name)]
+        for idx in range(max(len(members), 3)):
             label = 'Члени комiсiї:' if idx == 0 else ''
-            member_name = members[idx].get_full_name() if idx < len(members) else '________________'
-            sig_data.append([
-                _p(label, styles['UkrSignature']),
-                '____________',
-                '____________',
-                _p(member_name, styles['UkrSignature']),
-            ])
-            sig_label.append([
-                '',
-                _p('(посада)', styles['UkrSmallCenter']),
-                _p('(пiдпис)', styles['UkrSmallCenter']),
-                _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
-            ])
+            name = members[idx].get_full_name() if idx < len(members) else ''
+            sig_rows.append((label, name))
 
-        sig_table = Table(sig_data, colWidths=[40 * mm, 40 * mm, 30 * mm, 60 * mm])
-        sig_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('ALIGN', (1, 0), (2, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 3 * mm),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
-        ]))
-        elements.append(sig_table)
+        sig_col_w = [40 * mm, 40 * mm, 30 * mm, 60 * mm]
+        sig_elements = []
+        for role, name in sig_rows:
+            row_data = [[
+                _p(role, styles['UkrSignature']),
+                '', '',
+                _p(name, styles['UkrSignature']),
+            ]]
+            row_table = Table(row_data, colWidths=sig_col_w)
+            row_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+                ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+                ('LINEBELOW', (3, 0), (3, 0), 0.5, colors.black),
+            ]))
+            sig_elements.append(row_table)
 
-        sig_label_table = Table(sig_label, colWidths=[40 * mm, 40 * mm, 30 * mm, 60 * mm])
-        sig_label_table.setStyle(TableStyle([
+        # Labels after last row
+        label_data = [['',
+                       _p('(посада)', styles['UkrSmallCenter']),
+                       _p('(пiдпис)', styles['UkrSmallCenter']),
+                       _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter'])]]
+        label_table = Table(label_data, colWidths=sig_col_w)
+        label_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
             ('FONTSIZE', (0, 0), (-1, -1), 6),
             ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
-        elements.append(sig_label_table)
-        elements.append(Spacer(1, 5 * mm))
+        sig_elements.append(label_table)
+        elements.append(KeepTogether(sig_elements))
+        elements.append(Spacer(1, 3 * mm))
 
         # -- МВО final text --
         elements.append(Paragraph(
             'Усi цiнностi, пронумерованi в цьому iнвентаризацiйному описi '
-            'з №1 до №'
-            f'{total_items}'
+            f'з №1 до №{total_items}'
             ', перевiренi комiсiєю в натурi в моїй присутностi '
             'та внесенi в опис, у зв\'язку з чим претензiй до '
             'iнвентаризацiйної комiсiї не маю. Цiнностi, перелiченi '
             'в описi, знаходяться на моєму вiдповiдальному зберiганнi.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 3 * mm))
+        elements.append(Spacer(1, 2 * mm))
+
+        # -- Helper: 3-col signature with LINEBELOW --
+        def _three_col_sig_block(prefix_text=''):
+            """Build a (посада) (підпис) (ініціали) block with LINEBELOW."""
+            _cw = [50 * mm, 40 * mm, 60 * mm]
+            if prefix_text:
+                elements.append(Paragraph(prefix_text, styles['UkrNormal']))
+            sig_r = [['', '', '']]
+            sig_t = Table(sig_r, colWidths=_cw)
+            sig_t.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('LINEBELOW', (0, 0), (0, 0), 0.5, colors.black),
+                ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+                ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+            ]))
+            elements.append(sig_t)
+            lbl_r = [[
+                _p('(посада)', styles['UkrSmallCenter']),
+                _p('(пiдпис)', styles['UkrSmallCenter']),
+                _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
+            ]]
+            lbl_t = Table(lbl_r, colWidths=_cw)
+            lbl_t.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+                ('FONTSIZE', (0, 0), (-1, -1), 6),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(lbl_t)
 
         # -- МВО signature --
-        mvo_final = [[
-            _p('Матерiально вiдповiдальна особа:', styles['UkrSignature']),
-            '',
-            '',
-            '',
-        ]]
-        mvo_final_table = Table(mvo_final, colWidths=[55 * mm, 35 * mm, 30 * mm, 50 * mm])
-        mvo_final_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-        ]))
-        elements.append(mvo_final_table)
-
+        elements.append(Paragraph(
+            'Матерiально вiдповiдальна особа:', styles['UkrNormal'],
+        ))
         elements.append(Paragraph(
             f'\u00ab___\u00bb _________________ '
             f'{inventory.date.year if inventory.date else "____"} р.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 1 * mm))
-
-        mvo_sig2 = [[
-            '',
-            _p('____________', styles['UkrSmallCenter']),
-            _p('____________', styles['UkrSmallCenter']),
-            _p('________________', styles['UkrSmallCenter']),
-        ]]
-        mvo_sig2_table = Table(mvo_sig2, colWidths=[55 * mm, 35 * mm, 30 * mm, 50 * mm])
-        mvo_sig2_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2 * mm),
-        ]))
-        elements.append(mvo_sig2_table)
-        mvo_sig2_label = [[
-            '',
-            _p('(посада)', styles['UkrSmallCenter']),
-            _p('(пiдпис)', styles['UkrSmallCenter']),
-            _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
-        ]]
-        mvo_sig2_label_table = Table(mvo_sig2_label, colWidths=[55 * mm, 35 * mm, 30 * mm, 50 * mm])
-        mvo_sig2_label_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 6),
-            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(mvo_sig2_label_table)
-        elements.append(Spacer(1, 5 * mm))
+        _three_col_sig_block()
+        elements.append(Spacer(1, 3 * mm))
 
         # -- "Інформацію за даними бухобліку вніс:" --
-        elements.append(Paragraph(
-            'Iнформацiю за даними бухгалтерського облiку внiс:',
-            styles['UkrNormal'],
-        ))
-        elements.append(Spacer(1, 1 * mm))
-        info_sig = [[
-            '____________',
-            '____________',
-            '________________',
-        ]]
-        info_sig_table = Table(info_sig, colWidths=[50 * mm, 40 * mm, 60 * mm])
-        info_sig_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2 * mm),
-        ]))
-        elements.append(info_sig_table)
-        info_sig_label = [[
-            _p('(посада)', styles['UkrSmallCenter']),
-            _p('(пiдпис)', styles['UkrSmallCenter']),
-            _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
-        ]]
-        info_sig_label_table = Table(info_sig_label, colWidths=[50 * mm, 40 * mm, 60 * mm])
-        info_sig_label_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 6),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(info_sig_label_table)
-        elements.append(Spacer(1, 4 * mm))
+        _three_col_sig_block('Iнформацiю за даними бухгалтерського облiку внiс:')
+        elements.append(Spacer(1, 3 * mm))
 
         # -- "Вказані у цьому описі дані перевірив:" --
         elements.append(Paragraph(
-            'Вказанi у цьому описi данi перевiрив:',
-            styles['UkrNormal'],
+            'Вказанi у цьому описi данi перевiрив:', styles['UkrNormal'],
         ))
         elements.append(Paragraph(
             f'\u00ab____\u00bb _________________ '
             f'{inventory.date.year if inventory.date else "____"} р.',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 1 * mm))
-        check_sig = [[
-            '____________',
-            '____________',
-            '________________',
-        ]]
-        check_sig_table = Table(check_sig, colWidths=[50 * mm, 40 * mm, 60 * mm])
-        check_sig_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2 * mm),
-        ]))
-        elements.append(check_sig_table)
-        check_sig_label = [[
-            _p('(посада)', styles['UkrSmallCenter']),
-            _p('(пiдпис)', styles['UkrSmallCenter']),
-            _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
-        ]]
-        check_sig_label_table = Table(check_sig_label, colWidths=[50 * mm, 40 * mm, 60 * mm])
-        check_sig_label_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 6),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(check_sig_label_table)
+        _three_col_sig_block()
 
         # -- Build PDF --
         buf = io.BytesIO()
@@ -1939,31 +2092,70 @@ class AssetReceiptActPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, receipt, asset, org):
+        num_cols = 4
         wb, ws = create_workbook('Акт ОЗ-1')
         row = 1
 
-        write_info_row(ws, row, 'Акт №:', receipt.document_number); row += 1
-        write_info_row(ws, row, 'Дата:', receipt.document_date.strftime('%d.%m.%Y')); row += 1
-        write_info_row(ws, row, 'Тип надходження:', receipt.get_receipt_type_display()); row += 1
-        write_info_row(ws, row, 'Постачальник:', receipt.supplier or '\u2014'); row += 1
-        write_info_row(ws, row, 'Інв. номер:', asset.inventory_number); row += 1
-        write_info_row(ws, row, 'Назва:', asset.name); row += 1
-        write_info_row(ws, row, 'Група:', str(asset.group)); row += 1
-        write_info_row(ws, row, 'Рахунок:', asset.group.account_number); row += 1
-        write_info_row(ws, row, 'Дата введення:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
-        write_info_row(ws, row, 'Метод амортизації:', asset.get_depreciation_method_display()); row += 1
-        write_info_row(ws, row, 'Строк (міс.):', asset.useful_life_months); row += 1
-        write_info_row(ws, row, 'Місцезнаходження:', _location_display(asset)); row += 1
-        write_info_row(ws, row, 'МВО:', _responsible_person_display(asset)); row += 1
+        # -- Official header --
+        row = write_form_header(
+            ws, row, org, 'ОЗ-1',
+            'АКТ приймання-передачi (внутрiшнього перемiщення) основних засобiв',
+            num_cols, approval_text=APPROVAL_ORDER,
+        )
+
+        # -- Approval block --
+        director = org.director if org and org.director else ''
+        row = write_approval_block(ws, row, director_name=director, num_cols=num_cols)
+
+        # -- Document info --
+        row = write_text_row(
+            ws, row,
+            f'Акт №{receipt.document_number} вiд '
+            f'{receipt.document_date.strftime("%d.%m.%Y")}',
+            num_cols,
+        )
         row += 1
 
-        # -- Cost rows --
-        write_section_header(ws, row, 'Вартість об\'єкта', 2); row += 1
-        write_info_row(ws, row, 'Сума за документом:', float(receipt.amount) if receipt.amount else 0); row += 1
-        write_info_row(ws, row, 'Первісна вартість:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
-        write_info_row(ws, row, 'Ліквідаційна вартість:', float(asset.residual_value) if asset.residual_value else 0); row += 1
+        # -- Section 1: Document details --
+        write_info_row(ws, row, 'Тип надходження:', receipt.get_receipt_type_display()); row += 1
+        write_info_row(ws, row, 'Постачальник / джерело:', receipt.supplier or '\u2014'); row += 1
+        row += 1
 
-        auto_width(ws, 2)
+        # -- Section 2: Asset info --
+        write_section_header(ws, row, 'Вiдомостi про об\'єкт основних засобiв', num_cols); row += 1
+        write_info_row(ws, row, 'Iнвентарний номер:', asset.inventory_number); row += 1
+        write_info_row(ws, row, 'Назва:', asset.name); row += 1
+        write_info_row(ws, row, 'Група ОЗ:', str(asset.group)); row += 1
+        write_info_row(ws, row, 'Рахунок облiку:', asset.group.account_number); row += 1
+        write_info_row(ws, row, 'Рахунок зносу:', asset.group.depreciation_account); row += 1
+        write_info_row(ws, row, 'Дата введення в експлуатацiю:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
+        write_info_row(ws, row, 'Метод амортизацiї:', asset.get_depreciation_method_display()); row += 1
+        write_info_row(ws, row, 'Строк корисного використання (мiс.):', str(asset.useful_life_months)); row += 1
+        write_info_row(ws, row, 'Мiсцезнаходження:', _location_display(asset)); row += 1
+        write_info_row(ws, row, 'МВО:', _responsible_person_display(asset)); row += 1
+        if asset.description:
+            write_info_row(ws, row, 'Опис:', asset.description[:200]); row += 1
+        row += 1
+
+        # -- Section 3: Cost --
+        write_section_header(ws, row, 'Вартiсть об\'єкта', num_cols); row += 1
+        write_info_row(ws, row, 'Сума за документом, грн:', float(receipt.amount) if receipt.amount else 0); row += 1
+        write_info_row(ws, row, 'Первiсна вартiсть, грн:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
+        write_info_row(ws, row, 'Лiквiдацiйна вартiсть, грн:', float(asset.residual_value) if asset.residual_value else 0); row += 1
+
+        # -- Notes --
+        if receipt.notes:
+            row += 1
+            row = write_text_row(ws, row, f'Примiтки: {receipt.notes}', num_cols)
+
+        # -- Signatures --
+        row = write_signatures_block(ws, row, [
+            ('Здав', ''),
+            ('Прийняв', _responsible_person_display(asset)),
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(wb, f'receipt_act_{receipt.document_number}.xlsx')
 
     def get(self, request, pk):
@@ -1972,7 +2164,7 @@ class AssetReceiptActPDFView(APIView):
             'asset__organization', 'asset__location', 'created_by',
         ).get(pk=pk)
         asset = receipt.asset
-        org = asset.organization
+        org = asset.organization or _get_org_from_request_or_default(request)
 
         fmt = request.query_params.get('export')
         if fmt == 'xlsx':
@@ -1998,7 +2190,20 @@ class AssetReceiptActPDFView(APIView):
             f'{receipt.document_date.strftime("%d.%m.%Y")}',
             styles['UkrCenter'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
+
+        # -- Compact table style for single-page layout --
+        compact_table_style = TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (0, -1), colors.Color(0.93, 0.93, 0.93)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('TOPPADDING', (0, 0), (-1, -1), 1 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
+        ])
 
         # -- Section 1: Document details --
         doc_rows = [
@@ -2006,16 +2211,16 @@ class AssetReceiptActPDFView(APIView):
             ['Постачальник / джерело:', receipt.supplier or '\u2014'],
         ]
         doc_table = Table(doc_rows, colWidths=[55 * mm, 115 * mm])
-        doc_table.setStyle(_header_table_style())
+        doc_table.setStyle(compact_table_style)
         elements.append(doc_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 2: Asset info --
         elements.append(Paragraph(
             'Вiдомостi про об\'єкт основних засобiв',
             styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         asset_rows = [
             ['Iнвентарний номер:', asset.inventory_number],
@@ -2035,15 +2240,15 @@ class AssetReceiptActPDFView(APIView):
         if asset.description:
             asset_rows.append(['Опис:', _p(asset.description[:200], styles['UkrNormal'])])
         asset_table = Table(asset_rows, colWidths=[55 * mm, 115 * mm])
-        asset_table.setStyle(_header_table_style())
+        asset_table.setStyle(compact_table_style)
         elements.append(asset_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 3: Cost --
         elements.append(Paragraph(
             'Вартiсть об\'єкта', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         cost_rows = [
             ['Сума за документом, грн:', _fmt(receipt.amount)],
@@ -2051,12 +2256,12 @@ class AssetReceiptActPDFView(APIView):
             ['Лiквiдацiйна вартiсть, грн:', _fmt(asset.residual_value)],
         ]
         cost_table = Table(cost_rows, colWidths=[55 * mm, 60 * mm])
-        cost_table.setStyle(_header_table_style())
+        cost_table.setStyle(compact_table_style)
         elements.append(cost_table)
 
         # -- Notes --
         if receipt.notes:
-            elements.append(Spacer(1, 4 * mm))
+            elements.append(Spacer(1, 2 * mm))
             elements.append(Paragraph(
                 f'Примiтки: {receipt.notes}', styles['UkrNormal'],
             ))
@@ -2066,10 +2271,10 @@ class AssetReceiptActPDFView(APIView):
             ('Здав', ''),
             ('Прийняв', _responsible_person_display(asset)),
             ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
-        ], styles))
+        ], styles, compact=True))
 
         # -- Stamp place --
-        elements.append(Spacer(1, 5 * mm))
+        elements.append(Spacer(1, 2 * mm))
         stamp_data = [['М.П.', '', 'М.П.']]
         stamp_table = Table(stamp_data, colWidths=[50 * mm, 55 * mm, 50 * mm])
         stamp_table.setStyle(TableStyle([
@@ -2079,9 +2284,12 @@ class AssetReceiptActPDFView(APIView):
         ]))
         elements.append(stamp_table)
 
-        # -- Build PDF --
+        # -- Build PDF with compact margins --
         buf = io.BytesIO()
-        _build_pdf(buf, elements)
+        _build_pdf(buf, elements, margins=dict(
+            topMargin=10 * mm, bottomMargin=10 * mm,
+            leftMargin=12 * mm, rightMargin=12 * mm,
+        ))
         return _make_response(
             buf,
             f'receipt_act_{receipt.document_number}.pdf',
@@ -2101,35 +2309,74 @@ class AssetDisposalActPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, disposal, asset, org):
+        num_cols = 6
         wb, ws = create_workbook('Акт ОЗ-3')
         row = 1
 
-        write_info_row(ws, row, 'Акт №:', disposal.document_number); row += 1
-        write_info_row(ws, row, 'Дата:', disposal.document_date.strftime('%d.%m.%Y')); row += 1
+        # -- Official header --
+        row = write_form_header(
+            ws, row, org, 'ОЗ-3',
+            'АКТ списання основних засобiв',
+            num_cols, approval_text=APPROVAL_ORDER,
+        )
+
+        # -- Approval block --
+        director = org.director if org and org.director else ''
+        row = write_approval_block(ws, row, director, num_cols)
+
+        # -- Document info --
+        row = write_text_row(
+            ws, row,
+            f'Акт №{disposal.document_number} вiд '
+            f'{disposal.document_date.strftime("%d.%m.%Y")}',
+            num_cols,
+        )
+        row += 1
+
+        # -- Document details --
         write_info_row(ws, row, 'Тип вибуття:', disposal.get_disposal_type_display()); row += 1
-        write_info_row(ws, row, 'Інв. номер:', asset.inventory_number); row += 1
+        row += 1
+
+        # -- Asset info --
+        write_section_header(ws, row, 'Вiдомостi про об\'єкт основних засобiв', num_cols); row += 1
+        write_info_row(ws, row, 'Iнвентарний номер:', asset.inventory_number); row += 1
         write_info_row(ws, row, 'Назва:', asset.name); row += 1
-        write_info_row(ws, row, 'Група:', str(asset.group)); row += 1
-        write_info_row(ws, row, 'Рахунок:', asset.group.account_number); row += 1
-        write_info_row(ws, row, 'Дата введення:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
-        write_info_row(ws, row, 'Метод:', asset.get_depreciation_method_display()); row += 1
-        write_info_row(ws, row, 'Строк (міс.):', asset.useful_life_months); row += 1
+        write_info_row(ws, row, 'Група ОЗ:', str(asset.group)); row += 1
+        write_info_row(ws, row, 'Рахунок облiку:', asset.group.account_number); row += 1
+        write_info_row(ws, row, 'Дата введення в експлуатацiю:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
+        write_info_row(ws, row, 'Метод амортизацiї:', asset.get_depreciation_method_display()); row += 1
+        write_info_row(ws, row, 'Строк корисного використання (мiс.):', str(asset.useful_life_months)); row += 1
         write_info_row(ws, row, 'МВО:', _responsible_person_display(asset)); row += 1
         row += 1
 
-        # -- Financial --
-        write_section_header(ws, row, 'Фінансові дані на дату списання', 2); row += 1
-        write_info_row(ws, row, 'Первісна вартість:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
-        write_info_row(ws, row, 'Накопичений знос:', float(disposal.accumulated_depreciation_at_disposal) if disposal.accumulated_depreciation_at_disposal else 0); row += 1
-        write_info_row(ws, row, 'Залишкова вартість:', float(disposal.book_value_at_disposal) if disposal.book_value_at_disposal else 0); row += 1
+        # -- Financial details --
+        write_section_header(ws, row, 'Фiнансовi данi на дату списання', num_cols); row += 1
+        write_info_row(ws, row, 'Первiсна вартiсть, грн:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
+        write_info_row(ws, row, 'Накопичений знос на дату вибуття, грн:', float(disposal.accumulated_depreciation_at_disposal) if disposal.accumulated_depreciation_at_disposal else 0); row += 1
+        write_info_row(ws, row, 'Залишкова вартiсть на дату вибуття, грн:', float(disposal.book_value_at_disposal) if disposal.book_value_at_disposal else 0); row += 1
         if disposal.sale_amount and disposal.sale_amount > 0:
-            write_info_row(ws, row, 'Сума продажу:', float(disposal.sale_amount)); row += 1
+            write_info_row(ws, row, 'Сума продажу, грн:', float(disposal.sale_amount)); row += 1
         row += 1
 
-        # -- Reason --
-        write_info_row(ws, row, 'Причина списання:', disposal.reason)
+        # -- Commission conclusion / Reason --
+        write_section_header(ws, row, 'Висновок комiсiї / причина списання', num_cols); row += 1
+        write_info_row(ws, row, 'Причина:', disposal.reason); row += 1
 
-        auto_width(ws, 2)
+        # -- Notes --
+        if disposal.notes:
+            row += 1
+            write_info_row(ws, row, 'Примiтки:', disposal.notes); row += 1
+
+        # -- Commission signatures --
+        row = write_commission_signatures(ws, row, head_name='', member_names=[], num_cols=num_cols)
+
+        # -- Official signatures --
+        row = write_signatures_block(ws, row, [
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Керiвник', org.director if org and org.director else ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(wb, f'disposal_act_{disposal.document_number}.xlsx')
 
     def get(self, request, pk):
@@ -2138,7 +2385,7 @@ class AssetDisposalActPDFView(APIView):
             'asset__organization', 'asset__location', 'created_by',
         ).get(pk=pk)
         asset = disposal.asset
-        org = asset.organization
+        org = asset.organization or _get_org_from_request_or_default(request)
 
         fmt = request.query_params.get('export')
         if fmt == 'xlsx':
@@ -2146,6 +2393,19 @@ class AssetDisposalActPDFView(APIView):
 
         styles = _get_styles()
         elements = []
+
+        # -- Compact table style for single-page layout --
+        compact_ts = TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (0, -1), colors.Color(0.93, 0.93, 0.93)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('TOPPADDING', (0, 0), (-1, -1), 1 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
+        ])
 
         # -- Official header --
         elements.extend(_form_header_block(
@@ -2163,23 +2423,23 @@ class AssetDisposalActPDFView(APIView):
             f'{disposal.document_date.strftime("%d.%m.%Y")}',
             styles['UkrCenter'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Document details --
         doc_rows = [
             ['Тип вибуття:', disposal.get_disposal_type_display()],
         ]
         doc_table = Table(doc_rows, colWidths=[55 * mm, 115 * mm])
-        doc_table.setStyle(_header_table_style())
+        doc_table.setStyle(compact_ts)
         elements.append(doc_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Asset info --
         elements.append(Paragraph(
             'Вiдомостi про об\'єкт основних засобiв',
             styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         asset_rows = [
             ['Iнвентарний номер:', asset.inventory_number],
@@ -2195,15 +2455,15 @@ class AssetDisposalActPDFView(APIView):
             ['МВО:', _responsible_person_display(asset)],
         ]
         asset_table = Table(asset_rows, colWidths=[55 * mm, 115 * mm])
-        asset_table.setStyle(_header_table_style())
+        asset_table.setStyle(compact_ts)
         elements.append(asset_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Financial details --
         elements.append(Paragraph(
             'Фiнансовi данi на дату списання', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         fin_rows = [
             ['Первiсна вартiсть, грн:', _fmt(asset.initial_cost)],
@@ -2217,36 +2477,39 @@ class AssetDisposalActPDFView(APIView):
                 'Сума продажу, грн:', _fmt(disposal.sale_amount),
             ])
         fin_table = Table(fin_rows, colWidths=[65 * mm, 60 * mm])
-        fin_table.setStyle(_header_table_style())
+        fin_table.setStyle(compact_ts)
         elements.append(fin_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Commission conclusion / Reason --
         elements.append(Paragraph(
             'Висновок комiсiї / причина списання', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(disposal.reason, styles['UkrNormal']))
 
         # -- Notes --
         if disposal.notes:
-            elements.append(Spacer(1, 3 * mm))
+            elements.append(Spacer(1, 2 * mm))
             elements.append(Paragraph(
                 f'Примiтки: {disposal.notes}', styles['UkrNormal'],
             ))
 
         # -- Commission signatures --
-        elements.extend(_commission_signatures_block(None, None, styles))
+        elements.extend(_commission_signatures_block(None, None, styles, compact=True))
 
         # -- Official signatures --
         elements.extend(_official_signatures([
             ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
             ('Керiвник', org.director if org and org.director else ''),
-        ], styles))
+        ], styles, compact=True))
 
-        # -- Build PDF --
+        # -- Build PDF with compact margins --
         buf = io.BytesIO()
-        _build_pdf(buf, elements)
+        _build_pdf(buf, elements, margins=dict(
+            topMargin=10 * mm, bottomMargin=10 * mm,
+            leftMargin=12 * mm, rightMargin=12 * mm,
+        ))
         return _make_response(
             buf,
             f'disposal_act_{disposal.document_number}.pdf',
@@ -2266,47 +2529,89 @@ class VehicleDisposalActPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, disposal, asset, org):
+        num_cols = 6
         wb, ws = create_workbook('Акт ОЗ-4')
         row = 1
 
-        write_info_row(ws, row, 'Акт №:', disposal.document_number); row += 1
-        write_info_row(ws, row, 'Дата:', disposal.document_date.strftime('%d.%m.%Y')); row += 1
-        write_info_row(ws, row, 'Тип вибуття:', disposal.get_disposal_type_display()); row += 1
-        write_info_row(ws, row, 'Інв. номер:', asset.inventory_number); row += 1
+        # -- Official header --
+        row = write_form_header(
+            ws, row, org, 'ОЗ-4',
+            'АКТ списання автотранспортних засобiв',
+            num_cols, approval_text=APPROVAL_ORDER,
+        )
+
+        # -- Approval block --
+        director = org.director if org and org.director else ''
+        row = write_approval_block(ws, row, director, num_cols)
+
+        # -- Document info --
+        row = write_text_row(
+            ws, row,
+            f'Акт №{disposal.document_number} вiд '
+            f'{disposal.document_date.strftime("%d.%m.%Y")}',
+            num_cols,
+        )
+        row += 1
+
+        # -- Section I: General vehicle info --
+        write_section_header(ws, row, 'I. Загальнi вiдомостi про автотранспортний засiб', num_cols); row += 1
         write_info_row(ws, row, 'Назва:', asset.name); row += 1
-        write_info_row(ws, row, 'Група:', str(asset.group)); row += 1
-        write_info_row(ws, row, 'Рахунок:', asset.group.account_number); row += 1
-        write_info_row(ws, row, 'Дата введення:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
-        write_info_row(ws, row, 'Метод:', asset.get_depreciation_method_display()); row += 1
-        write_info_row(ws, row, 'Строк (міс.):', asset.useful_life_months); row += 1
+        write_info_row(ws, row, 'Iнвентарний номер:', asset.inventory_number); row += 1
+        write_info_row(ws, row, 'Група ОЗ:', str(asset.group)); row += 1
+        write_info_row(ws, row, 'Дата введення в експлуатацiю:', asset.commissioning_date.strftime('%d.%m.%Y')); row += 1
+        write_info_row(ws, row, 'Рiк випуску:', '________________'); row += 1
+        write_info_row(ws, row, 'Марка, модель:', '________________'); row += 1
+        write_info_row(ws, row, 'Державний номерний знак:', '________________'); row += 1
+        write_info_row(ws, row, 'Номер двигуна:', '________________'); row += 1
+        write_info_row(ws, row, 'Номер шасi (рами):', '________________'); row += 1
+        write_info_row(ws, row, 'Номер кузова:', '________________'); row += 1
+        write_info_row(ws, row, 'VIN-код:', '________________'); row += 1
+        write_info_row(ws, row, 'Пробiг з початку експлуатацiї, км:', '________________'); row += 1
         write_info_row(ws, row, 'МВО:', _responsible_person_display(asset)); row += 1
         row += 1
 
-        # -- Vehicle-specific fields --
-        write_section_header(ws, row, 'Відомості про автотранспортний засіб', 2); row += 1
-        write_info_row(ws, row, 'Рік випуску:', '________________'); row += 1
-        write_info_row(ws, row, 'Марка/модель:', '________________'); row += 1
-        write_info_row(ws, row, 'Держ. номер:', '________________'); row += 1
-        write_info_row(ws, row, 'Двигун:', '________________'); row += 1
-        write_info_row(ws, row, 'Шасі:', '________________'); row += 1
-        write_info_row(ws, row, 'Кузов:', '________________'); row += 1
-        write_info_row(ws, row, 'VIN:', '________________'); row += 1
-        write_info_row(ws, row, 'Пробіг (км):', '________________'); row += 1
-        row += 1
-
-        # -- Financial --
-        write_section_header(ws, row, 'Вартісні дані на дату списання', 2); row += 1
-        write_info_row(ws, row, 'Первісна вартість:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
-        write_info_row(ws, row, 'Накопичений знос:', float(disposal.accumulated_depreciation_at_disposal) if disposal.accumulated_depreciation_at_disposal else 0); row += 1
-        write_info_row(ws, row, 'Залишкова вартість:', float(disposal.book_value_at_disposal) if disposal.book_value_at_disposal else 0); row += 1
+        # -- Section II: Financial data --
+        write_section_header(ws, row, 'II. Вартiснi данi на дату списання', num_cols); row += 1
+        write_info_row(ws, row, 'Первiсна вартiсть, грн:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
+        write_info_row(ws, row, 'Накопичений знос, грн:', float(disposal.accumulated_depreciation_at_disposal) if disposal.accumulated_depreciation_at_disposal else 0); row += 1
+        write_info_row(ws, row, 'Залишкова вартiсть, грн:', float(disposal.book_value_at_disposal) if disposal.book_value_at_disposal else 0); row += 1
         if disposal.sale_amount and disposal.sale_amount > 0:
-            write_info_row(ws, row, 'Сума продажу:', float(disposal.sale_amount)); row += 1
+            write_info_row(ws, row, 'Сума продажу, грн:', float(disposal.sale_amount)); row += 1
         row += 1
 
-        # -- Reason --
-        write_info_row(ws, row, 'Причина списання:', disposal.reason)
+        # -- Section III: Reason --
+        write_section_header(ws, row, 'III. Причина списання', num_cols); row += 1
+        write_info_row(ws, row, 'Причина:', disposal.reason); row += 1
+        row += 1
 
-        auto_width(ws, 2)
+        # -- Section IV: Commission conclusion --
+        write_section_header(ws, row, 'IV. Висновок комiсiї', num_cols); row += 1
+        row = write_text_row(ws, row, '________________________________________________________________________', num_cols)
+        row = write_text_row(ws, row, '________________________________________________________________________', num_cols)
+        row = write_text_row(ws, row, '________________________________________________________________________', num_cols)
+        row += 1
+
+        # -- Section V: Disposal results --
+        write_section_header(ws, row, 'V. Результати списання', num_cols); row += 1
+        write_info_row(ws, row, 'Виручка вiд реалiзацiї матерiалiв, грн:', '________________'); row += 1
+        write_info_row(ws, row, 'Витрати на лiквiдацiю, грн:', '________________'); row += 1
+        write_info_row(ws, row, 'Фiнансовий результат, грн:', '________________'); row += 1
+
+        # -- Notes --
+        if disposal.notes:
+            row += 1
+            write_info_row(ws, row, 'Примiтки:', disposal.notes); row += 1
+
+        # -- Commission signatures --
+        row = write_commission_signatures(ws, row, head_name='', member_names=[], num_cols=num_cols)
+
+        # -- Official signatures --
+        row = write_signatures_block(ws, row, [
+            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Керiвник', org.director if org and org.director else ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(wb, f'vehicle_disposal_{disposal.document_number}.xlsx')
 
     def get(self, request, pk):
@@ -2315,7 +2620,7 @@ class VehicleDisposalActPDFView(APIView):
             'asset__organization', 'asset__location', 'created_by',
         ).get(pk=pk)
         asset = disposal.asset
-        org = asset.organization
+        org = asset.organization or _get_org_from_request_or_default(request)
 
         fmt = request.query_params.get('export')
         if fmt == 'xlsx':
@@ -2323,6 +2628,19 @@ class VehicleDisposalActPDFView(APIView):
 
         styles = _get_styles()
         elements = []
+
+        # -- Compact table style for single-page layout --
+        compact_ts = TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (0, -1), colors.Color(0.93, 0.93, 0.93)),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2 * mm),
+            ('TOPPADDING', (0, 0), (-1, -1), 1 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1 * mm),
+        ])
 
         # -- Official header --
         elements.extend(_form_header_block(
@@ -2340,14 +2658,14 @@ class VehicleDisposalActPDFView(APIView):
             f'{disposal.document_date.strftime("%d.%m.%Y")}',
             styles['UkrCenter'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 1: General vehicle info --
         elements.append(Paragraph(
             'I. Загальнi вiдомостi про автотранспортний засiб',
             styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         vehicle_rows = [
             ['Назва:', _p(asset.name, styles['UkrNormal'])],
@@ -2366,15 +2684,15 @@ class VehicleDisposalActPDFView(APIView):
             ['МВО:', _responsible_person_display(asset)],
         ]
         vehicle_table = Table(vehicle_rows, colWidths=[65 * mm, 105 * mm])
-        vehicle_table.setStyle(_header_table_style())
+        vehicle_table.setStyle(compact_ts)
         elements.append(vehicle_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 2: Financial data --
         elements.append(Paragraph(
             'II. Вартiснi данi на дату списання', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         fin_rows = [
             ['Первiсна вартiсть, грн:', _fmt(asset.initial_cost)],
@@ -2388,36 +2706,36 @@ class VehicleDisposalActPDFView(APIView):
                 'Сума продажу, грн:', _fmt(disposal.sale_amount),
             ])
         fin_table = Table(fin_rows, colWidths=[65 * mm, 60 * mm])
-        fin_table.setStyle(_header_table_style())
+        fin_table.setStyle(compact_ts)
         elements.append(fin_table)
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 3: Reason --
         elements.append(Paragraph(
             'III. Причина списання', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(disposal.reason, styles['UkrNormal']))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 4: Commission conclusion --
         elements.append(Paragraph(
             'IV. Висновок комiсiї', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
         elements.append(Paragraph(
             '________________________________________________________________________<br/>'
             '________________________________________________________________________<br/>'
             '________________________________________________________________________',
             styles['UkrNormal'],
         ))
-        elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
         # -- Section 5: Disposal results --
         elements.append(Paragraph(
             'V. Результати списання', styles['UkrSubtitle'],
         ))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
         result_rows = [
             ['Виручка вiд реалiзацiї матерiалiв, грн:', '________________'],
@@ -2425,28 +2743,31 @@ class VehicleDisposalActPDFView(APIView):
             ['Фiнансовий результат, грн:', '________________'],
         ]
         result_table = Table(result_rows, colWidths=[65 * mm, 60 * mm])
-        result_table.setStyle(_header_table_style())
+        result_table.setStyle(compact_ts)
         elements.append(result_table)
 
         # -- Notes --
         if disposal.notes:
-            elements.append(Spacer(1, 3 * mm))
+            elements.append(Spacer(1, 2 * mm))
             elements.append(Paragraph(
                 f'Примiтки: {disposal.notes}', styles['UkrNormal'],
             ))
 
         # -- Commission signatures --
-        elements.extend(_commission_signatures_block(None, None, styles))
+        elements.extend(_commission_signatures_block(None, None, styles, compact=True))
 
         # -- Official signatures --
         elements.extend(_official_signatures([
             ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
             ('Керiвник', org.director if org and org.director else ''),
-        ], styles))
+        ], styles, compact=True))
 
-        # -- Build PDF --
+        # -- Build PDF with compact margins --
         buf = io.BytesIO()
-        _build_pdf(buf, elements)
+        _build_pdf(buf, elements, margins=dict(
+            topMargin=10 * mm, bottomMargin=10 * mm,
+            leftMargin=12 * mm, rightMargin=12 * mm,
+        ))
         return _make_response(
             buf,
             f'vehicle_disposal_{disposal.document_number}.pdf',
@@ -2466,10 +2787,27 @@ class AccountEntriesReportPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, qs, date_from_str, date_to_str):
+        num_cols = 6
         wb, ws = create_workbook('Журнал проводок')
         row = 1
 
-        headers = ['Дата', 'Дт', 'Кт', 'Сума', 'Опис', 'ОЗ']
+        # -- Title --
+        row = write_text_row(ws, row, 'Журнал проводок', num_cols, font=XLSX_TITLE_FONT)
+
+        # -- Period subtitle --
+        period_label = ''
+        if date_from_str and date_to_str:
+            period_label = f'за перiод з {date_from_str} по {date_to_str}'
+        elif date_from_str:
+            period_label = f'з {date_from_str}'
+        elif date_to_str:
+            period_label = f'по {date_to_str}'
+        if period_label:
+            row = write_text_row(ws, row, period_label, num_cols, font=XLSX_SUBTITLE_FONT)
+        row += 1
+
+        # -- Data table --
+        headers = ['Дата', 'Дт', 'Кт', 'Сума, грн', 'Опис', 'ОЗ']
         write_header_row(ws, row, headers); row += 1
         money = {4}
 
@@ -2487,11 +2825,17 @@ class AccountEntriesReportPDFView(APIView):
             row += 1
             total_amount += entry.amount
 
+        # -- Totals row --
         write_total_row(ws, row, [
             '', '', '', float(total_amount), 'РАЗОМ', '',
         ], money_cols=money)
+        row += 2
 
-        auto_width(ws, 6)
+        # -- Footer text --
+        row = write_text_row(ws, row, f'Всього проводок: {qs.count()}', num_cols)
+        row = write_text_row(ws, row, f'Загальна сума: {float(total_amount):.2f} грн', num_cols)
+
+        auto_width(ws, num_cols)
 
         fn_parts = ['entries_report']
         if date_from_str:
@@ -2621,19 +2965,66 @@ class TurnoverStatementPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _build_xlsx(self, assets, date_from, date_to, date_from_str, date_to_str):
+        num_cols = 16
         wb, ws = create_workbook('Оборотна відомість')
+        ws.sheet_properties.pageSetUpPr = None  # landscape handled by openpyxl
         row = 1
 
-        headers = [
-            '№ з/п', 'МВО', 'Рахунок', 'Найменування',
-            'Номенкл.номер', 'Од.виміру', 'Вартість',
-            'Залишок (к-ть)', 'Залишок (сума)',
-            'Дебет (к-ть)', 'Дебет (сума)',
-            'Кредит (к-ть)', 'Кредит (сума)',
-            'Залишок кін. (к-ть)', 'Залишок кін. (сума)',
-            'Відмітки',
+        # -- Determine org --
+        org = None
+        if assets.exists():
+            first_asset = assets.first()
+            if first_asset.organization:
+                org = first_asset.organization
+        if org is None:
+            org = Organization.objects.first()
+
+        # -- Landscape header --
+        approval_text = 'Наказ Мiнiстерства фiнансiв України\n5 лютого 2021 року №101'
+        row = write_form_header_landscape(
+            ws, row, org,
+            'ОБОРОТНА ВIДОМIСТЬ',
+            num_cols,
+            approval_text=approval_text,
+            subtitle=f'за перiод з {date_from_str} по {date_to_str}',
+        )
+
+        # -- Multi-level merged header (3 header rows + column numbers) --
+        header_spec = [
+            # Row 0: single-cell headers spanning 3 rows vertically
+            {'text': '№ з/п', 'row': 0, 'col': 1, 'merge_rows': 3},
+            {'text': 'Матерiально вiдповiдальна особа', 'row': 0, 'col': 2, 'merge_rows': 3},
+            {'text': 'Номер рахунку, субрахунку (аналiтичного рахунку)', 'row': 0, 'col': 3, 'merge_rows': 3},
+            {'text': 'Найменування', 'row': 0, 'col': 4, 'merge_rows': 2},
+            {'text': 'Номенклатурний номер*', 'row': 0, 'col': 5, 'merge_rows': 3},
+            {'text': 'Одиниця вимiру', 'row': 0, 'col': 6, 'merge_rows': 3},
+            {'text': 'Вартiсть', 'row': 0, 'col': 7, 'merge_rows': 3},
+            # Row 0: grouped headers spanning multiple cols
+            {'text': 'Залишок', 'row': 0, 'col': 8, 'merge_cols': 2},
+            {'text': 'Оборот', 'row': 0, 'col': 10, 'merge_cols': 4},
+            {'text': 'Залишок', 'row': 0, 'col': 14, 'merge_cols': 2},
+            {'text': 'Вiдмiтки', 'row': 0, 'col': 16, 'merge_rows': 3},
+            # Row 1: sub-headers
+            {'text': 'або однорiдна група (вид)', 'row': 1, 'col': 4},
+            {'text': f'на {date_from_str}', 'row': 1, 'col': 8, 'merge_cols': 2},
+            {'text': 'дебет', 'row': 1, 'col': 10, 'merge_cols': 2},
+            {'text': 'кредит', 'row': 1, 'col': 12, 'merge_cols': 2},
+            {'text': f'на {date_to_str}', 'row': 1, 'col': 14, 'merge_cols': 2},
+            # Row 2: qty/sum sub-sub-headers
+            {'text': 'кiлькiсть', 'row': 2, 'col': 8},
+            {'text': 'сума', 'row': 2, 'col': 9},
+            {'text': 'кiлькiсть', 'row': 2, 'col': 10},
+            {'text': 'сума', 'row': 2, 'col': 11},
+            {'text': 'кiлькiсть', 'row': 2, 'col': 12},
+            {'text': 'сума', 'row': 2, 'col': 13},
+            {'text': 'кiлькiсть', 'row': 2, 'col': 14},
+            {'text': 'сума', 'row': 2, 'col': 15},
         ]
-        write_header_row(ws, row, headers); row += 1
+        row = write_merged_header(ws, row, header_spec)
+
+        # -- Column numbers row --
+        row = write_column_numbers_row(ws, row, num_cols)
+
         money = {7, 9, 11, 13, 15}
 
         grand_open_qty = 0
@@ -2726,6 +3117,7 @@ class TurnoverStatementPDFView(APIView):
             grand_close_qty += close_qty
             grand_close_sum += close_sum
 
+        # -- Totals row --
         write_total_row(ws, row, [
             '', '', '', 'РАЗОМ:', '', '', '',
             grand_open_qty,
@@ -2738,8 +3130,19 @@ class TurnoverStatementPDFView(APIView):
             float(grand_close_sum),
             '',
         ], money_cols=money)
+        row += 2
 
-        auto_width(ws, 16)
+        # -- Footer --
+        row = write_text_row(ws, row, f'Всього позицiй: {assets.count()}', num_cols)
+
+        # -- Signatures --
+        accountant = org.accountant if org and org.accountant else ''
+        row = write_signatures_block(ws, row, [
+            ('Головний бухгалтер', accountant),
+            ('Виконавець', ''),
+        ], num_cols=num_cols)
+
+        auto_width(ws, num_cols)
         return workbook_to_response(
             wb, f'turnover_statement_{date_from_str}_{date_to_str}.xlsx',
         )

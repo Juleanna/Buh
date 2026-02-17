@@ -153,7 +153,7 @@ const TurnoverReportPage: React.FC = () => {
       <Table
         dataSource={rows}
         columns={columns}
-        rowKey="index"
+        rowKey={(record) => `${record.index}_${record.inventory_number || ''}`}
         loading={loading}
         pagination={false}
         size="small"
