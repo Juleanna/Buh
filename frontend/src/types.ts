@@ -12,6 +12,42 @@ export interface User {
   is_active: boolean
 }
 
+export interface Location {
+  id: number
+  name: string
+  is_active: boolean
+  assets_count?: number
+}
+
+export interface ResponsiblePerson {
+  id: number
+  ipn: string
+  full_name: string
+  position: string
+  location: number | null
+  location_name: string
+  is_active: boolean
+  assets_count?: number
+}
+
+export interface TurnoverRow {
+  index: number
+  responsible_person_name: string
+  account_number: string
+  name: string
+  inventory_number: string
+  unit_of_measure: string
+  cost: string
+  opening_qty: number
+  opening_amount: string
+  debit_qty: number
+  debit_amount: string
+  credit_qty: number
+  credit_amount: string
+  closing_qty: number
+  closing_amount: string
+}
+
 export interface AssetGroup {
   id: number
   code: string
@@ -52,8 +88,15 @@ export interface Asset {
   disposal_date: string | null
   responsible_person: number | null
   responsible_person_name: string
-  location: string
+  location: number | null
+  location_name: string
   description: string
+  quantity: number
+  factory_number: string
+  passport_number: string
+  manufacture_year: number | null
+  unit_of_measure: string
+  depreciation_rate: string | null
   created_by: number | null
   created_by_name: string
   created_at: string
@@ -110,6 +153,12 @@ export interface DepreciationRecord {
   is_posted: boolean
   created_by: number | null
   created_at: string
+  account_number: string
+  expense_account: string
+  asset_initial_cost: string
+  asset_residual_value: string
+  asset_depreciation_rate: string | null
+  asset_useful_life_months: number
 }
 
 export interface Inventory {
@@ -120,7 +169,8 @@ export interface Inventory {
   order_date: string
   status: 'draft' | 'in_progress' | 'completed'
   status_display: string
-  location: string
+  location: number | null
+  location_name: string
   notes: string
   commission_head: number | null
   commission_head_name: string

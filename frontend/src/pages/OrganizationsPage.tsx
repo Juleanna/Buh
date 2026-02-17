@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Switch,
-  message, Space, Tag, Popconfirm,
+  Space, Tag, Popconfirm,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { Organization, PaginatedResponse } from '../types'

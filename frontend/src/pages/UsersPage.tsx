@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Table, Button, Typography, Modal, Form, Input, Select, message, Tag, Space,
+  Table, Button, Typography, Modal, Form, Input, Select, Tag, Space,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import { PlusOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { User } from '../types'

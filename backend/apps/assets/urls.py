@@ -4,6 +4,8 @@ from . import views
 from .qr_excel import AssetQRCodeView, BulkQRCodesView, AssetExcelExportView, AssetExcelImportView
 
 router = DefaultRouter()
+router.register(r'locations', views.LocationViewSet, basename='locations')
+router.register(r'responsible-persons', views.ResponsiblePersonViewSet, basename='responsible-persons')
 router.register(r'groups', views.AssetGroupViewSet, basename='asset-groups')
 router.register(r'items', views.AssetViewSet, basename='assets')
 router.register(r'receipts', views.AssetReceiptViewSet, basename='receipts')

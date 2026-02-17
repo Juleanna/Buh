@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { List, Typography, Button, Badge, Tag, Space, message, Empty } from 'antd'
+import { List, Typography, Button, Badge, Tag, Space, Empty } from 'antd'
+import { message } from '../utils/globalMessage'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import api from '../api/client'

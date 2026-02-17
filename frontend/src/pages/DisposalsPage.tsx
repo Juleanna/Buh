@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, message, Space, Tag, Tooltip,
+  DatePicker, InputNumber, Space, Tag,
 } from 'antd'
-import { PlusOutlined, FilePdfOutlined, CarOutlined } from '@ant-design/icons'
+import { message } from '../utils/globalMessage'
+import { PlusOutlined, CarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportIconButton } from '../components/ExportButton'
 import type { AssetDisposal, Asset, PaginatedResponse } from '../types'
 
 const { Title } = Typography
@@ -94,26 +95,17 @@ const DisposalsPage: React.FC = () => {
       width: 120,
       render: (_: unknown, record: AssetDisposal) => (
         <Space size="small">
-          <Tooltip title="Акт ОЗ-3 (PDF)">
-            <Button
-              size="small"
-              icon={<FilePdfOutlined />}
-              onClick={() => downloadPdf(
-                `/documents/disposal/${record.id}/act/`,
-                `disposal_act_${record.document_number}.pdf`
-              )}
-            />
-          </Tooltip>
-          <Tooltip title="Акт ОЗ-4 автотранспорт (PDF)">
-            <Button
-              size="small"
-              icon={<CarOutlined />}
-              onClick={() => downloadPdf(
-                `/documents/disposal/${record.id}/vehicle-act/`,
-                `vehicle_disposal_${record.document_number}.pdf`
-              )}
-            />
-          </Tooltip>
+          <ExportIconButton
+            url={`/documents/disposal/${record.id}/act/`}
+            baseFilename={`disposal_act_${record.document_number}`}
+            tooltip="Акт ОЗ-3"
+          />
+          <ExportIconButton
+            url={`/documents/disposal/${record.id}/vehicle-act/`}
+            baseFilename={`vehicle_disposal_${record.document_number}`}
+            tooltip="Акт ОЗ-4"
+            icon={<CarOutlined />}
+          />
         </Space>
       ),
     },

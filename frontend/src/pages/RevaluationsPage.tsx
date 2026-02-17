@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, message, Space, Tag,
+  DatePicker, InputNumber, Space, Tag,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'

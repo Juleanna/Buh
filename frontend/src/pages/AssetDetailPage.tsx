@@ -1,19 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
   Descriptions, Card, Typography, Tag, Button, Space, Table, Spin, Tabs,
-  Upload, message, Image, Popconfirm, Progress, Empty, Modal, Form,
+  Upload, Image, Popconfirm, Progress, Empty, Modal, Form,
   Input, Select, Row, Col,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import {
-  ArrowLeftOutlined, FilePdfOutlined, QrcodeOutlined,
+  ArrowLeftOutlined, QrcodeOutlined,
   UploadOutlined, DeleteOutlined, DownloadOutlined,
   FileOutlined, FileImageOutlined, EyeOutlined,
-  InboxOutlined, FileTextOutlined, CameraOutlined,
+  InboxOutlined, FileTextOutlined, CameraOutlined, FilePdfOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportDropdownButton } from '../components/ExportButton'
 import type {
   Asset, DepreciationRecord, AssetAttachment,
   AssetRevaluation, AssetImprovement, AccountEntry,
@@ -249,7 +250,7 @@ const AssetDetailPage: React.FC = () => {
       title: 'Дата', dataIndex: 'date', width: 110,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'Тип', dataIndex: 'entry_type_display', width: 150 },
+    { title: 'Тип', dataIndex: 'entry_type_display', width: 200, ellipsis: true },
     { title: 'Дт', dataIndex: 'debit_account', width: 80 },
     { title: 'Кт', dataIndex: 'credit_account', width: 80 },
     { title: 'Сума, грн', dataIndex: 'amount', width: 130, render: (v: string) => fmtMoney(v) },
@@ -313,9 +314,11 @@ const AssetDetailPage: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/assets')}>
           До реєстру
         </Button>
-        <Button icon={<FilePdfOutlined />} onClick={() => downloadPdf(`/documents/asset/${id}/card/`, `asset_card_${id}.pdf`)}>
-          Картка ОЗ (PDF)
-        </Button>
+        <ExportDropdownButton
+          url={`/documents/asset/${id}/card/`}
+          baseFilename={`asset_card_${id}`}
+          label="Картка ОЗ"
+        />
         <Button icon={<QrcodeOutlined />} onClick={handleDownloadQR} disabled={!qrUrl}>
           Завантажити QR-код
         </Button>
@@ -353,11 +356,16 @@ const AssetDetailPage: React.FC = () => {
                   </Space>
                 </Descriptions.Item>
                 <Descriptions.Item label="Строк використання">{asset.useful_life_months} міс.</Descriptions.Item>
+                <Descriptions.Item label="Норма амортизації">{asset.depreciation_rate ? `${asset.depreciation_rate}%` : '—'}</Descriptions.Item>
                 <Descriptions.Item label="Дата введення">
                   {dayjs(asset.commissioning_date).format('DD.MM.YYYY')}
                 </Descriptions.Item>
+                <Descriptions.Item label="Рік випуску">{asset.manufacture_year || '—'}</Descriptions.Item>
                 <Descriptions.Item label="МВО">{asset.responsible_person_name || '—'}</Descriptions.Item>
-                <Descriptions.Item label="Місцезнаходження">{asset.location || '—'}</Descriptions.Item>
+                <Descriptions.Item label="Місцезнаходження">{asset.location_name || '—'}</Descriptions.Item>
+                <Descriptions.Item label="Кількість">{asset.quantity} {asset.unit_of_measure}</Descriptions.Item>
+                <Descriptions.Item label="Заводський номер">{asset.factory_number || '—'}</Descriptions.Item>
+                <Descriptions.Item label="Номер паспорта" span={2}>{asset.passport_number || '—'}</Descriptions.Item>
                 <Descriptions.Item label="Опис" span={2}>{asset.description || '—'}</Descriptions.Item>
               </Descriptions>
 

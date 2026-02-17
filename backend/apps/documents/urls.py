@@ -9,4 +9,5 @@ urlpatterns = [
     path('disposal/<int:pk>/act/', views.AssetDisposalActPDFView.as_view(), name='disposal-act-pdf'),
     path('disposal/<int:pk>/vehicle-act/', views.VehicleDisposalActPDFView.as_view(), name='vehicle-disposal-act-pdf'),
     path('entries-report/', views.AccountEntriesReportPDFView.as_view(), name='entries-report-pdf'),
+    path('turnover-statement/', views.TurnoverStatementPDFView.as_view(), name='turnover-statement-pdf'),
 ]

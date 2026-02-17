@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import { Pie } from '@ant-design/charts'
 import api from '../api/client'
 import type { DashboardData, Notification } from '../types'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportDropdownButton } from '../components/ExportButton'
 
 const { Title, Text } = Typography
 
@@ -109,9 +109,11 @@ const DashboardPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Головна панель</Title>
-        <Button onClick={() => downloadPdf('/documents/depreciation-report/', 'depreciation-report.pdf')}>
-          Завантажити звіт
-        </Button>
+        <ExportDropdownButton
+          url="/documents/depreciation-report/"
+          baseFilename="depreciation-report"
+          label="Завантажити звіт"
+        />
       </div>
 
       {/* Stats row */}

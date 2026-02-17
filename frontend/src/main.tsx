@@ -1,11 +1,12 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, App as AntdApp } from 'antd'
 import ukUA from 'antd/locale/uk_UA'
 import dayjs from 'dayjs'
 import 'dayjs/locale/uk'
 import App from './App'
+import { AntdStaticProvider } from './utils/globalMessage'
 
 dayjs.locale('uk')
 
@@ -20,9 +21,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
       }}
     >
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AntdApp>
+        <AntdStaticProvider>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <App />
+          </BrowserRouter>
+        </AntdStaticProvider>
+      </AntdApp>
     </ConfigProvider>
   </React.StrictMode>,
 )

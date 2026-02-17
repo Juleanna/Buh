@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Typography, Tag, Input, Select, Modal,
-  Form, InputNumber, DatePicker, message, Tooltip, Popconfirm,
+  Form, InputNumber, DatePicker, Tooltip, Popconfirm, Checkbox,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
-  FilePdfOutlined, SearchOutlined, DownloadOutlined, UploadOutlined, QrcodeOutlined,
+  SearchOutlined, DownloadOutlined, UploadOutlined,
+  QrcodeOutlined, PrinterOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
-import type { Asset, AssetGroup, PaginatedResponse, User } from '../types'
+import { ExportIconButton } from '../components/ExportButton'
+import type { Asset, AssetGroup, PaginatedResponse, ResponsiblePerson, Location } from '../types'
 
 const { Title } = Typography
 
@@ -25,13 +27,15 @@ const AssetsPage: React.FC = () => {
   const navigate = useNavigate()
   const [assets, setAssets] = useState<Asset[]>([])
   const [groups, setGroups] = useState<AssetGroup[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [responsiblePersons, setResponsiblePersons] = useState<ResponsiblePerson[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [form] = Form.useForm()
 
   const loadAssets = async (p = page, s = search) => {
@@ -49,19 +53,25 @@ const AssetsPage: React.FC = () => {
     setGroups(data.results || data)
   }
 
-  const loadUsers = async () => {
+  const loadResponsiblePersons = async () => {
     try {
-      const { data } = await api.get('/auth/users/')
-      setUsers(data.results || data)
-    } catch {
-      // Може бути недоступно для не-адмінів
-    }
+      const { data } = await api.get('/assets/responsible-persons/', { params: { is_active: true } })
+      setResponsiblePersons(data.results || data)
+    } catch { /* */ }
+  }
+
+  const loadLocations = async () => {
+    try {
+      const { data } = await api.get('/assets/locations/', { params: { is_active: true } })
+      setLocations(data.results || data)
+    } catch { /* */ }
   }
 
   useEffect(() => {
     loadAssets()
     loadGroups()
-    loadUsers()
+    loadResponsiblePersons()
+    loadLocations()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -103,10 +113,6 @@ const AssetsPage: React.FC = () => {
     loadAssets()
   }
 
-  const handleDownloadPdf = (id: number) => {
-    downloadPdf(`/documents/asset/${id}/card/`, `asset_card_${id}.pdf`)
-  }
-
   const handleExportExcel = async () => {
     const response = await api.get('/assets/export/excel/', { responseType: 'blob' })
     const blob = new Blob([response.data], {
@@ -146,51 +152,58 @@ const AssetsPage: React.FC = () => {
     URL.revokeObjectURL(link.href)
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const fmtMoney = (v: string) =>
+    `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`
+
   const columns = [
-    { title: 'Інв. номер', dataIndex: 'inventory_number', key: 'inv', width: 120 },
-    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: 'Група', dataIndex: 'group_name', key: 'group', width: 150, ellipsis: true },
+    {
+      title: 'Інв. номер',
+      dataIndex: 'inventory_number',
+      key: 'inv',
+      width: 120,
+      sorter: true,
+    },
+    { title: 'Назва ОЗ', dataIndex: 'name', key: 'name', ellipsis: true },
+    { title: 'К-ть', dataIndex: 'quantity', key: 'qty', width: 70 },
+    {
+      title: 'Сума',
+      dataIndex: 'initial_cost',
+      key: 'cost',
+      width: 150,
+      render: (v: string) => fmtMoney(v),
+    },
+    {
+      title: 'Знос',
+      dataIndex: 'accumulated_depreciation',
+      key: 'depr',
+      width: 150,
+      render: (v: string) => fmtMoney(v),
+    },
+    {
+      title: 'МВО',
+      dataIndex: 'responsible_person_name',
+      key: 'mvo',
+      width: 180,
+      ellipsis: true,
+      sorter: true,
+    },
     {
       title: 'Статус',
       dataIndex: 'status_display',
       key: 'status',
-      width: 120,
+      width: 110,
       render: (text: string, record: Asset) => (
         <Tag color={STATUS_COLORS[record.status]}>{text}</Tag>
       ),
     },
     {
-      title: 'Первісна вартість',
-      dataIndex: 'initial_cost',
-      key: 'initial',
-      width: 150,
-      render: (v: string) => `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`,
-    },
-    {
-      title: 'Залишкова вартість',
-      dataIndex: 'current_book_value',
-      key: 'book',
-      width: 160,
-      render: (v: string) => `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`,
-    },
-    {
-      title: 'Метод',
-      dataIndex: 'depreciation_method_display',
-      key: 'method',
-      width: 140,
-      ellipsis: true,
-    },
-    {
-      title: 'Дата введення',
-      dataIndex: 'commissioning_date',
-      key: 'date',
-      width: 120,
-      render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
-    },
-    {
       title: 'Дії',
       key: 'actions',
-      width: 160,
+      width: 180,
       render: (_: unknown, record: Asset) => (
         <Space size="small">
           <Tooltip title="Переглянути">
@@ -199,9 +212,11 @@ const AssetsPage: React.FC = () => {
           <Tooltip title="Редагувати">
             <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           </Tooltip>
-          <Tooltip title="Картка PDF">
-            <Button size="small" icon={<FilePdfOutlined />} onClick={() => handleDownloadPdf(record.id)} />
-          </Tooltip>
+          <ExportIconButton
+            url={`/documents/asset/${record.id}/card/`}
+            baseFilename={`asset_card_${record.id}`}
+            tooltip="Картка ОЗ"
+          />
           <Tooltip title="QR-код">
             <Button size="small" icon={<QrcodeOutlined />} onClick={() => handleDownloadQR(record.id)} />
           </Tooltip>
@@ -218,6 +233,9 @@ const AssetsPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Реєстр основних засобів</Title>
         <Space>
+          <Button icon={<PrinterOutlined />} onClick={handlePrint}>
+            Друк
+          </Button>
           <Button icon={<DownloadOutlined />} onClick={handleExportExcel}>
             Експорт Excel
           </Button>
@@ -256,6 +274,10 @@ const AssetsPage: React.FC = () => {
         columns={columns}
         rowKey="id"
         loading={loading}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         pagination={{
           current: page,
           total,
@@ -263,7 +285,7 @@ const AssetsPage: React.FC = () => {
           onChange: (p) => { setPage(p); loadAssets(p) },
           showTotal: (t) => `Всього: ${t}`,
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 1100 }}
         size="small"
       />
 
@@ -272,7 +294,7 @@ const AssetsPage: React.FC = () => {
         open={modalOpen}
         onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
-        width={700}
+        width={750}
         okText="Зберегти"
         cancelText="Скасувати"
       >
@@ -310,9 +332,16 @@ const AssetsPage: React.FC = () => {
               <InputNumber min={1} style={{ width: 180 }} />
             </Form.Item>
           </Space>
-          <Form.Item name="total_production_capacity" label="Загальний обсяг продукції (для виробничого методу)">
-            <InputNumber min={0} step={1} style={{ width: 300 }} />
-          </Form.Item>
+          <Space size="large">
+            <Form.Item name="depreciation_rate" label="Норма амортизації (%)">
+              <InputNumber min={0} max={100} step={0.01} style={{ width: 180 }}
+                placeholder="Річний %"
+              />
+            </Form.Item>
+            <Form.Item name="total_production_capacity" label="Загальний обсяг продукції">
+              <InputNumber min={0} step={1} style={{ width: 200 }} />
+            </Form.Item>
+          </Space>
           <Space size="large">
             <Form.Item name="commissioning_date" label="Дата введення в експлуатацію" rules={[{ required: true }]}>
               <DatePicker format="DD.MM.YYYY" />
@@ -321,13 +350,34 @@ const AssetsPage: React.FC = () => {
               <DatePicker format="DD.MM.YYYY" />
             </Form.Item>
           </Space>
+          <Space size="large">
+            <Form.Item name="quantity" label="Кількість" initialValue={1}>
+              <InputNumber min={1} style={{ width: 120 }} />
+            </Form.Item>
+            <Form.Item name="unit_of_measure" label="Одиниця виміру" initialValue="шт.">
+              <Input style={{ width: 120 }} />
+            </Form.Item>
+            <Form.Item name="manufacture_year" label="Рік випуску">
+              <InputNumber min={1900} max={2100} style={{ width: 120 }} />
+            </Form.Item>
+          </Space>
+          <Space size="large">
+            <Form.Item name="factory_number" label="Заводський номер">
+              <Input style={{ width: 200 }} />
+            </Form.Item>
+            <Form.Item name="passport_number" label="Номер паспорта">
+              <Input style={{ width: 200 }} />
+            </Form.Item>
+          </Space>
           <Form.Item name="responsible_person" label="МВО">
-            <Select allowClear placeholder="Оберіть відповідальну особу"
-              options={users.map(u => ({ value: u.id, label: u.full_name || u.username }))}
+            <Select allowClear placeholder="Оберіть відповідальну особу" showSearch optionFilterProp="label"
+              options={responsiblePersons.map(rp => ({ value: rp.id, label: rp.full_name }))}
             />
           </Form.Item>
           <Form.Item name="location" label="Місцезнаходження">
-            <Input />
+            <Select allowClear placeholder="Оберіть місцезнаходження" showSearch optionFilterProp="label"
+              options={locations.map(loc => ({ value: loc.id, label: loc.name }))}
+            />
           </Form.Item>
           <Form.Item name="description" label="Опис / характеристики">
             <Input.TextArea rows={3} />

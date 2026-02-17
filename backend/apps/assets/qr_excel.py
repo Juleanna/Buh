@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
 from rest_framework import status
 
-from apps.assets.models import Asset, AssetGroup
+from apps.assets.models import Asset, AssetGroup, Location
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ class AssetQRCodeView(APIView):
     def get(self, request, pk):
         try:
             asset = Asset.objects.select_related(
-                'group', 'responsible_person'
+                'group', 'responsible_person', 'location'
             ).get(pk=pk)
         except Asset.DoesNotExist:
             return Response(
@@ -59,16 +59,14 @@ class AssetQRCodeView(APIView):
 
     @staticmethod
     def _build_qr_data(asset):
-        responsible = ''
-        if asset.responsible_person:
-            rp = asset.responsible_person
-            responsible = getattr(rp, 'get_full_name', lambda: str(rp))()
+        responsible = asset.responsible_person.full_name if asset.responsible_person else ''
+        location = asset.location.name if asset.location else ''
 
         lines = [
             f"Інв.номер: {asset.inventory_number}",
             f"Назва: {asset.name}",
             f"Група: {asset.group}",
-            f"Місцезнаходження: {asset.location}",
+            f"Місцезнаходження: {location}",
             f"МВО: {responsible}",
         ]
         return '\n'.join(lines)
@@ -187,15 +185,13 @@ class AssetExcelExportView(APIView):
         assets = (
             Asset.objects
             .filter(status=Asset.Status.ACTIVE)
-            .select_related('group', 'responsible_person')
+            .select_related('group', 'responsible_person', 'location')
             .order_by('inventory_number')
         )
 
         for row_idx, asset in enumerate(assets, start=2):
-            responsible = ''
-            if asset.responsible_person:
-                rp = asset.responsible_person
-                responsible = getattr(rp, 'get_full_name', lambda: str(rp))()
+            responsible = asset.responsible_person.full_name if asset.responsible_person else ''
+            location = asset.location.name if asset.location else ''
 
             row_data = [
                 asset.inventory_number,
@@ -209,7 +205,7 @@ class AssetExcelExportView(APIView):
                 ),
                 asset.commissioning_date,
                 responsible,
-                asset.location,
+                location,
                 self.STATUS_LABELS.get(asset.status, asset.status),
             ]
 
@@ -450,7 +446,13 @@ class AssetExcelImportView(APIView):
             # else: already a date object (openpyxl may return datetime.date)
 
             # --- Location ---
-            location = str(location).strip() if location else ''
+            location_obj = None
+            if location:
+                location_str = str(location).strip()
+                if location_str:
+                    location_obj, _ = Location.objects.get_or_create(
+                        name=location_str
+                    )
 
             # --- If errors, record and skip ---
             if row_errors:
@@ -481,7 +483,7 @@ class AssetExcelImportView(APIView):
                     useful_life_months=useful_life,
                     commissioning_date=commissioning_date,
                     depreciation_start_date=depr_start,
-                    location=location,
+                    location=location_obj,
                     status=Asset.Status.ACTIVE,
                     created_by=request.user,
                 )

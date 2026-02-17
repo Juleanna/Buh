@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Typography, Tag, Button, Space, Modal, Form, Input,
-  InputNumber, message, Popconfirm, Tooltip,
+  InputNumber, Popconfirm, Tooltip,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { AssetGroup } from '../types'

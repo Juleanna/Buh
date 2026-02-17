@@ -4,7 +4,27 @@ from .models import (
     DepreciationRecord, Inventory, InventoryItem,
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
+    Location, ResponsiblePerson,
 )
+
+
+class LocationSerializer(serializers.ModelSerializer):
+    assets_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Location
+        fields = '__all__'
+
+
+class ResponsiblePersonSerializer(serializers.ModelSerializer):
+    assets_count = serializers.IntegerField(read_only=True, default=0)
+    location_name = serializers.CharField(
+        source='location.name', read_only=True, default=''
+    )
+
+    class Meta:
+        model = ResponsiblePerson
+        fields = '__all__'
 
 
 class AssetGroupSerializer(serializers.ModelSerializer):
@@ -18,7 +38,10 @@ class AssetGroupSerializer(serializers.ModelSerializer):
 class AssetListSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
     responsible_person_name = serializers.CharField(
-        source='responsible_person.get_full_name', read_only=True, default=''
+        source='responsible_person.full_name', read_only=True, default=''
+    )
+    location_name = serializers.CharField(
+        source='location.name', read_only=True, default=''
     )
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     depreciation_method_display = serializers.CharField(
@@ -32,14 +55,18 @@ class AssetListSerializer(serializers.ModelSerializer):
             'status', 'status_display', 'initial_cost', 'current_book_value',
             'accumulated_depreciation', 'depreciation_method',
             'depreciation_method_display', 'commissioning_date',
-            'responsible_person', 'responsible_person_name', 'location',
+            'responsible_person', 'responsible_person_name',
+            'location', 'location_name', 'quantity',
         ]
 
 
 class AssetDetailSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
     responsible_person_name = serializers.CharField(
-        source='responsible_person.get_full_name', read_only=True, default=''
+        source='responsible_person.full_name', read_only=True, default=''
+    )
+    location_name = serializers.CharField(
+        source='location.name', read_only=True, default=''
     )
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     depreciation_method_display = serializers.CharField(
@@ -99,6 +126,27 @@ class DepreciationRecordSerializer(serializers.ModelSerializer):
     method_display = serializers.CharField(
         source='get_depreciation_method_display', read_only=True
     )
+    account_number = serializers.CharField(
+        source='asset.group.account_number', read_only=True, default=''
+    )
+    expense_account = serializers.CharField(
+        source='asset.group.depreciation_account', read_only=True, default='131'
+    )
+    asset_initial_cost = serializers.DecimalField(
+        source='asset.initial_cost', read_only=True,
+        max_digits=15, decimal_places=2
+    )
+    asset_residual_value = serializers.DecimalField(
+        source='asset.residual_value', read_only=True,
+        max_digits=15, decimal_places=2
+    )
+    asset_depreciation_rate = serializers.DecimalField(
+        source='asset.depreciation_rate', read_only=True,
+        max_digits=8, decimal_places=4, default=None
+    )
+    asset_useful_life_months = serializers.IntegerField(
+        source='asset.useful_life_months', read_only=True
+    )
 
     class Meta:
         model = DepreciationRecord
@@ -126,13 +174,16 @@ class InventoryListSerializer(serializers.ModelSerializer):
     commission_head_name = serializers.CharField(
         source='commission_head.get_full_name', read_only=True, default=''
     )
+    location_name = serializers.CharField(
+        source='location.name', read_only=True, default=''
+    )
     items_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Inventory
         fields = [
             'id', 'number', 'date', 'order_number', 'order_date',
-            'status', 'status_display', 'location',
+            'status', 'status_display', 'location', 'location_name',
             'commission_head', 'commission_head_name', 'items_count',
         ]
 
@@ -142,6 +193,9 @@ class InventoryDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     commission_head_name = serializers.CharField(
         source='commission_head.get_full_name', read_only=True, default=''
+    )
+    location_name = serializers.CharField(
+        source='location.name', read_only=True, default=''
     )
 
     class Meta:

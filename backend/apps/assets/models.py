@@ -38,6 +38,44 @@ class AssetGroup(models.Model):
         return f'{self.code} — {self.name}'
 
 
+class Location(models.Model):
+    """Місцезнаходження — довідник."""
+    name = models.CharField('Назва', max_length=500, unique=True)
+    is_active = models.BooleanField('Активна', default=True)
+
+    class Meta:
+        verbose_name = 'Місцезнаходження'
+        verbose_name_plural = 'Місцезнаходження'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class ResponsiblePerson(models.Model):
+    """Матеріально відповідальна особа (МВО) — довідник."""
+    ipn = models.CharField('ІПН', max_length=10, unique=True)
+    full_name = models.CharField('ПІП', max_length=255)
+    position = models.CharField('Посада', max_length=255, blank=True)
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_persons',
+        verbose_name='Місце розташування',
+    )
+    is_active = models.BooleanField('Активна', default=True)
+
+    class Meta:
+        verbose_name = 'Матеріально відповідальна особа'
+        verbose_name_plural = 'Матеріально відповідальні особи'
+        ordering = ['full_name']
+
+    def __str__(self):
+        return f'{self.full_name} ({self.position})' if self.position else self.full_name
+
+
 class Asset(models.Model):
     """Основний засіб — інвентарний об'єкт."""
 
@@ -133,16 +171,38 @@ class Asset(models.Model):
         help_text='Місяць, наступний за місяцем введення в експлуатацію',
     )
 
+    # Додаткові ідентифікаційні поля
+    quantity = models.PositiveIntegerField('Кількість', default=1)
+    factory_number = models.CharField('Заводський номер', max_length=100, blank=True)
+    passport_number = models.CharField('Номер паспорта', max_length=100, blank=True)
+    manufacture_year = models.PositiveIntegerField('Рік випуску', null=True, blank=True)
+    unit_of_measure = models.CharField('Одиниця виміру', max_length=20, default='шт.')
+    depreciation_rate = models.DecimalField(
+        'Норма амортизації (%)',
+        max_digits=8,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text='Річний відсоток амортизації',
+    )
+
     # Відповідальна особа та місце
     responsible_person = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        ResponsiblePerson,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='responsible_assets',
+        related_name='assets',
         verbose_name='Матеріально відповідальна особа',
     )
-    location = models.CharField('Місцезнаходження', max_length=500, blank=True)
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets',
+        verbose_name='Місцезнаходження',
+    )
     description = models.TextField('Опис / характеристики', blank=True)
 
     # Службові поля
@@ -358,7 +418,14 @@ class Inventory(models.Model):
         choices=Status.choices,
         default=Status.DRAFT,
     )
-    location = models.CharField('Місце проведення', max_length=500, blank=True)
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventories',
+        verbose_name='Місце проведення',
+    )
     notes = models.TextField('Примітки', blank=True)
 
     # Комісія

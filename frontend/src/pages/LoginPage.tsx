@@ -1,5 +1,6 @@
 import React from 'react'
-import { Form, Input, Button, Card, Typography, message, Space } from 'antd'
+import { Form, Input, Button, Card, Typography, Space } from 'antd'
+import { message } from '../utils/globalMessage'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'

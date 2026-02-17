@@ -9,7 +9,11 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(./venv/Scripts/pip.exe install:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(git -C /d/Buh log --oneline)",
+      "Bash(pip install:*)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)"
     ]
   }
 }

@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, message, Space, Tag, Popconfirm, Tooltip,
+  DatePicker, Space, Tag, Popconfirm, Tooltip,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import {
   PlusOutlined, EyeOutlined, PlayCircleOutlined,
-  CheckCircleOutlined, FilePdfOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
-import type { Inventory, User, PaginatedResponse } from '../types'
+import { ExportIconButton } from '../components/ExportButton'
+import type { Inventory, User, PaginatedResponse, Location } from '../types'
 
 const { Title } = Typography
 
@@ -25,6 +26,7 @@ const InventoriesPage: React.FC = () => {
   const navigate = useNavigate()
   const [inventories, setInventories] = useState<Inventory[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -43,6 +45,9 @@ const InventoriesPage: React.FC = () => {
     loadInventories()
     api.get('/auth/users/').then((res) => {
       setUsers(res.data.results || res.data)
+    }).catch(() => {})
+    api.get('/assets/locations/', { params: { is_active: true } }).then((res) => {
+      setLocations(res.data.results || res.data)
     }).catch(() => {})
   }, [])
 
@@ -104,7 +109,7 @@ const InventoriesPage: React.FC = () => {
       ),
     },
     { title: 'Голова комісії', dataIndex: 'commission_head_name', key: 'head', ellipsis: true },
-    { title: 'Місце', dataIndex: 'location', key: 'location', ellipsis: true },
+    { title: 'Місце', dataIndex: 'location_name', key: 'location', ellipsis: true },
     { title: 'Позицій', dataIndex: 'items_count', key: 'items', width: 90 },
     {
       title: 'Дії',
@@ -129,11 +134,11 @@ const InventoriesPage: React.FC = () => {
               </Popconfirm>
             </Tooltip>
           )}
-          <Tooltip title="PDF">
-            <Button size="small" icon={<FilePdfOutlined />}
-              onClick={() => downloadPdf(`/documents/inventory/${record.id}/report/`, `inventory_${record.number}.pdf`)}
-            />
-          </Tooltip>
+          <ExportIconButton
+            url={`/documents/inventory/${record.id}/report/`}
+            baseFilename={`inventory_${record.number}`}
+            tooltip="Інвентаризаційний опис"
+          />
         </Space>
       ),
     },
@@ -194,7 +199,9 @@ const InventoriesPage: React.FC = () => {
             />
           </Form.Item>
           <Form.Item name="location" label="Місце проведення">
-            <Input />
+            <Select allowClear placeholder="Оберіть місцезнаходження" showSearch optionFilterProp="label"
+              options={locations.map(loc => ({ value: loc.id, label: loc.name }))}
+            />
           </Form.Item>
           <Form.Item name="notes" label="Примітки">
             <Input.TextArea rows={2} />

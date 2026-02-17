@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Table, Typography, Card, Descriptions, Tag, Button, Space, Switch,
-  InputNumber, Select, message, Spin, Modal, Input, Row, Col, Alert,
+  InputNumber, Select, Spin, Modal, Input, Row, Col, Alert,
   Badge, Statistic,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import {
-  ArrowLeftOutlined, FilePdfOutlined, ScanOutlined,
+  ArrowLeftOutlined, ScanOutlined,
   CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportDropdownButton } from '../components/ExportButton'
 import type { Inventory, InventoryItem } from '../types'
 
 const { Title, Text } = Typography
@@ -219,11 +220,11 @@ const InventoryDetailPage: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/inventories')}>
           До списку
         </Button>
-        <Button icon={<FilePdfOutlined />}
-          onClick={() => downloadPdf(`/documents/inventory/${id}/report/`, `inventory_${id}.pdf`)}
-        >
-          Друк опису
-        </Button>
+        <ExportDropdownButton
+          url={`/documents/inventory/${id}/report/`}
+          baseFilename={`inventory_${id}`}
+          label="Друк опису"
+        />
         {isEditable && (
           <Button icon={<ScanOutlined />} type="primary" onClick={startScanner}>
             Сканувати QR

@@ -3,10 +3,9 @@ import {
   Table, Button, Typography, DatePicker, Select,
   Space, Tag, Card, Statistic, Row, Col,
 } from 'antd'
-import { FilePdfOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportDropdownButton } from '../components/ExportButton'
 import type { AccountEntry, PaginatedResponse } from '../types'
 
 const { Title } = Typography
@@ -72,15 +71,6 @@ const EntriesPage: React.FC = () => {
     loadEntries(1)
   }, [entryType, dateRange])
 
-  const handleDownloadPdf = () => {
-    const from = dateRange ? dateRange[0].format('YYYY-MM-DD') : ''
-    const to = dateRange ? dateRange[1].format('YYYY-MM-DD') : ''
-    downloadPdf(
-      `/documents/entries-report/?date_from=${from}&date_to=${to}`,
-      'journal-provodok.pdf',
-    )
-  }
-
   const columns = [
     {
       title: 'Дата',
@@ -93,7 +83,8 @@ const EntriesPage: React.FC = () => {
       title: 'Тип',
       dataIndex: 'entry_type_display',
       key: 'type',
-      width: 150,
+      width: 200,
+      ellipsis: true,
       render: (text: string, record: AccountEntry) => (
         <Tag color={ENTRY_TYPE_COLORS[record.entry_type] || 'default'}>{text}</Tag>
       ),
@@ -164,9 +155,11 @@ const EntriesPage: React.FC = () => {
             allowClear
             style={{ width: 200 }}
           />
-          <Button icon={<FilePdfOutlined />} onClick={handleDownloadPdf}>
-            Завантажити PDF
-          </Button>
+          <ExportDropdownButton
+            url={`/documents/entries-report/?date_from=${dateRange ? dateRange[0].format('YYYY-MM-DD') : ''}&date_to=${dateRange ? dateRange[1].format('YYYY-MM-DD') : ''}`}
+            baseFilename="journal-provodok"
+            label="Завантажити"
+          />
         </Space>
       </Card>
 

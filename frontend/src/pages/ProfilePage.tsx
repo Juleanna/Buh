@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Form, Input, Button, Typography, Descriptions, Tag, Space,
-  message, Divider, Row, Col,
+  Divider, Row, Col,
 } from 'antd'
+import { message } from '../utils/globalMessage'
 import {
   UserOutlined, MailOutlined, PhoneOutlined, LockOutlined, SaveOutlined,
 } from '@ant-design/icons'

@@ -19,6 +19,10 @@ import {
   BellOutlined,
   FileSearchOutlined,
   BankOutlined,
+  EnvironmentOutlined,
+  IdcardOutlined,
+  TableOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
@@ -87,9 +91,19 @@ const AppLayout: React.FC = () => {
       label: 'Інвентаризація',
     },
     {
-      key: '/organizations',
-      icon: <BankOutlined />,
-      label: 'Організації',
+      key: '/turnover-report',
+      icon: <TableOutlined />,
+      label: 'Оборотна відомість',
+    },
+    {
+      key: 'directories-sub',
+      icon: <FolderOpenOutlined />,
+      label: 'Довідники',
+      children: [
+        { key: '/organizations', icon: <BankOutlined />, label: 'Організації' },
+        { key: '/responsible-persons', icon: <IdcardOutlined />, label: 'МВО' },
+        { key: '/locations', icon: <EnvironmentOutlined />, label: 'Місцезнаходження' },
+      ],
     },
     {
       key: '/audit-log',
@@ -152,7 +166,7 @@ const AppLayout: React.FC = () => {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={collapsed ? [] : ['assets-sub', 'operations-sub']}
+          defaultOpenKeys={collapsed ? [] : ['assets-sub', 'operations-sub', 'directories-sub']}
           items={menuItems}
           onClick={({ key }) => {
             if (!key.endsWith('-sub')) navigate(key)

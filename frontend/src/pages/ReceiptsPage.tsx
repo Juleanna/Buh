@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, message, Space, Tooltip,
+  DatePicker, InputNumber, Space,
 } from 'antd'
-import { PlusOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { message } from '../utils/globalMessage'
+import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import { downloadPdf } from '../utils/downloadPdf'
+import { ExportIconButton } from '../components/ExportButton'
 import type { AssetReceipt, Asset, PaginatedResponse } from '../types'
 
 const { Title } = Typography
@@ -82,16 +83,11 @@ const ReceiptsPage: React.FC = () => {
       key: 'actions',
       width: 80,
       render: (_: unknown, record: AssetReceipt) => (
-        <Tooltip title="Акт ОЗ-1 (PDF)">
-          <Button
-            size="small"
-            icon={<FilePdfOutlined />}
-            onClick={() => downloadPdf(
-              `/documents/receipt/${record.id}/act/`,
-              `receipt_act_${record.document_number}.pdf`
-            )}
-          />
-        </Tooltip>
+        <ExportIconButton
+          url={`/documents/receipt/${record.id}/act/`}
+          baseFilename={`receipt_act_${record.document_number}`}
+          tooltip="Акт ОЗ-1"
+        />
       ),
     },
   ]

@@ -13,6 +13,7 @@ from .models import (
     DepreciationRecord, Inventory, InventoryItem,
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
+    Location, ResponsiblePerson,
 )
 from .serializers import (
     AssetGroupSerializer, AssetListSerializer, AssetDetailSerializer,
@@ -23,6 +24,7 @@ from .serializers import (
     OrganizationSerializer, AccountEntrySerializer,
     AssetRevaluationSerializer, AssetImprovementSerializer,
     AssetAttachmentSerializer, AuditLogSerializer, NotificationSerializer,
+    LocationSerializer, ResponsiblePersonSerializer,
 )
 from .depreciation import calculate_monthly_depreciation
 from .entries import (
@@ -38,6 +40,28 @@ from .notifications import (
 )
 
 
+class LocationViewSet(viewsets.ModelViewSet):
+    """CRUD для місцезнаходжень."""
+    queryset = Location.objects.annotate(
+        assets_count=Count('assets')
+    ).order_by('name')
+    serializer_class = LocationSerializer
+    permission_classes = [IsAuthenticated]
+    search_fields = ['name']
+    filterset_fields = ['is_active']
+
+
+class ResponsiblePersonViewSet(viewsets.ModelViewSet):
+    """CRUD для матеріально відповідальних осіб."""
+    queryset = ResponsiblePerson.objects.select_related('location').annotate(
+        assets_count=Count('assets')
+    ).order_by('full_name')
+    serializer_class = ResponsiblePersonSerializer
+    permission_classes = [IsAuthenticated]
+    search_fields = ['full_name', 'ipn', 'position']
+    filterset_fields = ['is_active']
+
+
 class AssetGroupViewSet(viewsets.ModelViewSet):
     """CRUD для груп основних засобів."""
     queryset = AssetGroup.objects.annotate(assets_count=Count('assets')).order_by('code')
@@ -48,10 +72,12 @@ class AssetGroupViewSet(viewsets.ModelViewSet):
 
 class AssetViewSet(viewsets.ModelViewSet):
     """CRUD для основних засобів."""
-    queryset = Asset.objects.select_related('group', 'responsible_person', 'created_by')
+    queryset = Asset.objects.select_related(
+        'group', 'responsible_person', 'location', 'created_by'
+    )
     permission_classes = [IsAccountant]
-    filterset_fields = ['group', 'status', 'depreciation_method', 'responsible_person']
-    search_fields = ['inventory_number', 'name', 'location']
+    filterset_fields = ['group', 'status', 'depreciation_method', 'responsible_person', 'location']
+    search_fields = ['inventory_number', 'name', 'location__name', 'responsible_person__full_name']
     ordering_fields = ['inventory_number', 'name', 'initial_cost', 'commissioning_date']
 
     def get_serializer_class(self):
@@ -158,7 +184,7 @@ class AssetDisposalViewSet(viewsets.ModelViewSet):
 
 class DepreciationRecordViewSet(viewsets.ModelViewSet):
     """Записи нарахування амортизації."""
-    queryset = DepreciationRecord.objects.select_related('asset', 'created_by')
+    queryset = DepreciationRecord.objects.select_related('asset__group', 'asset', 'created_by')
     serializer_class = DepreciationRecordSerializer
     permission_classes = [IsAccountant]
     filterset_fields = ['asset', 'period_year', 'period_month', 'is_posted']
