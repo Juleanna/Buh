@@ -1,17 +1,30 @@
 @echo off
 chcp 65001 >nul
-echo Stopping services...
+echo ╔════════════════════════════════════════════════╗
+echo ║   Облiк ОЗ — Зупинка системи                  ║
+echo ╚════════════════════════════════════════════════╝
+echo.
 
-taskkill /f /fi "WINDOWTITLE eq Oblik OZ - Backend*" 2>nul
-taskkill /f /fi "WINDOWTITLE eq Oblik OZ - Frontend*" 2>nul
+:: ─────────────────────────────────────────────
+:: Закриття вікон за назвою
+:: ─────────────────────────────────────────────
+echo Зупинка Backend...
+taskkill /f /fi "WINDOWTITLE eq Oblik OZ*" 2>nul
 
+:: ─────────────────────────────────────────────
+:: Закриття процесів на портах
+:: ─────────────────────────────────────────────
+echo Зупинка процесiв на порту 8000 (Django)...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING"') do (
     taskkill /f /pid %%a 2>nul
 )
+
+echo Зупинка процесiв на порту 5173 (Vite)...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173" ^| findstr "LISTENING"') do (
     taskkill /f /pid %%a 2>nul
 )
 
 echo.
-echo All services stopped.
+echo Усi сервiси зупинено.
+echo.
 pause
