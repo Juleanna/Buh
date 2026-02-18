@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Встановлення — Облік ОЗ</title>
+    <style>
+        /* ===== CSS Variables ===== */
+        :root {
+            --accent: #4f46e5;
+            --accent-light: #6366f1;
+            --accent-lighter: #e0e7ff;
+            --accent-bg: #eef2ff;
+            --accent-dark: #3730a3;
+            --text: #1e293b;
+            --text-light: #475569;
+            --text-muted: #64748b;
+            --bg: #ffffff;
+            --bg-alt: #f8fafc;
+            --bg-dark: #1e1e2e;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+            --sidebar-width: 280px;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --info: #0284c7;
+            --info-bg: #f0f9ff;
+        }
+
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+        body {
+            font-family: var(--font-sans);
+            color: var(--text);
+            background: var(--bg-alt);
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        /* ===== Top Navigation ===== */
+        .top-nav {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+        .top-nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0 20px;
+            overflow-x: auto;
+        }
+        .top-nav a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 16px;
+            text-decoration: none;
+            color: var(--text-light);
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .top-nav a:hover { color: var(--accent); border-bottom-color: var(--accent-lighter); }
+        .top-nav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+        /* ===== Layout ===== */
+        .layout {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: calc(100vh - 52px);
+        }
+
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: sticky;
+            top: 52px;
+            height: calc(100vh - 52px);
+            overflow-y: auto;
+        }
+        .sidebar h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding: 0 8px;
+        }
+        .sidebar a {
+            display: block;
+            padding: 6px 12px;
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 13px;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            transition: all 0.15s;
+            line-height: 1.5;
+        }
+        .sidebar a:hover { background: var(--accent-bg); color: var(--accent); }
+        .sidebar a.sub { padding-left: 28px; font-size: 12px; color: var(--text-muted); }
+        .sidebar a.sub:hover { color: var(--accent); }
+
+        /* ===== Main Content ===== */
+        .main {
+            flex: 1;
+            min-width: 0;
+            padding: 32px 40px 60px;
+        }
+
+        /* ===== Hero ===== */
+        .hero {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30%;
+            width: 400px;
+            height: 400px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .hero h1 { font-size: 28px; margin-bottom: 8px; }
+        .hero p { opacity: 0.9; font-size: 15px; }
+        .hero .version {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+
+        /* ===== Sections ===== */
+        .section { margin-bottom: 40px; }
+        h2 {
+            font-size: 22px;
+            color: var(--text);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-lighter);
+            margin-bottom: 20px;
+        }
+        h3 {
+            font-size: 17px;
+            color: var(--text);
+            margin: 24px 0 12px;
+        }
+        h4 {
+            font-size: 15px;
+            color: var(--text-light);
+            margin: 16px 0 8px;
+        }
+        p { margin-bottom: 12px; }
+
+        /* ===== Cards ===== */
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .card h4 { margin-top: 0; color: var(--accent); }
+
+        /* ===== Tables ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--accent-bg);
+            font-weight: 600;
+            color: var(--accent-dark);
+            font-size: 13px;
+        }
+        tr:hover td { background: var(--bg-alt); }
+
+        /* ===== Code Blocks ===== */
+        pre {
+            background: var(--bg-dark);
+            color: #e2e8f0;
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        pre .comment { color: #6b7280; }
+        pre .cmd { color: #93c5fd; }
+        pre .output { color: #86efac; }
+        pre .string { color: #fbbf24; }
+        pre .keyword { color: #c084fc; }
+        code {
+            font-family: var(--font-mono);
+            background: var(--accent-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--accent-dark);
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+
+        /* ===== Alert boxes ===== */
+        .alert {
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .alert-success { background: var(--success-bg); border-left: 4px solid var(--success); }
+        .alert-warning { background: var(--warning-bg); border-left: 4px solid var(--warning); }
+        .alert-danger { background: var(--danger-bg); border-left: 4px solid var(--danger); }
+        .alert-info { background: var(--info-bg); border-left: 4px solid var(--info); }
+
+        /* ===== Steps ===== */
+        .steps { counter-reset: step; }
+        .step {
+            position: relative;
+            padding-left: 48px;
+            margin-bottom: 20px;
+            min-height: 36px;
+        }
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* ===== OS Tabs ===== */
+        .os-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .os-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .os-tab:hover { color: var(--accent); }
+        .os-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .os-content { display: none; }
+        .os-content.active { display: block; }
+
+        /* ===== Accordion / Collapsible ===== */
+        details {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        summary {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        summary:hover { background: var(--bg-alt); }
+        details[open] summary { border-bottom: 1px solid var(--border); }
+        details .details-body { padding: 16px; }
+
+        /* ===== Badge ===== */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-green { background: var(--success-bg); color: var(--success); border: 1px solid #bbf7d0; }
+        .badge-blue { background: var(--info-bg); color: var(--info); border: 1px solid #bae6fd; }
+        .badge-yellow { background: var(--warning-bg); color: var(--warning); border: 1px solid #fde68a; }
+        .badge-red { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+
+        /* ===== Architecture Tree ===== */
+        .tree {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: var(--bg-dark);
+            color: #e2e8f0;
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            line-height: 1.8;
+        }
+        .tree .folder { color: #93c5fd; }
+        .tree .file { color: #e2e8f0; }
+        .tree .comment { color: #6b7280; }
+
+        /* ===== URL Table ===== */
+        .url-table { margin-bottom: 20px; }
+        .url-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+        .url-row:hover { border-color: var(--accent-lighter); box-shadow: var(--shadow); }
+        .url-row .icon { font-size: 24px; }
+        .url-row .label { font-weight: 600; font-size: 14px; }
+        .url-row .url { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+
+        /* ===== Env block ===== */
+        .env-block {
+            background: var(--bg-dark);
+            color: #e2e8f0;
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+        .env-block .env-comment { color: #6b7280; }
+        .env-block .env-key { color: #93c5fd; }
+        .env-block .env-val { color: #86efac; }
+
+        /* ===== Method Selector ===== */
+        .method-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .method-card {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .method-card:hover { border-color: var(--accent-lighter); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .method-card.selected { border-color: var(--accent); background: var(--accent-bg); }
+        .method-card .method-icon { font-size: 36px; margin-bottom: 8px; }
+        .method-card .method-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+        .method-card .method-desc { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== Print ===== */
+        @media print {
+            .top-nav, .sidebar { display: none; }
+            .main { padding: 20px; }
+            .layout { display: block; }
+            pre { white-space: pre-wrap; }
+        }
+
+        /* ===== Mobile ===== */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { padding: 20px 16px; }
+            .hero { padding: 24px; }
+            .hero h1 { font-size: 22px; }
+            .method-cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== Top Navigation ===== -->
+<nav class="top-nav">
+    <div class="top-nav-inner">
+        <a href="README.html">📋 Огляд</a>
+        <a href="USER_GUIDE.html">📖 Посібник</a>
+        <a href="INSTALLATION.html" class="active">⚙️ Встановлення</a>
+        <a href="BAT_SCRIPTS_GUIDE.html">🖥️ BAT-скрипти</a>
+    </div>
+</nav>
+
+<div class="layout">
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar">
+    <h3>📋 Зміст</h3>
+    <a href="#requirements">⚙️ Системні вимоги</a>
+    <a href="#architecture">🏗️ Архітектура</a>
+    <a href="#env">🔐 Змінні середовища</a>
+    <a href="#docker">🐳 1. Docker Compose</a>
+    <a href="#docker" class="sub">Встановлення Docker</a>
+    <a href="#docker-run" class="sub">Запуск сервісів</a>
+    <a href="#docker-migrate" class="sub">Міграції</a>
+    <a href="#windows">💻 2. Windows</a>
+    <a href="#win-python" class="sub">Python</a>
+    <a href="#win-node" class="sub">Node.js</a>
+    <a href="#win-postgres" class="sub">PostgreSQL</a>
+    <a href="#win-setup" class="sub">Налаштування</a>
+    <a href="#macos">🍎 3. macOS</a>
+    <a href="#linux">🐧 4. Linux / Ubuntu</a>
+    <a href="#tools">📦 5. Інструменти</a>
+    <a href="#pgadmin" class="sub">pgAdmin 4</a>
+    <a href="#dbeaver" class="sub">DBeaver</a>
+    <a href="#vscode" class="sub">VS Code</a>
+    <a href="#pycharm" class="sub">PyCharm</a>
+    <a href="#postman" class="sub">Postman</a>
+    <a href="#production">🌐 6. Production</a>
+    <a href="#prod-server" class="sub">Підготовка сервера</a>
+    <a href="#prod-gunicorn" class="sub">Gunicorn</a>
+    <a href="#prod-nginx" class="sub">Nginx</a>
+    <a href="#prod-ssl" class="sub">HTTPS / SSL</a>
+    <a href="#troubleshooting">🔧 7. Troubleshooting</a>
+    <a href="#cheatsheet">📌 Шпаргалка</a>
+</aside>
+
+<!-- ===== Main Content ===== -->
+<main class="main">
+
+<!-- Hero -->
+<div class="hero">
+    <h1>📘 Інструкція з встановлення</h1>
+    <p>Система обліку основних засобів підприємства відповідно до Податкового кодексу України (ПКУ)</p>
+    <span class="version">📄 Версія 1.0 &nbsp;|&nbsp; 17 лютого 2026 р.</span>
+</div>
+
+<!-- Методи встановлення -->
+<div class="section">
+    <p style="font-size:15px;color:var(--text-light);margin-bottom:16px;">Оберіть спосіб встановлення, який підходить саме вам:</p>
+    <div class="method-cards">
+        <a href="#docker" class="method-card" style="text-decoration:none;color:inherit;">
+            <div class="method-icon">🐳</div>
+            <div class="method-name">Docker Compose</div>
+            <div class="method-desc">Найпростіший спосіб — усе автоматично</div>
+            <div style="margin-top:8px;"><span class="badge badge-green">Рекомендовано</span></div>
+        </a>
+        <a href="#windows" class="method-card" style="text-decoration:none;color:inherit;">
+            <div class="method-icon">💻</div>
+            <div class="method-name">Windows</div>
+            <div class="method-desc">Ручна установка — повний контроль</div>
+        </a>
+        <a href="#macos" class="method-card" style="text-decoration:none;color:inherit;">
+            <div class="method-icon">🍎</div>
+            <div class="method-name">macOS</div>
+            <div class="method-desc">Через Homebrew</div>
+        </a>
+        <a href="#linux" class="method-card" style="text-decoration:none;color:inherit;">
+            <div class="method-icon">🐧</div>
+            <div class="method-name">Linux / Ubuntu</div>
+            <div class="method-desc">APT пакети + systemd</div>
+        </a>
+    </div>
+</div>
+
+<!-- ===== Системні вимоги ===== -->
+<div class="section" id="requirements">
+    <h2>⚙️ Системні вимоги</h2>
+    <table>
+        <thead>
+            <tr><th>Компонент</th><th>Мінімальна версія</th><th>Рекомендована</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>🐍 Python</td><td>3.11+</td><td>3.12</td></tr>
+            <tr><td>🟢 Node.js</td><td>18+</td><td>20 LTS</td></tr>
+            <tr><td>🐘 PostgreSQL</td><td>16</td><td>16</td></tr>
+            <tr><td>🔴 Redis</td><td>7+ <span class="badge badge-yellow">Опціонально</span></td><td>7.2</td></tr>
+            <tr><td>🐙 Git</td><td>2.30+</td><td>Остання</td></tr>
+            <tr><td>🐳 Docker</td><td>24+ <span class="badge badge-blue">Якщо Docker-спосіб</span></td><td>Остання</td></tr>
+            <tr><td>💾 RAM</td><td>4 ГБ</td><td>8 ГБ</td></tr>
+            <tr><td>💿 Диск</td><td>2 ГБ вільних</td><td>5 ГБ вільних</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ===== Архітектура ===== -->
+<div class="section" id="architecture">
+    <h2>🏗️ Архітектура проєкту</h2>
+    <div class="tree">
+        <span class="folder">Buh/</span><br>
+        ├── <span class="folder">backend/</span> <span class="comment"># 🐍 Django 5.1 (REST API)</span><br>
+        │&nbsp;&nbsp; ├── <span class="file">manage.py</span><br>
+        │&nbsp;&nbsp; ├── <span class="file">requirements.txt</span><br>
+        │&nbsp;&nbsp; ├── <span class="file">.env</span> <span class="comment"># ⚙️ Змінні середовища</span><br>
+        │&nbsp;&nbsp; └── ...<br>
+        ├── <span class="folder">frontend/</span> <span class="comment"># ⚛️ React 18 + Vite 6</span><br>
+        │&nbsp;&nbsp; ├── <span class="file">package.json</span><br>
+        │&nbsp;&nbsp; └── ...<br>
+        ├── <span class="file">docker-compose.yml</span> <span class="comment"># 🐳 Docker конфігурація</span><br>
+        └── <span class="folder">docs/</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="file">INSTALLATION.md</span> <span class="comment"># 📘 Цей файл</span>
+    </div>
+</div>
+
+<!-- ===== Змінні середовища ===== -->
+<div class="section" id="env">
+    <h2>🔐 Змінні середовища</h2>
+    <p>Перед будь-яким способом встановлення створіть файл <code>.env</code> у папці <code>backend/</code>:</p>
+    <div class="env-block">
+        <span class="env-comment"># 📄 backend/.env</span><br><br>
+        <span class="env-comment"># 🔑 Секретний ключ Django (згенеруйте свій!)</span><br>
+        <span class="env-key">DJANGO_SECRET_KEY</span>=<span class="env-val">your-secret-key</span><br><br>
+        <span class="env-comment"># 🐛 Режим розробки</span><br>
+        <span class="env-key">DEBUG</span>=<span class="env-val">True</span><br><br>
+        <span class="env-comment"># 🐘 PostgreSQL</span><br>
+        <span class="env-key">POSTGRES_DB</span>=<span class="env-val">buh_assets</span><br>
+        <span class="env-key">POSTGRES_USER</span>=<span class="env-val">postgres</span><br>
+        <span class="env-key">POSTGRES_PASSWORD</span>=<span class="env-val">your_password</span><br>
+        <span class="env-key">POSTGRES_HOST</span>=<span class="env-val">localhost</span><br>
+        <span class="env-key">POSTGRES_PORT</span>=<span class="env-val">5432</span><br><br>
+        <span class="env-comment"># 🌐 CORS</span><br>
+        <span class="env-key">CORS_ORIGINS</span>=<span class="env-val">http://localhost:5173</span><br><br>
+        <span class="env-comment"># 🔴 Redis (опціонально)</span><br>
+        <span class="env-key">CELERY_BROKER_URL</span>=<span class="env-val">redis://localhost:6379/0</span>
+    </div>
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div><strong>Генерація секретного ключа:</strong><br>
+        <code>python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"</code></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 1. Docker Compose ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="docker">
+    <h2>🐳 1. Docker Compose <span class="badge badge-green">Найпростіший спосіб</span></h2>
+
+    <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div><strong>Рекомендовано для початківців!</strong> Цей спосіб автоматично встановить та налаштує все необхідне.</div>
+    </div>
+
+    <h3>1.1 📥 Встановлення Docker Desktop</h3>
+
+    <div class="os-tabs" data-group="docker-install">
+        <div class="os-tab active" data-tab="win">🪟 Windows</div>
+        <div class="os-tab" data-tab="mac">🍎 macOS</div>
+        <div class="os-tab" data-tab="lin">🐧 Linux</div>
+    </div>
+
+    <div class="os-content active" data-group="docker-install" data-tab="win">
+        <div class="steps">
+            <div class="step">Перейдіть на <strong>docker.com/products/docker-desktop</strong></div>
+            <div class="step">Натисніть <strong>"Download for Windows"</strong></div>
+            <div class="step">Запустіть інсталятор <code>Docker Desktop Installer.exe</code></div>
+            <div class="step">Переконайтесь, що опція <strong>"Use WSL 2 instead of Hyper-V"</strong> увімкнена ☑️</div>
+            <div class="step">Після встановлення перезавантажте комп'ютер 🔄</div>
+            <div class="step">Запустіть Docker Desktop з меню Пуск</div>
+        </div>
+        <div class="alert alert-info">
+            <span class="alert-icon">🐋</span>
+            <div>На екрані з'явиться іконка Docker (кит) у системному треї біля годинника</div>
+        </div>
+    </div>
+
+    <div class="os-content" data-group="docker-install" data-tab="mac">
+        <pre><code><span class="comment"># Через Homebrew:</span>
+<span class="cmd">brew install --cask docker</span>
+
+<span class="comment"># Або завантажте .dmg з docker.com і перетягніть у Applications</span></code></pre>
+    </div>
+
+    <div class="os-content" data-group="docker-install" data-tab="lin">
+        <pre><code><span class="comment"># Встановлення Docker Engine</span>
+<span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y ca-certificates curl gnupg</span>
+<span class="cmd">sudo install -m 0755 -d /etc/apt/keyrings</span>
+<span class="cmd">curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg</span>
+<span class="cmd">sudo chmod a+r /etc/apt/keyrings/docker.gpg</span>
+
+<span class="cmd">echo \</span>
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+<span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin</span>
+
+<span class="comment"># Додати поточного користувача до групи docker</span>
+<span class="cmd">sudo usermod -aG docker $USER</span>
+<span class="cmd">newgrp docker</span></code></pre>
+    </div>
+
+    <h3>1.2 ✅ Перевірка Docker</h3>
+    <pre><code><span class="cmd">docker --version</span>
+<span class="output"># ✅ Docker version 27.x.x, build xxxxxxx</span>
+
+<span class="cmd">docker compose version</span>
+<span class="output"># ✅ Docker Compose version v2.x.x</span></code></pre>
+
+    <h3>1.3 📥 Клонування та налаштування</h3>
+    <pre><code><span class="cmd">git clone https://github.com/your-username/Buh.git</span>
+<span class="cmd">cd Buh</span>
+
+<span class="comment"># Скопіюйте шаблон .env файлу</span>
+<span class="cmd">cp backend/.env.example backend/.env</span></code></pre>
+
+    <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div>Для Docker встановіть <code>POSTGRES_HOST=db</code> (а не <code>localhost</code>!) — контейнери спілкуються через мережу Docker.</div>
+    </div>
+
+    <h3 id="docker-run">1.5 🚀 Запуск усіх сервісів</h3>
+    <pre><code><span class="comment"># Збірка та запуск усіх контейнерів у фоновому режимі</span>
+<span class="cmd">docker compose up -d --build</span></code></pre>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">⏳</span>
+        <div>Перший запуск може зайняти 3-10 хвилин (завантаження образів postgres:16-alpine, node, python).</div>
+    </div>
+
+    <p><strong>✅ Очікуваний вивід:</strong></p>
+    <pre><code><span class="output">[+] Running 4/4
+ ✔ Network buh_default       Created
+ ✔ Container buh-db-1        Started
+ ✔ Container buh-backend-1   Started
+ ✔ Container buh-frontend-1  Started</span></code></pre>
+
+    <h3>1.6 📊 Перевірка статусу</h3>
+    <pre><code><span class="cmd">docker compose ps</span></code></pre>
+    <table>
+        <thead><tr><th>Контейнер</th><th>Сервіс</th><th>Порт</th><th>Статус</th></tr></thead>
+        <tbody>
+            <tr><td>buh-db-1</td><td>🐘 PostgreSQL</td><td>5432</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh-backend-1</td><td>🐍 Django</td><td>8000</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh-frontend-1</td><td>⚛️ React</td><td>5173</td><td><span class="badge badge-green">Up</span></td></tr>
+        </tbody>
+    </table>
+
+    <div class="alert alert-danger">
+        <span class="alert-icon">🔴</span>
+        <div>Якщо якийсь контейнер має статус <strong>"Exited"</strong> або <strong>"Restarting"</strong>, перегляньте логи:<br>
+        <code>docker compose logs backend</code></div>
+    </div>
+
+    <h3 id="docker-migrate">1.7 🗃️ Міграції та початкові налаштування</h3>
+    <pre><code><span class="comment"># 📦 Застосування міграцій бази даних</span>
+<span class="cmd">docker compose exec backend python manage.py migrate</span>
+
+<span class="comment"># 🏷️ Створення 16 груп ОЗ відповідно до ПКУ</span>
+<span class="cmd">docker compose exec backend python manage.py seed_asset_groups</span>
+
+<span class="comment"># 👤 Створення суперкористувача</span>
+<span class="cmd">docker compose exec backend python manage.py createsuperuser</span></code></pre>
+
+    <h3>1.8 🎉 Перевірка роботи</h3>
+    <div class="url-table">
+        <div class="url-row">
+            <span class="icon">⚛️</span>
+            <div><div class="label">Frontend</div><div class="url">http://localhost:5173</div></div>
+        </div>
+        <div class="url-row">
+            <span class="icon">🐍</span>
+            <div><div class="label">Backend API</div><div class="url">http://localhost:8000/api/</div></div>
+        </div>
+        <div class="url-row">
+            <span class="icon">🔧</span>
+            <div><div class="label">Django Admin</div><div class="url">http://localhost:8000/admin/</div></div>
+        </div>
+    </div>
+
+    <h3>1.9 🛑 Керування контейнерами</h3>
+    <pre><code><span class="comment"># 🛑 Зупинити всі контейнери</span>
+<span class="cmd">docker compose down</span>
+
+<span class="comment"># 🛑 Зупинити та видалити всі дані (включно з базою!)</span>
+<span class="cmd">docker compose down -v</span>
+
+<span class="comment"># 🔄 Перезапустити тільки backend</span>
+<span class="cmd">docker compose restart backend</span>
+
+<span class="comment"># 📜 Переглянути логи в реальному часі</span>
+<span class="cmd">docker compose logs -f</span></code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 2. Windows ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="windows">
+    <h2>💻 2. Windows (ручна установка)</h2>
+    <div class="alert alert-info">
+        <span class="alert-icon">🛠️</span>
+        <div>Цей спосіб дає повний контроль над кожним компонентом.</div>
+    </div>
+
+    <h3 id="win-python">2.1 🐍 Встановлення Python 3.12</h3>
+    <div class="steps">
+        <div class="step">Перейдіть на <strong>python.org/downloads</strong></div>
+        <div class="step">Завантажте <strong>Python 3.12.x</strong></div>
+        <div class="step">Запустіть інсталятор</div>
+    </div>
+
+    <div class="alert alert-danger">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>ДУЖЕ ВАЖЛИВО!</strong> На першому екрані інсталятора обов'язково поставте галочку:<br>
+        <strong>☑️ "Add Python to PATH"</strong><br>
+        Без неї команда <code>python</code> не працюватиме з командного рядка!</div>
+    </div>
+
+    <p><strong>✅ Перевірка:</strong></p>
+    <pre><code><span class="cmd">python --version</span>
+<span class="output"># ✅ Python 3.12.x</span>
+
+<span class="cmd">pip --version</span>
+<span class="output"># ✅ pip 24.x from ...</span></code></pre>
+
+    <details>
+        <summary>🔴 Якщо <code>python</code> не знайдено</summary>
+        <div class="details-body">
+            <p>Перезапустіть командний рядок (або PowerShell). Якщо не допомогло — додайте Python до PATH вручну:</p>
+            <p><code>Панель керування → Система → Додаткові параметри → Змінні середовища → Path → Додати:</code></p>
+            <pre><code>C:\Users\&lt;ім'я&gt;\AppData\Local\Programs\Python\Python312\</code></pre>
+        </div>
+    </details>
+
+    <h3 id="win-node">2.2 🟢 Встановлення Node.js 20</h3>
+    <div class="steps">
+        <div class="step">Перейдіть на <strong>nodejs.org</strong></div>
+        <div class="step">Завантажте <strong>Node.js 20 LTS</strong> (кнопка "LTS Recommended")</div>
+        <div class="step">Запустіть інсталятор <code>node-v20.x.x-x64.msi</code></div>
+        <div class="step">Натискайте "Next" на всіх кроках</div>
+        <div class="step">Переконайтеся, що <strong>"Automatically install the necessary tools"</strong> увімкнено ☑️</div>
+    </div>
+
+    <p><strong>✅ Перевірка:</strong></p>
+    <pre><code><span class="cmd">node --version</span>
+<span class="output"># ✅ v20.x.x</span>
+
+<span class="cmd">npm --version</span>
+<span class="output"># ✅ 10.x.x</span></code></pre>
+
+    <h3 id="win-postgres">2.3 🐘 Встановлення PostgreSQL 16</h3>
+    <div class="steps">
+        <div class="step">Перейдіть на <strong>postgresql.org/download/windows</strong></div>
+        <div class="step">Натисніть <strong>"Download the installer"</strong> (від EDB)</div>
+        <div class="step">Завантажте <strong>PostgreSQL 16.x</strong> для Windows x86-64</div>
+        <div class="step">Запустіть інсталятор</div>
+    </div>
+
+    <div class="card">
+        <h4>📝 Під час встановлення:</h4>
+        <table>
+            <tr><td><strong>Installation Directory</strong></td><td>За замовчуванням (<code>C:\Program Files\PostgreSQL\16</code>)</td></tr>
+            <tr><td><strong>Components</strong></td><td>☑️ PostgreSQL Server &nbsp; ☑️ pgAdmin 4 &nbsp; ☑️ Command Line Tools</td></tr>
+            <tr><td><strong>Password</strong></td><td>Введіть пароль для <code>postgres</code> — <span class="badge badge-red">Запам'ятайте!</span></td></tr>
+            <tr><td><strong>Port</strong></td><td><code>5432</code> (за замовчуванням)</td></tr>
+            <tr><td><strong>Locale</strong></td><td>Ukrainian, Ukraine або Default locale</td></tr>
+        </table>
+    </div>
+
+    <p><strong>✅ Перевірка:</strong></p>
+    <pre><code><span class="cmd">"C:\Program Files\PostgreSQL\16\bin\psql" --version</span>
+<span class="output"># ✅ psql (PostgreSQL) 16.x</span></code></pre>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>Додайте <code>C:\Program Files\PostgreSQL\16\bin</code> до змінної середовища PATH для зручності.</div>
+    </div>
+
+    <h3>2.4 🔴 Встановлення Redis (опціонально)</h3>
+
+    <div class="card-grid">
+        <div class="card">
+            <h4>🐧 Варіант A: Redis через WSL2</h4>
+            <span class="badge badge-green">Рекомендовано</span>
+            <pre style="margin-top:12px;"><code><span class="cmd">wsl --install</span>
+<span class="comment"># Перезавантаження...</span>
+<span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y redis-server</span>
+<span class="cmd">sudo service redis-server start</span>
+<span class="cmd">redis-cli ping</span>
+<span class="output"># ✅ PONG</span></code></pre>
+        </div>
+        <div class="card">
+            <h4>💾 Варіант B: Memurai</h4>
+            <p style="font-size:13px;">Windows-порт Redis від <strong>memurai.com</strong></p>
+            <p style="font-size:13px;">Developer Edition — безкоштовна. Встановлюється як служба Windows.</p>
+            <pre style="margin-top:12px;"><code><span class="cmd">memurai-cli ping</span>
+<span class="output"># ✅ PONG</span></code></pre>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>Redis не є обов'язковим. Він потрібен тільки для асинхронних задач Celery. Система працюватиме і без нього.</div>
+    </div>
+
+    <h3 id="win-setup">2.5–2.8 📥 Клонування та налаштування</h3>
+    <pre><code><span class="comment"># Клонування</span>
+<span class="cmd">git clone https://github.com/your-username/Buh.git</span>
+<span class="cmd">cd Buh</span>
+
+<span class="comment"># Створити віртуальне середовище</span>
+<span class="cmd">cd backend</span>
+<span class="cmd">python -m venv venv</span>
+
+<span class="comment"># Активувати venv (CMD)</span>
+<span class="cmd">venv\Scripts\activate</span>
+
+<span class="comment"># Активувати venv (PowerShell)</span>
+<span class="cmd">venv\Scripts\Activate.ps1</span></code></pre>
+
+    <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div>Після активації ви побачите <code>(venv)</code> перед рядком команд:<br>
+        <code>(venv) C:\Users\...\Buh\backend&gt;</code></div>
+    </div>
+
+    <details>
+        <summary>⚠️ Помилка в PowerShell про виконання скриптів</summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</span></code></pre>
+            <p>Потім спробуйте знову <code>venv\Scripts\Activate.ps1</code></p>
+        </div>
+    </details>
+
+    <pre><code><span class="comment"># Встановити залежності Python</span>
+<span class="cmd">pip install -r requirements.txt</span></code></pre>
+
+    <details>
+        <summary>🔴 Помилка <code>psycopg2</code></summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">pip install psycopg2-binary</span></code></pre>
+            <p>Або встановіть <strong>Visual C++ Build Tools</strong>.</p>
+        </div>
+    </details>
+
+    <h3>2.7 🗃️ Створення бази даних</h3>
+    <pre><code><span class="comment"># Підключіться до PostgreSQL</span>
+<span class="cmd">"C:\Program Files\PostgreSQL\16\bin\psql" -U postgres</span>
+
+<span class="comment">-- Створити базу даних</span>
+<span class="keyword">CREATE DATABASE</span> <span class="string">buh_assets</span>;
+
+<span class="comment">-- (Опціонально) Створити користувача</span>
+<span class="keyword">CREATE USER</span> buh_user <span class="keyword">WITH PASSWORD</span> <span class="string">'secure_password_123'</span>;
+<span class="keyword">GRANT ALL PRIVILEGES ON DATABASE</span> buh_assets <span class="keyword">TO</span> buh_user;
+<span class="keyword">ALTER DATABASE</span> buh_assets <span class="keyword">OWNER TO</span> buh_user;
+
+<span class="comment">-- Вийти</span>
+\q</code></pre>
+
+    <h3>2.9 🚀 Міграції та запуск</h3>
+    <pre><code><span class="cmd">cd backend</span>
+
+<span class="comment"># 📦 Застосування міграцій</span>
+<span class="cmd">python manage.py migrate</span>
+
+<span class="comment"># 🏷️ Створення 16 груп ОЗ за ПКУ</span>
+<span class="cmd">python manage.py seed_asset_groups</span>
+
+<span class="comment"># 👤 Створення адміністратора</span>
+<span class="cmd">python manage.py createsuperuser</span></code></pre>
+
+    <h3>2.10 ⚛️ Налаштування frontend</h3>
+    <pre><code><span class="comment"># Нове вікно командного рядка:</span>
+<span class="cmd">cd Buh\frontend</span>
+<span class="cmd">npm install</span></code></pre>
+
+    <details>
+        <summary>🔴 Помилка <code>npm ERR! code ERESOLVE</code></summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">npm install --legacy-peer-deps</span></code></pre>
+        </div>
+    </details>
+
+    <h3>2.11 🎬 Запуск проєкту</h3>
+    <div class="card-grid">
+        <div class="card">
+            <h4>🪟 Вікно 1 — Backend (Django)</h4>
+            <pre><code><span class="cmd">cd Buh\backend</span>
+<span class="cmd">venv\Scripts\activate</span>
+<span class="cmd">python manage.py runserver</span></code></pre>
+        </div>
+        <div class="card">
+            <h4>🪟 Вікно 2 — Frontend (React)</h4>
+            <pre><code><span class="cmd">cd Buh\frontend</span>
+<span class="cmd">npm run dev</span></code></pre>
+        </div>
+    </div>
+
+    <h3>2.12 🎉 Перевірка</h3>
+    <div class="url-table">
+        <div class="url-row"><span class="icon">⚛️</span><div><div class="label">Frontend</div><div class="url">http://localhost:5173</div></div></div>
+        <div class="url-row"><span class="icon">🐍</span><div><div class="label">Backend API</div><div class="url">http://localhost:8000/api/</div></div></div>
+        <div class="url-row"><span class="icon">🔧</span><div><div class="label">Django Admin</div><div class="url">http://localhost:8000/admin/</div></div></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 3. macOS ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="macos">
+    <h2>🍎 3. macOS (ручна установка)</h2>
+
+    <h3>3.1 🍺 Встановлення Homebrew</h3>
+    <pre><code><span class="cmd">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</span>
+
+<span class="cmd">brew --version</span>
+<span class="output"># ✅ Homebrew 4.x.x</span></code></pre>
+
+    <h3>3.2–3.4 📦 Встановлення компонентів</h3>
+    <pre><code><span class="comment"># 🐍 Python 3.12</span>
+<span class="cmd">brew install python@3.12</span>
+
+<span class="comment"># 🟢 Node.js 20</span>
+<span class="cmd">brew install node@20</span>
+<span class="cmd">echo 'export PATH="/opt/homebrew/opt/node@20/bin:$PATH"' >> ~/.zshrc</span>
+<span class="cmd">source ~/.zshrc</span>
+
+<span class="comment"># 🐘 PostgreSQL 16</span>
+<span class="cmd">brew install postgresql@16</span>
+<span class="cmd">brew services start postgresql@16</span>
+<span class="cmd">echo 'export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"' >> ~/.zshrc</span>
+<span class="cmd">source ~/.zshrc</span>
+
+<span class="comment"># 🔴 Redis (опціонально)</span>
+<span class="cmd">brew install redis</span>
+<span class="cmd">brew services start redis</span></code></pre>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>На macOS використовуйте <code>python3</code> та <code>pip3</code> замість <code>python</code> та <code>pip</code>.</div>
+    </div>
+
+    <h3>3.5–3.7 📥 Клонування та база даних</h3>
+    <pre><code><span class="cmd">git clone https://github.com/your-username/Buh.git</span>
+<span class="cmd">cd Buh</span>
+
+<span class="comment"># Створити базу даних</span>
+<span class="cmd">createdb buh_assets</span></code></pre>
+
+    <h3>3.8 🐍 Налаштування backend</h3>
+    <pre><code><span class="cmd">cd backend</span>
+<span class="cmd">python3 -m venv venv</span>
+<span class="cmd">source venv/bin/activate</span>
+<span class="cmd">pip install -r requirements.txt</span></code></pre>
+
+    <h3>3.9–3.11 🚀 Міграції та запуск</h3>
+    <pre><code><span class="comment"># Налаштуйте backend/.env (див. розділ "Змінні середовища")</span>
+<span class="cmd">nano backend/.env</span>
+
+<span class="comment"># Міграції</span>
+<span class="cmd">python manage.py migrate</span>
+<span class="cmd">python manage.py seed_asset_groups</span>
+<span class="cmd">python manage.py createsuperuser</span>
+<span class="cmd">python manage.py runserver</span>
+
+<span class="comment"># В новому терміналі (⌘+T):</span>
+<span class="cmd">cd Buh/frontend</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npm run dev</span></code></pre>
+
+    <h3>3.12 🎉 Готово!</h3>
+    <div class="url-table">
+        <div class="url-row"><span class="icon">⚛️</span><div><div class="label">Frontend</div><div class="url">http://localhost:5173</div></div></div>
+        <div class="url-row"><span class="icon">🐍</span><div><div class="label">Backend API</div><div class="url">http://localhost:8000/api/</div></div></div>
+        <div class="url-row"><span class="icon">🔧</span><div><div class="label">Django Admin</div><div class="url">http://localhost:8000/admin/</div></div></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 4. Linux / Ubuntu ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="linux">
+    <h2>🐧 4. Linux / Ubuntu (ручна установка)</h2>
+    <div class="alert alert-info">
+        <span class="alert-icon">📝</span>
+        <div>Інструкція для Ubuntu 22.04 / 24.04 LTS. Для інших дистрибутивів команди можуть відрізнятися.</div>
+    </div>
+
+    <h3>4.1 📦 Оновлення системи</h3>
+    <pre><code><span class="cmd">sudo apt update && sudo apt upgrade -y</span></code></pre>
+
+    <h3>4.2 🐍 Python 3.12</h3>
+    <pre><code><span class="cmd">sudo add-apt-repository ppa:deadsnakes/ppa -y</span>
+<span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y python3.12 python3.12-venv python3.12-dev python3-pip</span>
+
+<span class="cmd">python3.12 --version</span>
+<span class="output"># ✅ Python 3.12.x</span></code></pre>
+
+    <h3>4.3 🟢 Node.js 20</h3>
+    <pre><code><span class="cmd">curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -</span>
+<span class="cmd">sudo apt install -y nodejs</span>
+
+<span class="cmd">node --version</span>
+<span class="output"># ✅ v20.x.x</span></code></pre>
+
+    <h3>4.4 🐘 PostgreSQL 16</h3>
+    <pre><code><span class="cmd">sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'</span>
+<span class="cmd">wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -</span>
+<span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y postgresql-16 postgresql-client-16</span>
+
+<span class="cmd">sudo systemctl start postgresql</span>
+<span class="cmd">sudo systemctl enable postgresql</span>
+
+<span class="cmd">psql --version</span>
+<span class="output"># ✅ psql (PostgreSQL) 16.x</span></code></pre>
+
+    <h3>4.5 🔴 Redis + 🐙 Git</h3>
+    <pre><code><span class="cmd">sudo apt install -y redis-server git</span>
+<span class="cmd">sudo systemctl start redis-server</span>
+<span class="cmd">sudo systemctl enable redis-server</span>
+
+<span class="cmd">redis-cli ping</span>
+<span class="output"># ✅ PONG</span></code></pre>
+
+    <h3>4.7–4.11 📥 Клонування та налаштування</h3>
+    <pre><code><span class="cmd">git clone https://github.com/your-username/Buh.git</span>
+<span class="cmd">cd Buh</span>
+
+<span class="comment"># 🗃️ Створення бази даних</span>
+<span class="cmd">sudo -u postgres psql</span></code></pre>
+    <pre><code><span class="keyword">CREATE DATABASE</span> <span class="string">buh_assets</span>;
+<span class="keyword">CREATE USER</span> buh_user <span class="keyword">WITH PASSWORD</span> <span class="string">'secure_password_123'</span>;
+<span class="keyword">GRANT ALL PRIVILEGES ON DATABASE</span> buh_assets <span class="keyword">TO</span> buh_user;
+<span class="keyword">ALTER DATABASE</span> buh_assets <span class="keyword">OWNER TO</span> buh_user;
+\q</code></pre>
+
+    <pre><code><span class="comment"># 🐍 Backend</span>
+<span class="cmd">cd backend</span>
+<span class="cmd">python3.12 -m venv venv</span>
+<span class="cmd">source venv/bin/activate</span>
+<span class="cmd">pip install -r requirements.txt</span>
+
+<span class="comment"># Налаштуйте backend/.env</span>
+<span class="cmd">nano backend/.env</span>
+
+<span class="comment"># Міграції</span>
+<span class="cmd">python manage.py migrate</span>
+<span class="cmd">python manage.py seed_asset_groups</span>
+<span class="cmd">python manage.py createsuperuser</span>
+<span class="cmd">python manage.py runserver</span>
+
+<span class="comment"># В новому терміналі (Ctrl+Shift+T):</span>
+<span class="cmd">cd Buh/frontend</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npm run dev</span></code></pre>
+
+    <details>
+        <summary>🔴 Помилка <code>psycopg2</code> на Linux</summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">sudo apt install -y libpq-dev python3.12-dev gcc</span>
+<span class="cmd">pip install psycopg2-binary</span></code></pre>
+        </div>
+    </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 5. Інструменти ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="tools">
+    <h2>📦 5. Використання популярних інструментів</h2>
+
+    <!-- pgAdmin -->
+    <div id="pgadmin">
+        <h3>5a. 🐘 pgAdmin 4</h3>
+        <p>Графічний інтерфейс для керування базами даних PostgreSQL.</p>
+
+        <h4>📥 Встановлення</h4>
+        <table>
+            <tr><td>🪟 Windows</td><td>Встановлюється разом з PostgreSQL (або окремо з pgadmin.org)</td></tr>
+            <tr><td>🍎 macOS</td><td><code>brew install --cask pgadmin4</code></td></tr>
+            <tr><td>🐧 Linux</td><td><code>sudo apt install -y pgadmin4-desktop</code></td></tr>
+        </table>
+
+        <h4>🔧 Налаштування з'єднання</h4>
+        <div class="steps">
+            <div class="step">Запустіть <strong>pgAdmin 4</strong></div>
+            <div class="step">Натисніть правою кнопкою на <strong>"Servers"</strong> → <strong>"Register" → "Server..."</strong></div>
+            <div class="step">Вкладка <strong>"General"</strong>: Name: <code>Buh Local</code></div>
+            <div class="step">Вкладка <strong>"Connection"</strong>:</div>
+        </div>
+        <table>
+            <tr><td>Host</td><td><code>localhost</code></td></tr>
+            <tr><td>Port</td><td><code>5432</code></td></tr>
+            <tr><td>Maintenance database</td><td><code>postgres</code></td></tr>
+            <tr><td>Username</td><td><code>postgres</code></td></tr>
+            <tr><td>Password</td><td><code>your_password</code></td></tr>
+            <tr><td>☑️ Save password</td><td>увімкнити</td></tr>
+        </table>
+
+        <h4>📦 Створення бази через pgAdmin</h4>
+        <div class="steps">
+            <div class="step">Розгорніть сервер <strong>"Buh Local"</strong></div>
+            <div class="step">Правий клік на <strong>"Databases"</strong> → <strong>"Create" → "Database..."</strong></div>
+            <div class="step">Database: <code>buh_assets</code>, Owner: <code>postgres</code></div>
+            <div class="step">Натисніть <strong>"Save"</strong></div>
+        </div>
+    </div>
+
+    <!-- DBeaver -->
+    <div id="dbeaver" style="margin-top:32px;">
+        <h3>5b. 🦫 DBeaver</h3>
+        <p>Безкоштовний універсальний клієнт для баз даних.</p>
+
+        <h4>📥 Встановлення</h4>
+        <table>
+            <tr><td>🪟 Windows</td><td>Завантажте з dbeaver.io → Windows Installer</td></tr>
+            <tr><td>🍎 macOS</td><td><code>brew install --cask dbeaver-community</code></td></tr>
+            <tr><td>🐧 Linux</td><td><code>sudo snap install dbeaver-ce</code></td></tr>
+        </table>
+
+        <h4>🔧 Створення з'єднання</h4>
+        <div class="steps">
+            <div class="step">Запустіть DBeaver</div>
+            <div class="step">Натисніть <strong>🔌 "New Database Connection"</strong></div>
+            <div class="step">Оберіть <strong>"PostgreSQL"</strong> → <strong>"Next"</strong></div>
+            <div class="step">Заповніть: Host: <code>localhost</code>, Port: <code>5432</code>, Database: <code>buh_assets</code></div>
+            <div class="step">Натисніть <strong>"Test Connection"</strong> → ✅ Connected</div>
+            <div class="step">Натисніть <strong>"Finish"</strong></div>
+        </div>
+    </div>
+
+    <!-- VS Code -->
+    <div id="vscode" style="margin-top:32px;">
+        <h3>5c. 💜 VS Code</h3>
+        <p>Рекомендований редактор для цього проєкту.</p>
+
+        <h4>📥 Встановлення</h4>
+        <table>
+            <tr><td>🪟 Windows</td><td>code.visualstudio.com → Download</td></tr>
+            <tr><td>🍎 macOS</td><td><code>brew install --cask visual-studio-code</code></td></tr>
+            <tr><td>🐧 Linux</td><td><code>sudo snap install code --classic</code></td></tr>
+        </table>
+
+        <h4>🧩 Рекомендовані розширення</h4>
+        <pre><code><span class="comment"># 🐍 Python & Django</span>
+<span class="cmd">code --install-extension ms-python.python</span>
+<span class="cmd">code --install-extension ms-python.pylint</span>
+<span class="cmd">code --install-extension batisteo.vscode-django</span>
+
+<span class="comment"># ⚛️ React / JavaScript</span>
+<span class="cmd">code --install-extension dsznajder.es7-react-js-snippets</span>
+<span class="cmd">code --install-extension dbaeumer.vscode-eslint</span>
+<span class="cmd">code --install-extension esbenp.prettier-vscode</span>
+
+<span class="comment"># 🐘 PostgreSQL & 🐳 Docker</span>
+<span class="cmd">code --install-extension ckolkman.vscode-postgres</span>
+<span class="cmd">code --install-extension ms-azuretools.vscode-docker</span>
+
+<span class="comment"># 🎨 Оформлення та зручність</span>
+<span class="cmd">code --install-extension formulahendry.auto-rename-tag</span>
+<span class="cmd">code --install-extension bradlc.vscode-tailwindcss</span>
+<span class="cmd">code --install-extension eamodio.vscode-gitlens</span></code></pre>
+
+        <details>
+            <summary>🔧 Налаштування launch.json (для дебагу)</summary>
+            <div class="details-body">
+                <pre><code>{
+  <span class="string">"version"</span>: <span class="string">"0.2.0"</span>,
+  <span class="string">"configurations"</span>: [
+    {
+      <span class="string">"name"</span>: <span class="string">"🐍 Django: Runserver"</span>,
+      <span class="string">"type"</span>: <span class="string">"debugpy"</span>,
+      <span class="string">"request"</span>: <span class="string">"launch"</span>,
+      <span class="string">"program"</span>: <span class="string">"${workspaceFolder}/backend/manage.py"</span>,
+      <span class="string">"args"</span>: [<span class="string">"runserver"</span>, <span class="string">"0.0.0.0:8000"</span>],
+      <span class="string">"django"</span>: <span class="keyword">true</span>,
+      <span class="string">"cwd"</span>: <span class="string">"${workspaceFolder}/backend"</span>
+    },
+    {
+      <span class="string">"name"</span>: <span class="string">"⚛️ Chrome: Frontend"</span>,
+      <span class="string">"type"</span>: <span class="string">"chrome"</span>,
+      <span class="string">"request"</span>: <span class="string">"launch"</span>,
+      <span class="string">"url"</span>: <span class="string">"http://localhost:5173"</span>,
+      <span class="string">"webRoot"</span>: <span class="string">"${workspaceFolder}/frontend/src"</span>
+    }
+  ]
+}</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>⚙️ Налаштування settings.json</summary>
+            <div class="details-body">
+                <pre><code>{
+  <span class="string">"python.defaultInterpreterPath"</span>: <span class="string">"${workspaceFolder}/backend/venv/bin/python"</span>,
+  <span class="string">"python.envFile"</span>: <span class="string">"${workspaceFolder}/backend/.env"</span>,
+  <span class="string">"editor.formatOnSave"</span>: <span class="keyword">true</span>,
+  <span class="string">"files.exclude"</span>: {
+    <span class="string">"**/__pycache__"</span>: <span class="keyword">true</span>,
+    <span class="string">"**/*.pyc"</span>: <span class="keyword">true</span>,
+    <span class="string">"**/node_modules"</span>: <span class="keyword">true</span>
+  }
+}</code></pre>
+                <div class="alert alert-info">
+                    <span class="alert-icon">💡</span>
+                    <div><strong>Для Windows</strong> змініть шлях інтерпретатора на:<br>
+                    <code>"${workspaceFolder}\\backend\\venv\\Scripts\\python.exe"</code></div>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <!-- PyCharm -->
+    <div id="pycharm" style="margin-top:32px;">
+        <h3>5d. 🧠 PyCharm</h3>
+        <p>PyCharm Professional має вбудовану підтримку Django та баз даних.</p>
+
+        <h4>📥 Встановлення</h4>
+        <p>Завантажте з <strong>jetbrains.com/pycharm</strong>. Оберіть <strong>Professional</strong> (30-денна пробна) або <strong>Community</strong> (безкоштовна, без Django-підтримки).</p>
+
+        <details>
+            <summary>🔧 Налаштування Python Interpreter</summary>
+            <div class="details-body">
+                <div class="steps">
+                    <div class="step">Відкрийте проєкт: <strong>File → Open → папка Buh</strong></div>
+                    <div class="step"><strong>File → Settings → Project → Python Interpreter</strong></div>
+                    <div class="step">⚙️ <strong>"Add Interpreter" → "Existing"</strong></div>
+                    <div class="step">Вкажіть шлях: <code>backend\venv\Scripts\python.exe</code> (Windows) або <code>backend/venv/bin/python</code> (macOS/Linux)</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🐍 Увімкнення Django Support</summary>
+            <div class="details-body">
+                <div class="steps">
+                    <div class="step"><strong>File → Settings → Languages & Frameworks → Django</strong></div>
+                    <div class="step">☑️ <strong>Enable Django Support</strong></div>
+                    <div class="step">Django project root: <code>Buh/backend</code></div>
+                    <div class="step">Settings: <code>config/settings.py</code>, Manage script: <code>manage.py</code></div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🐘 Підключення бази даних</summary>
+            <div class="details-body">
+                <div class="steps">
+                    <div class="step">Відкрийте вкладку <strong>Database</strong> (справа)</div>
+                    <div class="step"><strong>"+" → "Data Source" → "PostgreSQL"</strong></div>
+                    <div class="step">Host: <code>localhost</code>, Port: <code>5432</code>, Database: <code>buh_assets</code></div>
+                    <div class="step"><strong>"Test Connection"</strong> → ✅ Succeeded → <strong>"OK"</strong></div>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <!-- Postman -->
+    <div id="postman" style="margin-top:32px;">
+        <h3>5e. 🚀 Postman</h3>
+        <p>Інструмент для тестування REST API.</p>
+
+        <h4>📥 Встановлення</h4>
+        <p>Завантажте з <strong>postman.com/downloads</strong> або <code>brew install --cask postman</code> (macOS).</p>
+
+        <h4>📝 Основні запити</h4>
+        <table>
+            <thead><tr><th>Метод</th><th>URL</th><th>Опис</th></tr></thead>
+            <tbody>
+                <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/auth/login/</code></td><td>🔐 Авторизація</td></tr>
+                <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/asset-groups/</code></td><td>📋 Список груп ОЗ</td></tr>
+                <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/assets/</code></td><td>📋 Список ОЗ</td></tr>
+                <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/assets/</code></td><td>➕ Створення ОЗ</td></tr>
+                <tr><td><span class="badge badge-yellow">PUT</span></td><td><code>/api/assets/{id}/</code></td><td>✏️ Оновлення ОЗ</td></tr>
+                <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/api/assets/{id}/</code></td><td>🗑️ Видалення ОЗ</td></tr>
+            </tbody>
+        </table>
+
+        <details>
+            <summary>📋 Приклад тіла запиту — Створення ОЗ</summary>
+            <div class="details-body">
+                <pre><code>{
+    <span class="string">"name"</span>: <span class="string">"Комп'ютер HP ProBook"</span>,
+    <span class="string">"inventory_number"</span>: <span class="string">"OZ-000001"</span>,
+    <span class="string">"group"</span>: 4,
+    <span class="string">"initial_cost"</span>: 35000.00,
+    <span class="string">"commissioning_date"</span>: <span class="string">"2026-01-15"</span>
+}</code></pre>
+            </div>
+        </details>
+
+        <div class="alert alert-info">
+            <span class="alert-icon">💡</span>
+            <div>Створіть Environment <code>Buh Local</code> зі змінними <code>base_url = http://localhost:8000/api</code> та <code>token</code>. Використовуйте <code>{{base_url}}/assets/</code> та <code>Authorization: Token {{token}}</code>.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 6. Production ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="production">
+    <h2>🌐 6. Production deployment</h2>
+
+    <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Увага!</strong> Цей розділ для досвідчених адміністраторів. Deployment на бойовий сервер вимагає додаткових знань з безпеки.</div>
+    </div>
+
+    <h3 id="prod-server">6.1 🖥️ Підготовка сервера (Ubuntu 22.04+)</h3>
+    <pre><code><span class="comment"># Оновлення системи</span>
+<span class="cmd">sudo apt update && sudo apt upgrade -y</span>
+
+<span class="comment"># Базові пакети</span>
+<span class="cmd">sudo apt install -y build-essential libpq-dev python3.12 python3.12-venv \
+    python3.12-dev nginx certbot python3-certbot-nginx git curl</span>
+
+<span class="comment"># Node.js 20</span>
+<span class="cmd">curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -</span>
+<span class="cmd">sudo apt install -y nodejs</span>
+
+<span class="comment"># PostgreSQL 16 + Redis</span>
+<span class="cmd">sudo apt install -y postgresql-16 redis-server</span></code></pre>
+
+    <h3>6.2 👤 Створення системного користувача</h3>
+    <pre><code><span class="cmd">sudo useradd -m -s /bin/bash buh</span>
+<span class="cmd">sudo su - buh</span>
+<span class="cmd">git clone https://github.com/your-username/Buh.git</span>
+<span class="cmd">cd Buh</span></code></pre>
+
+    <h3>6.3 🐘 PostgreSQL для production</h3>
+    <pre><code><span class="cmd">sudo -u postgres psql</span>
+
+<span class="comment">-- 🔐 Створити безпечного користувача</span>
+<span class="keyword">CREATE USER</span> buh_prod <span class="keyword">WITH PASSWORD</span> <span class="string">'ДУЖЕ_СКЛАДНИЙ_ПАРОЛЬ_ТУТ_123!@#'</span>;
+<span class="keyword">CREATE DATABASE</span> buh_assets_prod <span class="keyword">OWNER</span> buh_prod;
+<span class="keyword">GRANT ALL PRIVILEGES ON DATABASE</span> buh_assets_prod <span class="keyword">TO</span> buh_prod;
+<span class="keyword">ALTER USER</span> buh_prod <span class="keyword">CONNECTION LIMIT</span> 20;
+\q</code></pre>
+
+    <h3>6.4 🐍 Backend + Production .env</h3>
+    <pre><code><span class="cmd">cd /home/buh/Buh/backend</span>
+<span class="cmd">python3.12 -m venv venv</span>
+<span class="cmd">source venv/bin/activate</span>
+<span class="cmd">pip install -r requirements.txt</span>
+<span class="cmd">pip install gunicorn</span></code></pre>
+
+    <div class="env-block">
+        <span class="env-comment"># ⚙️ Production .env</span><br>
+        <span class="env-key">DJANGO_SECRET_KEY</span>=<span class="env-val">ЗГЕНЕРОВАНИЙ_ДУЖЕ_ДОВГИЙ_СЕКРЕТНИЙ_КЛЮЧ</span><br>
+        <span class="env-key">DEBUG</span>=<span class="env-val">False</span> <span class="env-comment"># ⚠️ ОБОВ'ЯЗКОВО False!</span><br>
+        <span class="env-key">POSTGRES_DB</span>=<span class="env-val">buh_assets_prod</span><br>
+        <span class="env-key">POSTGRES_USER</span>=<span class="env-val">buh_prod</span><br>
+        <span class="env-key">POSTGRES_PASSWORD</span>=<span class="env-val">ДУЖЕ_СКЛАДНИЙ_ПАРОЛЬ</span><br>
+        <span class="env-key">POSTGRES_HOST</span>=<span class="env-val">localhost</span><br>
+        <span class="env-key">POSTGRES_PORT</span>=<span class="env-val">5432</span><br>
+        <span class="env-key">CORS_ORIGINS</span>=<span class="env-val">https://your-domain.com.ua</span><br>
+        <span class="env-key">ALLOWED_HOSTS</span>=<span class="env-val">your-domain.com.ua,www.your-domain.com.ua</span>
+    </div>
+
+    <h3>6.5 📦 Міграції та статика</h3>
+    <pre><code><span class="cmd">source venv/bin/activate</span>
+<span class="cmd">python manage.py migrate</span>
+<span class="cmd">python manage.py seed_asset_groups</span>
+<span class="cmd">python manage.py createsuperuser</span>
+<span class="cmd">python manage.py collectstatic --noinput</span></code></pre>
+
+    <h3 id="prod-gunicorn">6.6 🦄 Gunicorn</h3>
+    <details>
+        <summary>📄 gunicorn.conf.py</summary>
+        <div class="details-body">
+            <pre><code><span class="comment"># 🦄 Gunicorn configuration</span>
+<span class="keyword">bind</span> = <span class="string">"unix:/home/buh/Buh/backend/gunicorn.sock"</span>
+<span class="keyword">workers</span> = 3  <span class="comment"># 2 * CPU_CORES + 1</span>
+<span class="keyword">timeout</span> = 120
+<span class="keyword">accesslog</span> = <span class="string">"/home/buh/Buh/logs/gunicorn-access.log"</span>
+<span class="keyword">errorlog</span> = <span class="string">"/home/buh/Buh/logs/gunicorn-error.log"</span>
+<span class="keyword">loglevel</span> = <span class="string">"info"</span>
+<span class="keyword">max_requests</span> = 1000
+<span class="keyword">max_requests_jitter</span> = 50</code></pre>
+        </div>
+    </details>
+
+    <h3>6.7 🔧 Systemd сервіс</h3>
+    <details>
+        <summary>📄 /etc/systemd/system/buh-backend.service</summary>
+        <div class="details-body">
+            <pre><code><span class="keyword">[Unit]</span>
+Description=🏢 Buh - Django Backend (Gunicorn)
+After=network.target postgresql.service redis-server.service
+
+<span class="keyword">[Service]</span>
+User=buh
+Group=buh
+WorkingDirectory=/home/buh/Buh/backend
+Environment="PATH=/home/buh/Buh/backend/venv/bin"
+ExecStart=/home/buh/Buh/backend/venv/bin/gunicorn \
+    --config gunicorn.conf.py \
+    config.wsgi:application
+Restart=always
+RestartSec=3
+
+<span class="keyword">[Install]</span>
+WantedBy=multi-user.target</code></pre>
+        </div>
+    </details>
+
+    <pre><code><span class="cmd">sudo systemctl daemon-reload</span>
+<span class="cmd">sudo systemctl enable buh-backend</span>
+<span class="cmd">sudo systemctl start buh-backend</span>
+<span class="cmd">sudo systemctl status buh-backend</span>
+<span class="output"># ✅ Active: active (running)</span></code></pre>
+
+    <details>
+        <summary>📄 Celery сервіс (опціонально)</summary>
+        <div class="details-body">
+            <pre><code><span class="keyword">[Unit]</span>
+Description=🏢 Buh - Celery Worker
+After=network.target redis-server.service
+
+<span class="keyword">[Service]</span>
+User=buh
+Group=buh
+WorkingDirectory=/home/buh/Buh/backend
+Environment="PATH=/home/buh/Buh/backend/venv/bin"
+ExecStart=/home/buh/Buh/backend/venv/bin/celery \
+    -A config worker --loglevel=info --concurrency=2
+Restart=always
+RestartSec=3
+
+<span class="keyword">[Install]</span>
+WantedBy=multi-user.target</code></pre>
+            <pre><code><span class="cmd">sudo systemctl enable buh-celery</span>
+<span class="cmd">sudo systemctl start buh-celery</span></code></pre>
+        </div>
+    </details>
+
+    <h3>6.9 ⚛️ Збірка frontend</h3>
+    <pre><code><span class="cmd">cd /home/buh/Buh/frontend</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npm run build</span>
+<span class="output"># ✓ built in 5.00s → dist/</span></code></pre>
+
+    <h3 id="prod-nginx">6.10 🌐 Nginx</h3>
+    <details>
+        <summary>📄 /etc/nginx/sites-available/buh</summary>
+        <div class="details-body">
+            <pre><code><span class="keyword">server</span> {
+    listen 80;
+    server_name your-domain.com.ua www.your-domain.com.ua;
+    client_max_body_size 20M;
+
+    <span class="comment"># ⚛️ Frontend (React static files)</span>
+    <span class="keyword">location</span> / {
+        root /home/buh/Buh/frontend/dist;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    <span class="comment"># 🐍 Backend API</span>
+    <span class="keyword">location</span> /api/ {
+        proxy_pass http://unix:/home/buh/Buh/backend/gunicorn.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    <span class="comment"># 🔧 Django Admin</span>
+    <span class="keyword">location</span> /admin/ {
+        proxy_pass http://unix:/home/buh/Buh/backend/gunicorn.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    <span class="comment"># 📁 Static & Media</span>
+    <span class="keyword">location</span> /static/ {
+        alias /home/buh/Buh/backend/staticfiles/;
+        expires 30d;
+    }
+    <span class="keyword">location</span> /media/ {
+        alias /home/buh/Buh/backend/media/;
+        expires 7d;
+    }
+}</code></pre>
+        </div>
+    </details>
+
+    <pre><code><span class="cmd">sudo ln -s /etc/nginx/sites-available/buh /etc/nginx/sites-enabled/</span>
+<span class="cmd">sudo nginx -t</span>
+<span class="output"># ✅ syntax is ok</span>
+<span class="cmd">sudo systemctl restart nginx</span></code></pre>
+
+    <h3 id="prod-ssl">6.11 🔒 HTTPS з Let's Encrypt</h3>
+    <pre><code><span class="cmd">sudo certbot --nginx -d your-domain.com.ua -d www.your-domain.com.ua</span>
+<span class="output"># ✅ Congratulations! HTTPS enabled on your-domain.com.ua</span>
+
+<span class="comment"># Перевірити автоматичне оновлення</span>
+<span class="cmd">sudo certbot renew --dry-run</span></code></pre>
+
+    <h3>6.12 🐘 Тюнінг PostgreSQL</h3>
+    <details>
+        <summary>📄 postgresql.conf (для сервера з 4 ГБ RAM)</summary>
+        <div class="details-body">
+            <table>
+                <thead><tr><th>Параметр</th><th>Значення</th><th>Опис</th></tr></thead>
+                <tbody>
+                    <tr><td><code>shared_buffers</code></td><td>1GB</td><td>25% від RAM</td></tr>
+                    <tr><td><code>effective_cache_size</code></td><td>3GB</td><td>75% від RAM</td></tr>
+                    <tr><td><code>work_mem</code></td><td>16MB</td><td>Для сортування</td></tr>
+                    <tr><td><code>maintenance_work_mem</code></td><td>256MB</td><td>Для VACUUM, INDEX</td></tr>
+                    <tr><td><code>wal_buffers</code></td><td>16MB</td><td>WAL буфер</td></tr>
+                    <tr><td><code>random_page_cost</code></td><td>1.1</td><td>Для SSD</td></tr>
+                    <tr><td><code>effective_io_concurrency</code></td><td>200</td><td>Для SSD</td></tr>
+                    <tr><td><code>max_connections</code></td><td>100</td><td>Максимум з'єднань</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+    <h3>6.13 🔥 Фаєрвол</h3>
+    <pre><code><span class="cmd">sudo ufw allow OpenSSH</span>
+<span class="cmd">sudo ufw allow 'Nginx Full'</span>
+<span class="cmd">sudo ufw enable</span></code></pre>
+
+    <div class="alert alert-danger">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>НЕ</strong> відкривайте порти 5432 (PostgreSQL) та 6379 (Redis) для зовнішнього доступу!</div>
+    </div>
+
+    <h3>6.14 ✅ Фінальна перевірка</h3>
+    <pre><code><span class="cmd">sudo systemctl status postgresql</span>
+<span class="cmd">sudo systemctl status redis-server</span>
+<span class="cmd">sudo systemctl status buh-backend</span>
+<span class="cmd">sudo systemctl status nginx</span></code></pre>
+
+    <div class="url-table">
+        <div class="url-row"><span class="icon">🌐</span><div><div class="label">Frontend</div><div class="url">https://your-domain.com.ua</div></div></div>
+        <div class="url-row"><span class="icon">🔧</span><div><div class="label">Django Admin</div><div class="url">https://your-domain.com.ua/admin/</div></div></div>
+        <div class="url-row"><span class="icon">🐍</span><div><div class="label">REST API</div><div class="url">https://your-domain.com.ua/api/</div></div></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== 7. Troubleshooting ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="troubleshooting">
+    <h2>🔧 7. Troubleshooting (вирішення проблем)</h2>
+
+    <!-- 7.1 Database -->
+    <h3>7.1 🐘 Проблеми з базою даних</h3>
+
+    <details>
+        <summary>❌ Connection refused — PostgreSQL не підключається</summary>
+        <div class="details-body">
+            <p><strong>Причина:</strong> PostgreSQL не запущений або слухає не на тому порті.</p>
+            <pre><code><span class="comment"># 🐧 Linux:</span>
+<span class="cmd">sudo systemctl start postgresql</span>
+
+<span class="comment"># 🍎 macOS:</span>
+<span class="cmd">brew services start postgresql@16</span>
+
+<span class="comment"># 🪟 Windows:</span>
+<span class="comment"># services.msc → postgresql-x64-16 → Запустити</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Password authentication failed</summary>
+        <div class="details-body">
+            <p><strong>Причина:</strong> Неправильний пароль у <code>.env</code> файлі.</p>
+            <pre><code><span class="comment"># Скинути пароль:</span>
+<span class="cmd">sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'new_password';"</span>
+<span class="comment"># Потім оновіть POSTGRES_PASSWORD у backend/.env</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Database "buh_assets" does not exist</summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">sudo -u postgres psql -c "CREATE DATABASE buh_assets;"</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Could not translate host name "db" to address</summary>
+        <div class="details-body">
+            <p><strong>Причина:</strong> Використовується <code>POSTGRES_HOST=db</code> (Docker) замість <code>localhost</code> (ручна установка).</p>
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div>Docker: <code>POSTGRES_HOST=db</code><br>Ручна установка: <code>POSTGRES_HOST=localhost</code></div>
+            </div>
+        </div>
+    </details>
+
+    <!-- 7.2 CORS -->
+    <h3>7.2 🌐 Помилки CORS</h3>
+
+    <details>
+        <summary>❌ Blocked by CORS policy</summary>
+        <div class="details-body">
+            <p>Перевірте <code>CORS_ORIGINS</code> у <code>backend/.env</code>:</p>
+            <pre><code><span class="env-key">CORS_ORIGINS</span>=<span class="env-val">http://localhost:5173</span></code></pre>
+            <p>Якщо frontend на іншому порті, додайте його через кому. Перезапустіть Django після зміни.</p>
+        </div>
+    </details>
+
+    <!-- 7.3 Ports -->
+    <h3>7.3 🔌 Порт вже зайнятий</h3>
+
+    <details>
+        <summary>❌ Port 8000 / 5173 is already in use</summary>
+        <div class="details-body">
+            <pre><code><span class="comment"># 🪟 Windows:</span>
+<span class="cmd">netstat -ano | findstr :8000</span>
+<span class="cmd">taskkill /PID &lt;PID&gt; /F</span>
+
+<span class="comment"># 🍎 macOS / 🐧 Linux:</span>
+<span class="cmd">lsof -i :8000</span>
+<span class="cmd">kill -9 &lt;PID&gt;</span>
+
+<span class="comment"># Або запустити на іншому порті:</span>
+<span class="cmd">python manage.py runserver 8001</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Port 5432 is in use (Docker + локальний PostgreSQL)</summary>
+        <div class="details-body">
+            <p>Зупиніть локальний PostgreSQL перед Docker, або змініть порт у <code>docker-compose.yml</code>:</p>
+            <pre><code>ports:
+  - "5433:5432"  <span class="comment"># Зовнішній порт 5433</span></code></pre>
+        </div>
+    </details>
+
+    <!-- 7.4 Python -->
+    <h3>7.4 🐍 Проблеми з Python / Django</h3>
+
+    <details>
+        <summary>❌ ModuleNotFoundError: No module named 'django'</summary>
+        <div class="details-body">
+            <p><strong>Причина:</strong> Віртуальне середовище не активовано.</p>
+            <pre><code><span class="comment"># 🪟 Windows:</span>
+<span class="cmd">backend\venv\Scripts\activate</span>
+
+<span class="comment"># 🍎 macOS / 🐧 Linux:</span>
+<span class="cmd">source backend/venv/bin/activate</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Set the DJANGO_SECRET_KEY environment variable</summary>
+        <div class="details-body">
+            <p>Файл <code>.env</code> не знайдено або не містить <code>DJANGO_SECRET_KEY</code>.</p>
+            <pre><code><span class="cmd">ls -la backend/.env</span>   <span class="comment"># Перевірте наявність</span>
+<span class="cmd">cat backend/.env</span>      <span class="comment"># Перевірте вміст</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Relation already exists (помилка міграцій)</summary>
+        <div class="details-body">
+            <pre><code><span class="comment"># Скинути міграції конкретного додатку:</span>
+<span class="cmd">python manage.py migrate assets zero</span>
+<span class="cmd">python manage.py migrate assets</span></code></pre>
+        </div>
+    </details>
+
+    <!-- 7.5 Frontend -->
+    <h3>7.5 ⚛️ Проблеми з Frontend</h3>
+
+    <details>
+        <summary>❌ npm ERR! code ERESOLVE</summary>
+        <div class="details-body">
+            <pre><code><span class="comment"># Варіант 1:</span>
+<span class="cmd">npm install --legacy-peer-deps</span>
+
+<span class="comment"># Варіант 2: Очистити та перевстановити</span>
+<span class="cmd">rm -rf node_modules package-lock.json</span>
+<span class="cmd">npm install</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ ENOSPC: System limit for file watchers (Linux)</summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf</span>
+<span class="cmd">sudo sysctl -p</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Vite requires Node.js version 18+</summary>
+        <div class="details-body">
+            <p>Оновіть Node.js до версії 20 LTS (див. розділ встановлення для вашої ОС).</p>
+        </div>
+    </details>
+
+    <!-- 7.6 Docker -->
+    <h3>7.6 🐳 Проблеми з Docker</h3>
+
+    <details>
+        <summary>❌ Cannot connect to the Docker daemon</summary>
+        <div class="details-body">
+            <pre><code><span class="comment"># 🪟 / 🍎 — запустіть Docker Desktop</span>
+<span class="comment"># 🐧 Linux:</span>
+<span class="cmd">sudo systemctl start docker</span></code></pre>
+        </div>
+    </details>
+
+    <details>
+        <summary>❌ Backend контейнер постійно перезапускується</summary>
+        <div class="details-body">
+            <pre><code><span class="cmd">docker compose logs backend</span></code></pre>
+            <p><strong>Часті причини:</strong></p>
+            <ul style="padding-left:20px;">
+                <li>Немає <code>.env</code> файлу → створіть <code>backend/.env</code></li>
+                <li>Неправильний <code>POSTGRES_HOST</code> → має бути <code>db</code> (не <code>localhost</code>)</li>
+                <li>Контейнер db ще не готовий → <code>docker compose restart backend</code></li>
+            </ul>
+        </div>
+    </details>
+
+    <!-- 7.7 Redis -->
+    <h3>7.7 🔴 Проблеми з Redis / Celery</h3>
+
+    <details>
+        <summary>❌ Error 111 connecting to localhost:6379</summary>
+        <div class="details-body">
+            <p><strong>Причина:</strong> Redis не запущений.</p>
+            <pre><code><span class="comment"># 🐧 Linux:</span>
+<span class="cmd">sudo systemctl start redis-server</span>
+<span class="comment"># 🍎 macOS:</span>
+<span class="cmd">brew services start redis</span></code></pre>
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div>Якщо Redis не потрібен — видаліть <code>CELERY_BROKER_URL</code> з <code>.env</code>.</div>
+            </div>
+        </div>
+    </details>
+
+    <!-- 7.8 Quick Reference -->
+    <h3>7.8 📝 Швидка діагностика</h3>
+    <table>
+        <thead><tr><th>🔍 Проблема</th><th>🛠️ Перше, що перевірити</th></tr></thead>
+        <tbody>
+            <tr><td>Не підключається до БД</td><td><code>POSTGRES_HOST</code> у <code>.env</code> (<code>localhost</code> чи <code>db</code>?)</td></tr>
+            <tr><td>CORS помилка</td><td><code>CORS_ORIGINS</code> містить URL фронтенда?</td></tr>
+            <tr><td><code>ModuleNotFoundError</code></td><td>Чи активовано <code>(venv)</code>?</td></tr>
+            <tr><td>Порт зайнятий</td><td>Чи не запущено інший екземпляр?</td></tr>
+            <tr><td>Docker не працює</td><td>Чи запущений Docker Desktop?</td></tr>
+            <tr><td>Міграції не проходять</td><td>Чи існує БД? Чи правильний пароль?</td></tr>
+            <tr><td>Frontend не збирається</td><td><code>node --version</code> >= 18? <code>npm install</code>?</td></tr>
+            <tr><td>500 Internal Server Error</td><td>Логи Django: <code>python manage.py runserver</code></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ===== Шпаргалка ===== -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section" id="cheatsheet">
+    <h2>📌 Корисні команди (шпаргалка)</h2>
+
+    <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <div class="card">
+            <h4>🐍 Django</h4>
+            <pre><code><span class="cmd">python manage.py runserver</span>
+<span class="cmd">python manage.py makemigrations</span>
+<span class="cmd">python manage.py migrate</span>
+<span class="cmd">python manage.py createsuperuser</span>
+<span class="cmd">python manage.py seed_asset_groups</span>
+<span class="cmd">python manage.py shell</span>
+<span class="cmd">python manage.py collectstatic --noinput</span></code></pre>
+        </div>
+        <div class="card">
+            <h4>⚛️ Frontend (React + Vite)</h4>
+            <pre><code><span class="cmd">npm install</span>
+<span class="cmd">npm run dev</span>
+<span class="cmd">npm run build</span>
+<span class="cmd">npm run preview</span>
+<span class="cmd">npm run lint</span></code></pre>
+        </div>
+        <div class="card">
+            <h4>🐳 Docker</h4>
+            <pre><code><span class="cmd">docker compose up -d --build</span>
+<span class="cmd">docker compose down</span>
+<span class="cmd">docker compose logs -f</span>
+<span class="cmd">docker compose exec backend python manage.py migrate</span>
+<span class="cmd">docker compose up -d --build backend</span></code></pre>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align:center;padding:40px 0 20px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:40px;">
+    <p>🎉 Якщо ви дійшли до цього місця — система має бути повністю встановлена!</p>
+    <p style="margin-top:8px;">📄 Система обліку основних засобів відповідно до ПКУ та П(С)БО 7</p>
+</div>
+
+</main>
+</div>
+
+<!-- ===== JavaScript: OS Tabs ===== -->
+<script>
+document.querySelectorAll('.os-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const group = this.parentElement.dataset.group;
+        // Deactivate all tabs in group
+        this.parentElement.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+        // Activate clicked tab
+        this.classList.add('active');
+        // Toggle content
+        const tabId = this.dataset.tab;
+        document.querySelectorAll(`.os-content[data-group="${group}"]`).forEach(c => c.classList.remove('active'));
+        document.querySelector(`.os-content[data-group="${group}"][data-tab="${tabId}"]`).classList.add('active');
+    });
+});
+
+// Smooth scroll for sidebar links
+document.querySelectorAll('.sidebar a').forEach(link => {
+    link.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href.startsWith('#')) {
+            e.preventDefault();
+            const target = document.querySelector(href);
+            if (target) target.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
+</body>
+</html>

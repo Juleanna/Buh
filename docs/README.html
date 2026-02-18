@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Система обліку основних засобів</title>
+<style>
+/* ===== CSS Variables ===== */
+:root {
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --primary-dark: #4338ca;
+  --primary-bg: #eef2ff;
+  --primary-bg-hover: #e0e7ff;
+  --accent: #06b6d4;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --bg: #ffffff;
+  --bg-alt: #f8fafc;
+  --bg-dark: #1e1e2e;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  --sidebar-width: 260px;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg-alt);
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+/* ===== Top Navigation ===== */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.top-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  overflow-x: auto;
+}
+
+.top-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.top-nav a:hover {
+  color: var(--primary);
+  background: var(--primary-bg);
+}
+
+.top-nav a.active {
+  color: var(--bg);
+  background: var(--primary);
+  font-weight: 600;
+}
+
+.nav-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ===== Layout ===== */
+.layout {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  position: sticky;
+  top: 48px;
+  height: calc(100vh - 48px);
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 20px 16px 40px 24px;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
+.sidebar a {
+  display: block;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 4px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
+
+.sidebar a:hover {
+  color: var(--primary);
+  background: var(--primary-bg);
+  border-left-color: var(--primary-light);
+}
+
+.sidebar a.toc-active {
+  color: var(--primary);
+  background: var(--primary-bg);
+  border-left-color: var(--primary);
+  font-weight: 600;
+}
+
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1001;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.sidebar-toggle:hover { transform: scale(1.1); }
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 999;
+}
+
+/* ===== Main Content ===== */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 0 32px 60px;
+  background: var(--bg);
+}
+
+/* ===== Hero Section ===== */
+.hero {
+  text-align: center;
+  padding: 56px 24px 40px;
+  margin: 0 -32px 40px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 40%, #818cf8 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero-icon {
+  font-size: 56px;
+  margin-bottom: 12px;
+  display: block;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.hero h1 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.hero p {
+  font-size: 16px;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto 24px;
+  line-height: 1.6;
+}
+
+.hero-badges {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  letter-spacing: 0.2px;
+}
+
+/* ===== Section Headings ===== */
+.section {
+  margin-bottom: 48px;
+  scroll-margin-top: 70px;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--primary-bg);
+  letter-spacing: -0.3px;
+}
+
+h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 28px 0 14px;
+}
+
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 20px 0 10px;
+}
+
+/* ===== Tables ===== */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 16px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead {
+  background: var(--primary);
+  color: white;
+}
+
+thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) { background: var(--bg-alt); }
+
+tbody tr:hover { background: var(--primary-bg); }
+
+tbody tr:last-child td { border-bottom: none; }
+
+/* ===== Roles Permission Matrix ===== */
+.permission-yes {
+  color: var(--success);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.permission-no {
+  color: var(--danger);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.role-admin { color: #ef4444; font-weight: 700; }
+.role-accountant { color: #f59e0b; font-weight: 700; }
+.role-inventory { color: #10b981; font-weight: 700; }
+
+/* ===== Asset Groups Table ===== */
+.group-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ===== Cards ===== */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ===== Technology Badges ===== */
+.tech-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.tech-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.tech-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+.tech-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-bg);
+  border-radius: var(--radius);
+}
+
+.tech-info { flex: 1; min-width: 0; }
+
+.tech-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tech-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tech-version {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* ===== Code Blocks ===== */
+pre {
+  background: var(--bg-dark);
+  color: #cdd6f4;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 14px 0;
+  box-shadow: var(--shadow-md);
+}
+
+pre .comment { color: #6c7086; font-style: italic; }
+pre .command { color: #89b4fa; }
+pre .flag { color: #a6e3a1; }
+pre .string { color: #f9e2af; }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--primary-bg);
+  color: var(--primary-dark);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ===== Project Tree ===== */
+.project-tree {
+  background: var(--bg-dark);
+  color: #cdd6f4;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 16px 0;
+  overflow-x: auto;
+  box-shadow: var(--shadow-md);
+}
+
+.tree-folder { color: #89b4fa; font-weight: 600; }
+.tree-file { color: #cdd6f4; }
+.tree-comment { color: #6c7086; }
+.tree-icon { margin-right: 2px; }
+.tree-connector { color: #585b70; }
+.tree-root { color: #f9e2af; font-weight: 700; font-size: 14px; }
+
+/* ===== Collapsible Sections ===== */
+details {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+details[open] {
+  box-shadow: var(--shadow-sm);
+}
+
+summary {
+  padding: 12px 16px;
+  background: var(--bg-alt);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+summary:hover { background: var(--primary-bg); }
+
+summary::before {
+  content: '▸';
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+summary::-webkit-details-marker { display: none; }
+
+details .details-content {
+  padding: 4px 0;
+}
+
+/* ===== Blockquote / Note ===== */
+.note {
+  padding: 14px 18px;
+  background: var(--primary-bg);
+  border-left: 4px solid var(--primary);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 16px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.note strong { color: var(--primary-dark); }
+
+.note a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ===== Links ===== */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+a:hover { color: var(--primary-dark); text-decoration: underline; }
+
+/* ===== Formula Tags ===== */
+.formula {
+  display: inline;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--primary-dark);
+}
+
+/* ===== Method Number Badges ===== */
+.method-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ===== Doc Link Cards ===== */
+.doc-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.doc-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-decoration: none !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.doc-link:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.doc-link-icon { font-size: 28px; flex-shrink: 0; }
+.doc-link-text { flex: 1; }
+.doc-link-title { font-weight: 600; font-size: 15px; }
+.doc-link-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+/* ===== Service URL Table ===== */
+.url-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--primary-bg);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* ===== HTTP Method Badges ===== */
+.http-method {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+.http-get { background: #dbeafe; color: #1d4ed8; }
+.http-post { background: #d1fae5; color: #047857; }
+.http-put { background: #fef3c7; color: #b45309; }
+.http-delete { background: #fee2e2; color: #b91c1c; }
+.http-crud { background: #ede9fe; color: #6d28d9; }
+
+/* ===== Env Table ===== */
+.env-var {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-dark);
+  color: #89b4fa;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.env-example {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  padding: 32px 24px;
+  margin-top: 40px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.footer-title {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.footer-flag {
+  font-size: 16px;
+  margin-top: 8px;
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ===== Horizontal Rule ===== */
+hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 40px 0;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    padding-top: 60px;
+  }
+
+  .sidebar.open { left: 0; }
+
+  .sidebar-toggle { display: flex; }
+
+  .sidebar-overlay.open { display: block; }
+
+  .main { padding: 0 16px 40px; }
+
+  .hero { margin: 0 -16px 32px; padding: 40px 16px 32px; }
+  .hero h1 { font-size: 24px; }
+  .hero p { font-size: 14px; }
+
+  h2 { font-size: 20px; }
+  h3 { font-size: 16px; }
+
+  .cards { grid-template-columns: 1fr; }
+  .tech-cards { grid-template-columns: 1fr; }
+  .doc-links { grid-template-columns: 1fr; }
+
+  .top-nav-inner { padding: 0 12px; }
+}
+
+/* ===== Print Styles ===== */
+@media print {
+  .sidebar, .sidebar-toggle, .top-nav, .sidebar-overlay { display: none !important; }
+
+  .main { padding: 0; }
+
+  .hero {
+    background: none !important;
+    color: var(--text) !important;
+    padding: 20px 0;
+    margin: 0 0 20px;
+    border-bottom: 2px solid var(--text);
+  }
+
+  .hero-badge {
+    background: none;
+    border: 1px solid var(--text);
+    color: var(--text);
+  }
+
+  body { font-size: 12px; background: white; }
+  table { font-size: 11px; }
+  .card, .tech-card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  pre { background: #f5f5f5 !important; color: #333 !important; border: 1px solid #ccc; }
+  .project-tree { background: #f5f5f5 !important; color: #333 !important; }
+  .tree-folder, .tree-root { color: #333 !important; }
+  .tree-comment { color: #888 !important; }
+
+  details { border: 1px solid #ccc; }
+  details[open] summary { border-bottom: 1px solid #ccc; }
+
+  .section { break-inside: avoid; }
+  h2 { break-after: avoid; }
+
+  .footer { border-top: 1px solid #ccc; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Top Navigation ===== -->
+<nav class="top-nav">
+  <div class="top-nav-inner">
+    <a href="README.html" class="active">📄 README</a>
+    <span class="nav-separator"></span>
+    <a href="USER_GUIDE.html">📖 Інструкція користувача</a>
+    <span class="nav-separator"></span>
+    <a href="INSTALLATION.html">🔧 Встановлення</a>
+    <span class="nav-separator"></span>
+    <a href="BAT_SCRIPTS_GUIDE.html">🖥️ BAT-скрипти</a>
+  </div>
+</nav>
+
+<!-- ===== Sidebar Toggle (Mobile) ===== -->
+<button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Зміст">☰</button>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ===== Layout ===== -->
+<div class="layout">
+
+  <!-- ===== Sidebar / TOC ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Зміст</div>
+    <a href="#features">✨ Можливості</a>
+    <a href="#tech">🛠️ Технології</a>
+    <a href="#structure">📁 Структура проєкту</a>
+    <a href="#quickstart">🚀 Швидкий старт</a>
+    <a href="#env">⚙️ Змінні середовища</a>
+    <a href="#models">🗄️ Моделі бази даних</a>
+    <a href="#api">🌐 API довідник</a>
+    <a href="#documents">📄 Типи документів</a>
+    <a href="#depreciation">📉 Методи амортизації</a>
+    <a href="#roles">👥 Ролі та дозволи</a>
+    <a href="#celery">⏰ Celery задачі</a>
+    <a href="#dev">🧑‍💻 Розробка</a>
+    <a href="#groups">📁 16 груп ОЗ</a>
+    <a href="#docs">📖 Документація</a>
+    <a href="#license">📜 Ліцензія</a>
+  </aside>
+
+  <!-- ===== Main Content ===== -->
+  <main class="main">
+
+    <!-- Hero Section -->
+    <div class="hero">
+      <span class="hero-icon">🏛️</span>
+      <h1>Система обліку основних засобів</h1>
+      <p>Повнофункціональний веб-додаток для обліку основних засобів відповідно до українського законодавства</p>
+      <div class="hero-badges">
+        <span class="hero-badge">📋 НП(С)БО 7</span>
+        <span class="hero-badge">📜 ПКУ ст. 138.3.3</span>
+        <span class="hero-badge">📑 Наказ Мінфін №572</span>
+      </div>
+    </div>
+
+    <!-- ✨ Можливості -->
+    <div class="section" id="features">
+      <h2>✨ Можливості</h2>
+
+      <h3>📋 Облік основних засобів</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Функція</th><th>Опис</th></tr></thead>
+          <tbody>
+            <tr><td>🏗️ <strong>Реєстр ОЗ</strong></td><td>Повний облік з інвентарними номерами, групами, МВО, місцезнаходженням</td></tr>
+            <tr><td>📥 <strong>Прихід (ОЗ-1)</strong></td><td>Оприбуткування: придбання, безоплатне отримання, внесок, обмін, самостійне виготовлення</td></tr>
+            <tr><td>📤 <strong>Вибуття (ОЗ-3/ОЗ-4)</strong></td><td>Списання, продаж, ліквідація, безоплатна передача, нестача</td></tr>
+            <tr><td>📉 <strong>Амортизація</strong></td><td>5 методів згідно НП(С)БО 7 з автоматичним нарахуванням</td></tr>
+            <tr><td>📦 <strong>Інвентаризація</strong></td><td>Створення, проведення, виявлення розбіжностей, комісія</td></tr>
+            <tr><td>💰 <strong>Переоцінка</strong></td><td>Дооцінка та уцінка з перерахунком коефіцієнтів</td></tr>
+            <tr><td>🔧 <strong>Поліпшення</strong></td><td>Капремонт, поточний ремонт, модернізація, реконструкція</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>📄 Документи та звіти</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Документ</th><th>Форма</th><th>Формати</th></tr></thead>
+          <tbody>
+            <tr><td>📋 Інвентарна картка</td><td>ОЗ-6</td><td>PDF + Excel</td></tr>
+            <tr><td>📥 Акт приймання-передачі</td><td>ОЗ-1</td><td>PDF + Excel</td></tr>
+            <tr><td>📤 Акт списання ОЗ</td><td>ОЗ-3</td><td>PDF + Excel</td></tr>
+            <tr><td>🚗 Акт списання автотранспорту</td><td>ОЗ-4</td><td>PDF + Excel</td></tr>
+            <tr><td>📉 Відомість амортизації</td><td>—</td><td>PDF + Excel</td></tr>
+            <tr><td>📦 Інвентаризаційний опис</td><td>Наказ №572</td><td>PDF + Excel</td></tr>
+            <tr><td>📒 Журнал проводок</td><td>—</td><td>PDF + Excel</td></tr>
+            <tr><td>📊 Оборотна відомість</td><td>—</td><td>PDF + Excel</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🔧 Системні можливості</h3>
+      <div class="cards">
+        <div class="card">
+          <span class="card-icon">🔐</span>
+          <div class="card-title">JWT авторизація</div>
+          <div class="card-desc">Access-токен 8 годин, Refresh 7 днів</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">👥</span>
+          <div class="card-title">3 ролі</div>
+          <div class="card-desc">Адміністратор, Бухгалтер, Інвентаризатор</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📝</span>
+          <div class="card-title">Журнал аудиту</div>
+          <div class="card-desc">Логування всіх операцій з IP-адресою</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔔</span>
+          <div class="card-title">Сповіщення</div>
+          <div class="card-desc">Нагадування про амортизацію, знос &gt;90%, інвентаризацію</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📊</span>
+          <div class="card-title">Дашборд</div>
+          <div class="card-desc">Статистика, графіки за групами, останні операції</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🏷️</span>
+          <div class="card-title">QR-коди</div>
+          <div class="card-desc">Генерація поодинці та масова (для інвентарних бирок)</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📥📤</span>
+          <div class="card-title">Імпорт/Експорт</div>
+          <div class="card-desc">Excel-файли для масового завантаження ОЗ</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📒</span>
+          <div class="card-title">Бухгалтерські проводки</div>
+          <div class="card-desc">Автоматичне формування Дт-Кт записів</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🏢</span>
+          <div class="card-title">Довідники</div>
+          <div class="card-desc">Організації, локації, МВО, групи ОЗ</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">⏰</span>
+          <div class="card-title">Celery задачі</div>
+          <div class="card-desc">Автонарахування амортизації, нагадування</div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 🛠️ Технології -->
+    <div class="section" id="tech">
+      <h2>🛠️ Технології</h2>
+      <div class="tech-cards">
+        <div class="tech-card">
+          <div class="tech-icon">🐍</div>
+          <div class="tech-info">
+            <div class="tech-name">Django + DRF</div>
+            <div class="tech-detail">Backend</div>
+          </div>
+          <span class="tech-version">5.1 + 3.15</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">⚛️</div>
+          <div class="tech-info">
+            <div class="tech-name">React + TypeScript + Vite</div>
+            <div class="tech-detail">Frontend</div>
+          </div>
+          <span class="tech-version">18.3 + 5.6 + 6.0</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🎨</div>
+          <div class="tech-info">
+            <div class="tech-name">Ant Design</div>
+            <div class="tech-detail">UI бібліотека</div>
+          </div>
+          <span class="tech-version">5.22</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🗄️</div>
+          <div class="tech-info">
+            <div class="tech-name">PostgreSQL</div>
+            <div class="tech-detail">База даних</div>
+          </div>
+          <span class="tech-version">16</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🔐</div>
+          <div class="tech-info">
+            <div class="tech-name">JWT (simplejwt)</div>
+            <div class="tech-detail">Авторизація</div>
+          </div>
+          <span class="tech-version">5.4</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📄</div>
+          <div class="tech-info">
+            <div class="tech-name">ReportLab</div>
+            <div class="tech-detail">PDF генерація</div>
+          </div>
+          <span class="tech-version">4.2.5</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📊</div>
+          <div class="tech-info">
+            <div class="tech-name">openpyxl</div>
+            <div class="tech-detail">Excel генерація</div>
+          </div>
+          <span class="tech-version">3.1.5</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">📦</div>
+          <div class="tech-info">
+            <div class="tech-name">Zustand</div>
+            <div class="tech-detail">Стан (frontend)</div>
+          </div>
+          <span class="tech-version">5.0</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🗺️</div>
+          <div class="tech-info">
+            <div class="tech-name">React Router</div>
+            <div class="tech-detail">Маршрутизація</div>
+          </div>
+          <span class="tech-version">6.28</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🌐</div>
+          <div class="tech-info">
+            <div class="tech-name">Axios</div>
+            <div class="tech-detail">HTTP клієнт</div>
+          </div>
+          <span class="tech-version">1.7</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">⏰</div>
+          <div class="tech-info">
+            <div class="tech-name">Celery + Redis</div>
+            <div class="tech-detail">Черги задач</div>
+          </div>
+          <span class="tech-version">5.4</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🐳</div>
+          <div class="tech-info">
+            <div class="tech-name">Docker Compose</div>
+            <div class="tech-detail">Контейнеризація</div>
+          </div>
+          <span class="tech-version">latest</span>
+        </div>
+        <div class="tech-card">
+          <div class="tech-icon">🏷️</div>
+          <div class="tech-info">
+            <div class="tech-name">qrcode + Pillow</div>
+            <div class="tech-detail">QR-коди</div>
+          </div>
+          <span class="tech-version">8.0</span>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 📁 Структура проєкту -->
+    <div class="section" id="structure">
+      <h2>📁 Структура проєкту</h2>
+      <div class="project-tree">
+<span class="tree-root">📦 Buh/</span>
+<br><span class="tree-connector">├── </span><span class="tree-icon">📂</span> <span class="tree-folder">backend/</span> <span class="tree-comment">&nbsp;&nbsp;# 🐍 Django-додаток</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">config/</span> <span class="tree-comment">&nbsp;&nbsp;# ⚙️ Конфігурація проєкту</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-file">settings.py</span> <span class="tree-comment">&nbsp;&nbsp;# Основні налаштування</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-file">urls.py</span> <span class="tree-comment">&nbsp;&nbsp;# Маршрутизація URL</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-file">celery.py</span> <span class="tree-comment">&nbsp;&nbsp;# Конфігурація Celery</span>
+<br><span class="tree-connector">│   │   └── </span><span class="tree-file">wsgi.py</span> <span class="tree-comment">&nbsp;&nbsp;# WSGI точка входу</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">apps/</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">accounts/</span> <span class="tree-comment">&nbsp;&nbsp;# 👤 Користувачі та авторизація</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">models.py</span> <span class="tree-comment">&nbsp;&nbsp;# Модель User з ролями</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# Login, Register, Profile</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">serializers.py</span> <span class="tree-comment">&nbsp;&nbsp;# Серіалізатори</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">assets/</span> <span class="tree-comment">&nbsp;&nbsp;# 🏗️ Основна бізнес-логіка</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">models.py</span> <span class="tree-comment">&nbsp;&nbsp;# 17 моделей (820+ рядків)</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# 16 ViewSet-ів</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">serializers.py</span> <span class="tree-comment">&nbsp;&nbsp;# Серіалізатори</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">depreciation.py</span> <span class="tree-comment">&nbsp;&nbsp;# Розрахунок амортизації</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">entries.py</span> <span class="tree-comment">&nbsp;&nbsp;# Формування проводок</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">tasks.py</span> <span class="tree-comment">&nbsp;&nbsp;# Celery задачі</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">audit.py</span> <span class="tree-comment">&nbsp;&nbsp;# Аудит логування</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">notifications.py</span> <span class="tree-comment">&nbsp;&nbsp;# Сповіщення</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">qr_excel.py</span> <span class="tree-comment">&nbsp;&nbsp;# QR-коди, Excel імпорт/експорт</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">documents/</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 Генерація PDF/Excel</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# 8 типів документів (3500+ рядків)</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">excel_utils.py</span> <span class="tree-comment">&nbsp;&nbsp;# Утиліти для Excel</span>
+<br><span class="tree-connector">│   │   └── </span><span class="tree-icon">📂</span> <span class="tree-folder">reports/</span> <span class="tree-comment">&nbsp;&nbsp;# 📊 Аналітика та звіти</span>
+<br><span class="tree-connector">│   │       └── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# Дашборд, зведені звіти</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-file">requirements.txt</span> <span class="tree-comment">&nbsp;&nbsp;# 📋 Python залежності</span>
+<br><span class="tree-connector">│   └── </span><span class="tree-file">manage.py</span> <span class="tree-comment">&nbsp;&nbsp;# 🔧 Django CLI</span>
+<br><span class="tree-connector">├── </span><span class="tree-icon">📂</span> <span class="tree-folder">frontend/</span> <span class="tree-comment">&nbsp;&nbsp;# ⚛️ React-додаток</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">src/</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">pages/</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 21 сторінка</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">LoginPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🔐 Авторизація</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">DashboardPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📊 Головна / Дашборд</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AssetsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📋 Реєстр ОЗ</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AssetDetailPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 Картка ОЗ</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">GroupsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📁 Групи ОЗ</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">LocationsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📍 Місцезнаходження</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">ResponsiblePersonsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 👤 МВО</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">OrganizationsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🏢 Організації</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">ReceiptsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📥 Прихід ОЗ</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">DisposalsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📤 Вибуття ОЗ</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">DepreciationPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📉 Амортизація</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">InventoriesPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📦 Інвентаризації</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">InventoryDetailPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📦 Деталі інвентаризації</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">RevaluationsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 💰 Переоцінки</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">ImprovementsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🔧 Поліпшення</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">EntriesPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📒 Проводки</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">TurnoverReportPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📊 Оборотна відомість</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AuditLogPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📝 Журнал аудиту</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">NotificationsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🔔 Сповіщення</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">UsersPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 👥 Управління користувачами</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">ProfilePage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# ⚙️ Профіль</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">components/</span> <span class="tree-comment">&nbsp;&nbsp;# 🧩 Компоненти</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AppLayout.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# Головний layout + меню</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">ExportButton.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# Кнопки PDF/Excel експорту</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">store/</span> <span class="tree-comment">&nbsp;&nbsp;# 🗄️ Zustand</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">authStore.ts</span> <span class="tree-comment">&nbsp;&nbsp;# Стан авторизації</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">api/</span> <span class="tree-comment">&nbsp;&nbsp;# 🌐 API клієнт</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">client.ts</span> <span class="tree-comment">&nbsp;&nbsp;# Axios з JWT інтерцепторами</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">utils/</span> <span class="tree-comment">&nbsp;&nbsp;# 🔧 Утиліти</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">globalMessage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# Глобальний antd message</span>
+<br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">downloadPdf.ts</span> <span class="tree-comment">&nbsp;&nbsp;# Завантаження PDF/Excel</span>
+<br><span class="tree-connector">│   │   └── </span><span class="tree-file">types.ts</span> <span class="tree-comment">&nbsp;&nbsp;# 📝 TypeScript типи</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-file">package.json</span> <span class="tree-comment">&nbsp;&nbsp;# 📋 NPM залежності</span>
+<br><span class="tree-connector">│   └── </span><span class="tree-file">vite.config.ts</span> <span class="tree-comment">&nbsp;&nbsp;# ⚙️ Конфігурація Vite</span>
+<br><span class="tree-connector">├── </span><span class="tree-icon">📂</span> <span class="tree-folder">docs/</span> <span class="tree-comment">&nbsp;&nbsp;# 📖 Документація</span>
+<br><span class="tree-connector">│   ├── </span><span class="tree-file">USER_GUIDE.md</span> <span class="tree-comment">&nbsp;&nbsp;# Інструкція користувача</span>
+<br><span class="tree-connector">│   └── </span><span class="tree-file">INSTALLATION.md</span> <span class="tree-comment">&nbsp;&nbsp;# Інструкція по встановленню</span>
+<br><span class="tree-connector">├── </span><span class="tree-file">docker-compose.yml</span> <span class="tree-comment">&nbsp;&nbsp;# 🐳 Docker Compose</span>
+<br><span class="tree-connector">└── </span><span class="tree-file">README.md</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 Цей файл</span>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 🚀 Швидкий старт -->
+    <div class="section" id="quickstart">
+      <h2>🚀 Швидкий старт</h2>
+
+      <h3>🐳 Варіант 1: Docker Compose (рекомендовано)</h3>
+      <pre><code><span class="comment"># 1. Клонувати репозиторій</span>
+<span class="command">git clone</span> <span class="string">&lt;url&gt;</span> && <span class="command">cd</span> Buh
+
+<span class="comment"># 2. Запустити всі сервіси</span>
+<span class="command">docker-compose up</span> <span class="flag">-d</span>
+
+<span class="comment"># 3. Виконати міграції та створити початкові дані</span>
+<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py migrate
+<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py seed_asset_groups
+<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py createsuperuser
+
+<span class="comment"># 4. Відкрити http://localhost:5173</span></code></pre>
+
+      <h3>💻 Варіант 2: Ручна установка</h3>
+
+      <h4>🐍 Backend</h4>
+      <pre><code><span class="command">cd</span> backend
+<span class="command">python</span> <span class="flag">-m</span> venv venv
+<span class="command">source</span> venv/bin/activate          <span class="comment"># Windows: venv\Scripts\activate</span>
+<span class="command">pip install</span> <span class="flag">-r</span> requirements.txt
+
+<span class="comment"># Створити БД PostgreSQL "buh_assets"</span>
+<span class="comment"># Скопіювати .env.example → .env та налаштувати</span>
+
+<span class="command">python</span> manage.py migrate
+<span class="command">python</span> manage.py seed_asset_groups    <span class="comment"># 16 груп ОЗ згідно ПКУ</span>
+<span class="command">python</span> manage.py createsuperuser
+<span class="command">python</span> manage.py runserver</code></pre>
+
+      <h4>⚛️ Frontend</h4>
+      <pre><code><span class="command">cd</span> frontend
+<span class="command">npm install</span>
+<span class="command">npm run</span> dev</code></pre>
+
+      <h4>🔗 Результат</h4>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Сервіс</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>🌐 Frontend</td><td><span class="url-badge">http://localhost:5173</span></td></tr>
+            <tr><td>🐍 Backend API</td><td><span class="url-badge">http://localhost:8000/api/</span></td></tr>
+            <tr><td>🗄️ Django Admin</td><td><span class="url-badge">http://localhost:8000/admin/</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        📖 <strong>Детальна інструкція</strong> для різних ОС &rarr; <a href="INSTALLATION.html">docs/INSTALLATION.md</a>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ⚙️ Змінні середовища -->
+    <div class="section" id="env">
+      <h2>⚙️ Змінні середовища</h2>
+      <p>Файл <code>backend/.env</code>:</p>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Змінна</th><th>Опис</th><th>Приклад</th></tr></thead>
+          <tbody>
+            <tr><td><span class="env-var">DJANGO_SECRET_KEY</span></td><td>Секретний ключ Django</td><td><span class="env-example">django-insecure-xxx</span></td></tr>
+            <tr><td><span class="env-var">DEBUG</span></td><td>Режим відладки</td><td><span class="env-example">True</span></td></tr>
+            <tr><td><span class="env-var">POSTGRES_DB</span></td><td>Назва бази даних</td><td><span class="env-example">buh_assets</span></td></tr>
+            <tr><td><span class="env-var">POSTGRES_USER</span></td><td>Користувач PostgreSQL</td><td><span class="env-example">postgres</span></td></tr>
+            <tr><td><span class="env-var">POSTGRES_PASSWORD</span></td><td>Пароль PostgreSQL</td><td><span class="env-example">your_password</span></td></tr>
+            <tr><td><span class="env-var">POSTGRES_HOST</span></td><td>Хост бази даних</td><td><span class="env-example">localhost</span></td></tr>
+            <tr><td><span class="env-var">POSTGRES_PORT</span></td><td>Порт бази даних</td><td><span class="env-example">5432</span></td></tr>
+            <tr><td><span class="env-var">CORS_ORIGINS</span></td><td>Дозволені CORS-джерела</td><td><span class="env-example">http://localhost:5173</span></td></tr>
+            <tr><td><span class="env-var">CELERY_BROKER_URL</span></td><td>URL брокера Celery</td><td><span class="env-example">redis://localhost:6379/0</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 🗄️ Моделі бази даних -->
+    <div class="section" id="models">
+      <h2>🗄️ Моделі бази даних</h2>
+      <p>Система має <strong>17 моделей</strong> у додатку <code>assets</code>:</p>
+
+      <h3>🔵 Основні сутності</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Модель</th><th>Опис</th><th>Ключові поля</th></tr></thead>
+          <tbody>
+            <tr><td>🏗️ <code>Asset</code></td><td>Основний засіб</td><td>inventory_number, name, group, initial_cost, current_book_value, depreciation_method, useful_life_months, status</td></tr>
+            <tr><td>📥 <code>AssetReceipt</code></td><td>Прихід ОЗ</td><td>asset, receipt_type, document_number, amount, supplier</td></tr>
+            <tr><td>📤 <code>AssetDisposal</code></td><td>Вибуття ОЗ</td><td>asset, disposal_type, document_number, reason, sale_amount, book_value_at_disposal</td></tr>
+            <tr><td>📉 <code>DepreciationRecord</code></td><td>Запис амортизації</td><td>asset, period_year, period_month, amount, method, book_value_before/after</td></tr>
+            <tr><td>💰 <code>AssetRevaluation</code></td><td>Переоцінка</td><td>asset, fair_value, revaluation_type, old/new_initial_cost, old/new_book_value</td></tr>
+            <tr><td>🔧 <code>AssetImprovement</code></td><td>Поліпшення</td><td>asset, improvement_type, amount, increases_value</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>📦 Інвентаризація</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Модель</th><th>Опис</th><th>Ключові поля</th></tr></thead>
+          <tbody>
+            <tr><td>📦 <code>Inventory</code></td><td>Сеанс інвентаризації</td><td>number, date, status, location, commission_head, commission_members</td></tr>
+            <tr><td>📋 <code>InventoryItem</code></td><td>Рядок інвентаризації</td><td>inventory, asset, is_found, condition, book_value, actual_value, difference</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>📚 Довідники</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Модель</th><th>Опис</th><th>Ключові поля</th></tr></thead>
+          <tbody>
+            <tr><td>📁 <code>AssetGroup</code></td><td>Група ОЗ (16 груп)</td><td>code, name, min_useful_life_months, account_number, depreciation_account</td></tr>
+            <tr><td>📍 <code>Location</code></td><td>Місцезнаходження</td><td>name, is_active</td></tr>
+            <tr><td>👤 <code>ResponsiblePerson</code></td><td>МВО</td><td>full_name, position, ipn, location</td></tr>
+            <tr><td>🏢 <code>Organization</code></td><td>Організація</td><td>name, edrpou, address, director, accountant</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🔧 Системні</h3>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Модель</th><th>Опис</th><th>Ключові поля</th></tr></thead>
+          <tbody>
+            <tr><td>👤 <code>User</code></td><td>Користувач</td><td>username, role (admin/accountant/inventory_manager)</td></tr>
+            <tr><td>📒 <code>AccountEntry</code></td><td>Бухгалтерська проводка</td><td>entry_type, debit_account, credit_account, amount, asset</td></tr>
+            <tr><td>📎 <code>AssetAttachment</code></td><td>Вкладення</td><td>asset, file, file_type</td></tr>
+            <tr><td>📝 <code>AuditLog</code></td><td>Журнал аудиту</td><td>user, action, changes (JSON), ip_address</td></tr>
+            <tr><td>🔔 <code>Notification</code></td><td>Сповіщення</td><td>recipient, notification_type, title, message, is_read</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 🌐 API довідник -->
+    <div class="section" id="api">
+      <h2>🌐 API довідник</h2>
+      <p>Базовий URL: <code>http://localhost:8000/api/</code></p>
+
+      <!-- Auth -->
+      <details open>
+        <summary>🔐 Авторизація <code>/api/auth/</code></summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/auth/login/</code></td><td>🔑 Отримання JWT токена</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/auth/refresh/</code></td><td>🔄 Оновлення Access-токена</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/auth/register/</code></td><td>➕ Реєстрація (тільки admin)</td></tr>
+                <tr><td><span class="http-method http-get">GET</span> <span class="http-method http-put">PUT</span></td><td><code>/auth/profile/</code></td><td>👤 Профіль користувача</td></tr>
+                <tr><td><span class="http-method http-put">PUT</span></td><td><code>/auth/change-password/</code></td><td>🔒 Зміна пароля</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/auth/users/</code></td><td>👥 Управління користувачами</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Assets -->
+      <details>
+        <summary>🏗️ Основні засоби <code>/api/assets/</code></summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/items/</code></td><td>📋 Реєстр ОЗ</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/items/statistics/</code></td><td>📊 Статистика</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/items/lookup/?inventory_number=</code></td><td>🔍 Пошук за інв. номером</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/groups/</code></td><td>📁 Групи ОЗ</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/locations/</code></td><td>📍 Місцезнаходження</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/responsible-persons/</code></td><td>👤 МВО</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/organizations/</code></td><td>🏢 Організації</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/receipts/</code></td><td>📥 Приходи</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/disposals/</code></td><td>📤 Вибуття</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/revaluations/</code></td><td>💰 Переоцінки</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/improvements/</code></td><td>🔧 Поліпшення</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/attachments/</code></td><td>📎 Вкладення</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Depreciation -->
+      <details>
+        <summary>📉 Амортизація</summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/depreciation/</code></td><td>📉 Записи амортизації</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/depreciation/calculate/</code></td><td>⚡ Масове нарахування (рік, місяць)</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/depreciation/summary/</code></td><td>📊 Зведена відомість</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Inventory -->
+      <details>
+        <summary>📦 Інвентаризація</summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/inventories/</code></td><td>📦 Сеанси інвентаризації</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/inventories/{id}/populate/</code></td><td>⚡ Заповнити активами</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/inventories/{id}/complete/</code></td><td>✅ Завершити інвентаризацію</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/inventory-items/</code></td><td>📋 Рядки інвентаризації</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Entries -->
+      <details>
+        <summary>📒 Проводки та облік</summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/entries/</code></td><td>📒 Бухгалтерські проводки</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/entries/journal/</code></td><td>📖 Журнал проводок</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Notifications -->
+      <details>
+        <summary>🔔 Сповіщення</summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/notifications/</code></td><td>🔔 Список сповіщень</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/notifications/unread_count/</code></td><td>🔢 Кількість непрочитаних</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/notifications/{id}/mark_read/</code></td><td>✅ Позначити прочитаним</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/notifications/mark_all_read/</code></td><td>✅ Позначити всі</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- QR & Excel -->
+      <details>
+        <summary>🏷️ QR-коди та Excel</summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-get">GET</span> / <span class="http-method http-post">POST</span></td><td><code>/assets/items/qr/</code></td><td>🏷️ QR-код для одного ОЗ</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/qr/bulk/</code></td><td>🏷️ Масова генерація QR-кодів</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/assets/export/excel/</code></td><td>📊 Експорт реєстру в Excel</td></tr>
+                <tr><td><span class="http-method http-post">POST</span></td><td><code>/assets/import/excel/</code></td><td>📥 Імпорт ОЗ з Excel</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Documents -->
+      <details>
+        <summary>📄 Документи <code>/api/documents/</code></summary>
+        <div class="details-content">
+          <div class="note">💡 Всі документи підтримують <code>?export=xlsx</code> для Excel-формату</div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Форма</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/asset/{id}/card/</code></td><td>ОЗ-6</td><td>📋 Інвентарна картка</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/receipt/{id}/act/</code></td><td>ОЗ-1</td><td>📥 Акт приймання-передачі</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/disposal/{id}/act/</code></td><td>ОЗ-3</td><td>📤 Акт списання ОЗ</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/disposal/{id}/vehicle-act/</code></td><td>ОЗ-4</td><td>🚗 Акт списання автотранспорту</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/depreciation-report/</code></td><td>—</td><td>📉 Відомість амортизації</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/inventory/{id}/report/</code></td><td>№572</td><td>📦 Інвентаризаційний опис</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/entries-report/</code></td><td>—</td><td>📒 Журнал проводок</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/turnover-statement/</code></td><td>—</td><td>📊 Оборотна відомість</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- Reports -->
+      <details>
+        <summary>📊 Звіти <code>/api/reports/</code></summary>
+        <div class="details-content">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Метод</th><th>Endpoint</th><th>Опис</th></tr></thead>
+              <tbody>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/reports/dashboard/</code></td><td>📊 Дані дашборду</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/reports/asset-summary/</code></td><td>📋 Зведений звіт по ОЗ</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/reports/turnover-statement/</code></td><td>📊 Оборотна відомість (дані)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <hr>
+
+    <!-- 📄 Типи документів -->
+    <div class="section" id="documents">
+      <h2>📄 Типи документів</h2>
+
+      <div class="cards">
+        <div class="card">
+          <span class="card-icon">📋</span>
+          <div class="card-title">ОЗ-6 — Інвентарна картка обліку основних засобів</div>
+          <div class="card-desc">Містить повну інформацію про ОЗ: реквізити організації, ЄДРПОУ, інвентарний номер, характеристики, вартісні дані, дані про переміщення та амортизацію.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📥</span>
+          <div class="card-title">ОЗ-1 — Акт приймання-передачі основних засобів</div>
+          <div class="card-desc">Оформлює надходження ОЗ. Включає: тип надходження, постачальника, характеристики об'єкта, вартісні дані, підписи (Здав / Прийняв / Гол. бухгалтер).</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📤</span>
+          <div class="card-title">ОЗ-3 — Акт списання основних засобів</div>
+          <div class="card-desc">Оформлює вибуття ОЗ. Включає: фінансові дані на дату списання, причину, висновок комісії, підписи комісії та керівництва.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🚗</span>
+          <div class="card-title">ОЗ-4 — Акт списання автотранспортних засобів</div>
+          <div class="card-desc">Спеціалізована форма для транспорту. Додатково: VIN-код, номер двигуна/шасі/кузова, пробіг, результати списання.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📉</span>
+          <div class="card-title">Відомість амортизації</div>
+          <div class="card-desc">Зведена таблиця нарахованої амортизації за період з деталізацією по кожному ОЗ.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📦</span>
+          <div class="card-title">Інвентаризаційний опис (Наказ Мінфін №572)</div>
+          <div class="card-desc">16-колонкова таблиця з фактичними та обліковими даними, підписами комісії, МВО, розпискою.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📒</span>
+          <div class="card-title">Журнал проводок</div>
+          <div class="card-desc">Хронологічний перелік бухгалтерських записів: дата, Дт рахунок, Кт рахунок, сума, опис.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📊</span>
+          <div class="card-title">Оборотна відомість</div>
+          <div class="card-desc">Залишки на початок періоду, дебетовий та кредитовий оборот, залишки на кінець.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 📉 Методи амортизації -->
+    <div class="section" id="depreciation">
+      <h2>📉 Методи амортизації</h2>
+      <p>Згідно з <strong>НП(С)БО 7 &laquo;Основні засоби&raquo;</strong>, п. 26:</p>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>#</th><th>Метод</th><th>Формула</th><th>Опис</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="method-num">1</span></td>
+              <td><strong>Прямолінійний</strong></td>
+              <td><span class="formula">(ПВ - ЛВ) / Строк</span></td>
+              <td>Рівномірне щомісячне нарахування</td>
+            </tr>
+            <tr>
+              <td><span class="method-num">2</span></td>
+              <td><strong>Зменшення залишкової вартості</strong></td>
+              <td><span class="formula">ЗВ &times; Норма%</span></td>
+              <td>Норма = 1 - <sup>n</sup>&radic;(ЛВ/ПВ)</td>
+            </tr>
+            <tr>
+              <td><span class="method-num">3</span></td>
+              <td><strong>Прискореного зменшення</strong></td>
+              <td><span class="formula">ЗВ &times; (2 / Строк)</span></td>
+              <td>Подвійна норма від залишку</td>
+            </tr>
+            <tr>
+              <td><span class="method-num">4</span></td>
+              <td><strong>Кумулятивний</strong></td>
+              <td><span class="formula">(ПВ - ЛВ) &times; Кк</span></td>
+              <td>Кк = залишок років / сума років</td>
+            </tr>
+            <tr>
+              <td><span class="method-num">5</span></td>
+              <td><strong>Виробничий</strong></td>
+              <td><span class="formula">(ПВ - ЛВ) &times; (Обсяг / Потужність)</span></td>
+              <td>Пропорційно обсягу продукції</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <strong>ПВ</strong> — первісна вартість, <strong>ЛВ</strong> — ліквідаційна вартість, <strong>ЗВ</strong> — залишкова вартість
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 👥 Ролі та дозволи -->
+    <div class="section" id="roles">
+      <h2>👥 Ролі та дозволи</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Дозвіл</th>
+              <th style="text-align:center"><span class="role-admin">🔴 Адміністратор</span></th>
+              <th style="text-align:center"><span class="role-accountant">🟡 Бухгалтер</span></th>
+              <th style="text-align:center"><span class="role-inventory">🟢 Інвентаризатор</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Управління користувачами</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Перегляд дашборду</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+            </tr>
+            <tr>
+              <td>CRUD основних засобів</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Прихід / Вибуття</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Нарахування амортизації</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Переоцінки / Поліпшення</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Бухгалтерські проводки</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+            <tr>
+              <td>Проведення інвентаризації</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+            </tr>
+            <tr>
+              <td>Генерація документів</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+            </tr>
+            <tr>
+              <td>Журнал аудиту</td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
+              <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ⏰ Celery задачі -->
+    <div class="section" id="celery">
+      <h2>⏰ Celery задачі</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Задача</th><th>Розклад</th><th>Опис</th></tr></thead>
+          <tbody>
+            <tr><td><code>auto_calculate_depreciation</code></td><td>Вручну або щомісяця</td><td>⚡ Масове нарахування амортизації</td></tr>
+            <tr><td><code>check_high_wear_assets</code></td><td>Щоденно</td><td>⚠️ Сповіщення при зносі &gt;90%</td></tr>
+            <tr><td><code>check_full_depreciation</code></td><td>Щоденно</td><td>📢 Сповіщення при повній амортизації</td></tr>
+            <tr><td><code>send_depreciation_reminder</code></td><td>1 числа кожного місяця</td><td>📧 Нагадування про нарахування</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Для роботи Celery потрібен <strong>Redis</strong>:</p>
+      <pre><code><span class="comment"># Запуск worker</span>
+<span class="command">celery</span> <span class="flag">-A</span> config worker <span class="flag">-l</span> info
+
+<span class="comment"># Запуск планувальника</span>
+<span class="command">celery</span> <span class="flag">-A</span> config beat <span class="flag">-l</span> info</code></pre>
+    </div>
+
+    <hr>
+
+    <!-- 🧑‍💻 Розробка -->
+    <div class="section" id="dev">
+      <h2>🧑‍💻 Розробка</h2>
+
+      <h3>🔧 Корисні команди</h3>
+      <pre><code><span class="comment"># 🐍 Backend</span>
+<span class="command">python</span> manage.py makemigrations    <span class="comment"># Створити міграції</span>
+<span class="command">python</span> manage.py migrate           <span class="comment"># Застосувати міграції</span>
+<span class="command">python</span> manage.py seed_asset_groups <span class="comment"># Заповнити 16 груп ОЗ</span>
+<span class="command">python</span> manage.py createsuperuser   <span class="comment"># Створити суперкористувача</span>
+<span class="command">python</span> manage.py runserver         <span class="comment"># Запустити сервер розробки</span>
+
+<span class="comment"># ⚛️ Frontend</span>
+<span class="command">npm run</span> dev                        <span class="comment"># Запустити dev-сервер</span>
+<span class="command">npm run</span> build                      <span class="comment"># Збірка production</span>
+<span class="command">npm run</span> preview                    <span class="comment"># Попередній перегляд збірки</span>
+
+<span class="comment"># 🐳 Docker</span>
+<span class="command">docker-compose up</span> <span class="flag">-d</span>               <span class="comment"># Запустити у фоновому режимі</span>
+<span class="command">docker-compose logs</span> <span class="flag">-f</span> backend     <span class="comment"># Логи backend</span>
+<span class="command">docker-compose exec</span> backend bash   <span class="comment"># Консоль в контейнері</span></code></pre>
+    </div>
+
+    <hr>
+
+    <!-- 📁 16 груп ОЗ -->
+    <div class="section" id="groups">
+      <h2>📁 16 груп ОЗ згідно ПКУ ст. 138.3.3</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Група</th><th>Назва</th><th>Мін. строк</th><th>Рахунок</th></tr></thead>
+          <tbody>
+            <tr><td><span class="group-number">1</span></td><td>Земельні ділянки</td><td>—</td><td><code>101</code></td></tr>
+            <tr><td><span class="group-number">2</span></td><td>Капітальні витрати на поліпшення земель</td><td>180 міс.</td><td><code>102</code></td></tr>
+            <tr><td><span class="group-number">3</span></td><td>Будівлі</td><td>240 міс.</td><td><code>103</code></td></tr>
+            <tr><td><span class="group-number">4</span></td><td>Машини та обладнання</td><td>60 міс.</td><td><code>104</code></td></tr>
+            <tr><td><span class="group-number">5</span></td><td>Транспортні засоби</td><td>60 міс.</td><td><code>105</code></td></tr>
+            <tr><td><span class="group-number">6</span></td><td>Інструменти, прилади, інвентар</td><td>48 міс.</td><td><code>106</code></td></tr>
+            <tr><td><span class="group-number">7</span></td><td>Тварини</td><td>72 міс.</td><td><code>107</code></td></tr>
+            <tr><td><span class="group-number">8</span></td><td>Багаторічні насадження</td><td>120 міс.</td><td><code>108</code></td></tr>
+            <tr><td><span class="group-number">9</span></td><td>Інші основні засоби</td><td>144 міс.</td><td><code>109</code></td></tr>
+            <tr><td><span class="group-number">10</span></td><td>Бібліотечні фонди</td><td>—</td><td><code>111</code></td></tr>
+            <tr><td><span class="group-number">11</span></td><td>Малоцінні необоротні матеріальні активи</td><td>—</td><td><code>112</code></td></tr>
+            <tr><td><span class="group-number">12</span></td><td>Тимчасові споруди</td><td>60 міс.</td><td><code>113</code></td></tr>
+            <tr><td><span class="group-number">13</span></td><td>Природні ресурси</td><td>144 міс.</td><td><code>114</code></td></tr>
+            <tr><td><span class="group-number">14</span></td><td>Інвентарна тара</td><td>72 міс.</td><td><code>115</code></td></tr>
+            <tr><td><span class="group-number">15</span></td><td>Предмети прокату</td><td>60 міс.</td><td><code>116</code></td></tr>
+            <tr><td><span class="group-number">16</span></td><td>Довгострокові біологічні активи</td><td>84 міс.</td><td><code>162</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 📖 Документація -->
+    <div class="section" id="docs">
+      <h2>📖 Документація</h2>
+      <div class="doc-links">
+        <a class="doc-link" href="USER_GUIDE.html">
+          <span class="doc-link-icon">📖</span>
+          <div class="doc-link-text">
+            <div class="doc-link-title">Інструкція користувача</div>
+            <div class="doc-link-desc">Детальний посібник для бухгалтерів та інвентаризаторів</div>
+          </div>
+        </a>
+        <a class="doc-link" href="INSTALLATION.html">
+          <span class="doc-link-icon">🔧</span>
+          <div class="doc-link-text">
+            <div class="doc-link-title">Інструкція по встановленню</div>
+            <div class="doc-link-desc">Установка на Windows, macOS, Linux, Docker</div>
+          </div>
+        </a>
+        <a class="doc-link" href="BAT_SCRIPTS_GUIDE.html">
+          <span class="doc-link-icon">🖥️</span>
+          <div class="doc-link-text">
+            <div class="doc-link-title">BAT-скрипти</div>
+            <div class="doc-link-desc">Скрипти автоматизації для Windows</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 📜 Ліцензія -->
+    <div class="section" id="license">
+      <h2>📜 Ліцензія</h2>
+      <p>Цей проєкт створено для внутрішнього використання згідно з вимогами українського законодавства щодо обліку основних засобів.</p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-title">Облік ОЗ — Система обліку основних засобів</div>
+      <span class="footer-flag">🇺🇦 Зроблено в Україні</span>
+    </footer>
+
+  </main>
+</div>
+
+<!-- ===== JavaScript ===== -->
+<script>
+// Sidebar toggle for mobile
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+}
+
+// Active TOC highlight on scroll
+(function() {
+  const sections = document.querySelectorAll('.section[id]');
+  const tocLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+  function updateActiveToc() {
+    let currentId = '';
+    const scrollY = window.scrollY + 100;
+
+    sections.forEach(function(section) {
+      if (section.offsetTop <= scrollY) {
+        currentId = section.getAttribute('id');
+      }
+    });
+
+    tocLinks.forEach(function(link) {
+      link.classList.remove('toc-active');
+      if (link.getAttribute('href') === '#' + currentId) {
+        link.classList.add('toc-active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveToc, { passive: true });
+  updateActiveToc();
+})();
+
+// Close sidebar when clicking a TOC link on mobile
+document.querySelectorAll('.sidebar a').forEach(function(link) {
+  link.addEventListener('click', function() {
+    if (window.innerWidth <= 900) {
+      toggleSidebar();
+    }
+  });
+});
+</script>
+
+</body>
+</html>

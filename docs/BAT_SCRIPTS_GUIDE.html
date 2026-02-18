@@ -1,0 +1,2267 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAT-скрипти — Облік ОЗ</title>
+    <style>
+        /* ===== CSS Variables ===== */
+        :root {
+            --accent: #4f46e5;
+            --accent-light: #6366f1;
+            --accent-lighter: #e0e7ff;
+            --accent-bg: #eef2ff;
+            --accent-dark: #3730a3;
+            --text: #1e293b;
+            --text-light: #475569;
+            --text-muted: #64748b;
+            --bg: #ffffff;
+            --bg-alt: #f8fafc;
+            --bg-dark: #1e1e2e;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+            --sidebar-width: 260px;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --info: #0284c7;
+            --info-bg: #f0f9ff;
+        }
+
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 80px;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            color: var(--text);
+            background: var(--bg-alt);
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        /* ===== Top Navigation ===== */
+        .top-nav {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .top-nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0 20px;
+            overflow-x: auto;
+        }
+
+        .top-nav a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 18px;
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .top-nav a:hover {
+            color: var(--accent);
+            background: var(--accent-bg);
+        }
+
+        .top-nav a.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ===== Layout ===== */
+        .layout {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            position: sticky;
+            top: 52px;
+            height: calc(100vh - 52px);
+            overflow-y: auto;
+            padding: 24px 16px;
+            border-right: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            padding: 0 8px 12px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 12px;
+        }
+
+        .sidebar nav a {
+            display: block;
+            padding: 7px 12px;
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            margin-bottom: 2px;
+            line-height: 1.5;
+        }
+
+        .sidebar nav a:hover {
+            background: var(--accent-bg);
+            color: var(--accent);
+        }
+
+        .sidebar nav a.sub {
+            padding-left: 28px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ===== Main Content ===== */
+        .main {
+            flex: 1;
+            min-width: 0;
+            max-width: 900px;
+            padding: 0 40px 60px;
+        }
+
+        /* ===== Hero Section ===== */
+        .hero {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            padding: 48px 40px;
+            margin: 0 -40px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .hero h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+            max-width: 600px;
+        }
+
+        .hero .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 14px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== Section Headings ===== */
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 48px 0 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--accent-lighter);
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 32px 0 14px;
+        }
+
+        h4 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin: 24px 0 10px;
+        }
+
+        p {
+            margin-bottom: 14px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== Cards ===== */
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-accent {
+            border-left: 4px solid var(--accent);
+        }
+
+        .card-success {
+            border-left: 4px solid var(--success);
+            background: var(--success-bg);
+        }
+
+        .card-warning {
+            border-left: 4px solid var(--warning);
+            background: var(--warning-bg);
+        }
+
+        .card-info {
+            border-left: 4px solid var(--info);
+            background: var(--info-bg);
+        }
+
+        .card-danger {
+            border-left: 4px solid var(--danger);
+            background: var(--danger-bg);
+        }
+
+        /* ===== Tip / Warning / Important boxes ===== */
+        .callout {
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            margin: 16px 0;
+            font-size: 0.95rem;
+        }
+
+        .callout-tip {
+            background: var(--info-bg);
+            border-left: 4px solid var(--info);
+        }
+
+        .callout-warning {
+            background: var(--warning-bg);
+            border-left: 4px solid var(--warning);
+        }
+
+        .callout-danger {
+            background: var(--danger-bg);
+            border-left: 4px solid var(--danger);
+        }
+
+        .callout strong {
+            display: inline;
+        }
+
+        /* ===== Tables ===== */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 16px 0 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            background: var(--bg);
+        }
+
+        thead {
+            background: var(--accent);
+            color: white;
+        }
+
+        thead th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(even) {
+            background: var(--bg-alt);
+        }
+
+        tbody tr:hover {
+            background: var(--accent-bg);
+        }
+
+        td code, th code {
+            background: rgba(79, 70, 229, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-family: var(--font-mono);
+        }
+
+        thead th:last-child,
+        tbody td:last-child {
+            text-align: center;
+        }
+
+        /* ===== Code Blocks ===== */
+        pre {
+            background: var(--bg-dark);
+            color: #cdd6f4;
+            padding: 20px 24px;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.65;
+            margin: 16px 0 20px;
+            box-shadow: var(--shadow);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            font-size: inherit;
+            color: inherit;
+        }
+
+        code {
+            background: var(--accent-bg);
+            color: var(--accent-dark);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+        }
+
+        /* Syntax highlighting in code blocks */
+        .code-comment { color: #6c7086; font-style: italic; }
+        .code-keyword { color: #cba6f7; }
+        .code-string { color: #a6e3a1; }
+        .code-variable { color: #89b4fa; }
+        .code-arrow { color: #f9e2af; }
+        .code-ok { color: #a6e3a1; }
+        .code-label { color: #f9e2af; }
+        .code-url { color: #89dceb; text-decoration: underline; }
+        .code-header {
+            color: #cba6f7;
+            font-weight: bold;
+        }
+
+        /* ===== Flow Diagram ===== */
+        .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 24px 0 32px;
+            padding: 30px 20px;
+            background: var(--bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+        }
+
+        .flow-box {
+            width: 340px;
+            max-width: 100%;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px 22px;
+            text-align: center;
+            background: var(--bg);
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .flow-box:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .flow-box-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+
+        .flow-box-detail {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            line-height: 1.5;
+        }
+
+        .flow-box-step {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: var(--accent);
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 100px;
+        }
+
+        .flow-box.primary {
+            border-color: var(--accent);
+            background: var(--accent-bg);
+        }
+
+        .flow-box.success {
+            border-color: var(--success);
+            background: var(--success-bg);
+        }
+
+        .flow-box.danger {
+            border-color: var(--danger);
+            background: var(--danger-bg);
+        }
+
+        .flow-box.muted {
+            border-color: var(--border);
+            background: var(--bg-alt);
+        }
+
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            line-height: 1;
+            padding: 6px 0;
+        }
+
+        .flow-arrow::before {
+            content: '';
+            width: 2px;
+            height: 14px;
+            background: var(--border);
+        }
+
+        .flow-arrow::after {
+            content: '\25BC';
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== Accordion / Details ===== */
+        details {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        details[open] {
+            box-shadow: var(--shadow);
+        }
+
+        summary {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            background: var(--bg);
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        summary:hover {
+            background: var(--bg-alt);
+        }
+
+        summary::before {
+            content: '\25B6';
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        details[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details .details-content {
+            padding: 0 20px 20px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        details .details-content p:first-child {
+            margin-top: 16px;
+        }
+
+        /* ===== Quick Start Cards ===== */
+        .quick-start {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin: 20px 0 28px;
+        }
+
+        .quick-start-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .quick-start-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .quick-start-item .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .quick-start-item .step-icon {
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .quick-start-item .step-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .quick-start-item .step-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .quick-start-item code {
+            font-size: 0.82rem;
+        }
+
+        /* ===== Duration Bars ===== */
+        .duration-list {
+            list-style: none;
+            margin: 12px 0 20px;
+        }
+
+        .duration-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 0.93rem;
+        }
+
+        .duration-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .duration-dot.green { background: var(--success); }
+        .duration-dot.yellow { background: var(--warning); }
+        .duration-dot.red { background: var(--danger); }
+
+        /* ===== Separator ===== */
+        hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 40px 0;
+        }
+
+        /* ===== Window Indicators ===== */
+        .window-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .window-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .window-item .w-num {
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            font-size: 0.8rem;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .window-item .w-info {
+            flex: 1;
+        }
+
+        .window-item .w-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .window-item .w-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== Lists ===== */
+        ul, ol {
+            margin: 10px 0 16px 24px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        li > ul, li > ol {
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        /* ===== Footer ===== */
+        .footer {
+            text-align: center;
+            padding: 32px 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            background: var(--bg);
+            margin-top: 40px;
+        }
+
+        .footer strong {
+            color: var(--text);
+        }
+
+        /* ===== Section Anchors ===== */
+        .section-anchor {
+            scroll-margin-top: 70px;
+        }
+
+        /* ===== Script Card Header ===== */
+        .script-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .script-icon {
+            font-size: 2rem;
+        }
+
+        .script-name {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* ===== Step Process ===== */
+        .steps-list {
+            list-style: none;
+            margin: 14px 0 20px;
+            padding: 0;
+        }
+
+        .steps-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .steps-list li:last-child {
+            border-bottom: none;
+        }
+
+        .step-icon-sm {
+            flex-shrink: 0;
+            font-size: 1.1rem;
+            margin-top: 2px;
+        }
+
+        /* ===== Troubleshooting category header ===== */
+        .trouble-category {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 32px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .trouble-category h3 {
+            margin: 0;
+            border: none;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                display: none;
+                position: fixed;
+                top: 52px;
+                left: 0;
+                width: 280px;
+                height: calc(100vh - 52px);
+                z-index: 999;
+                box-shadow: var(--shadow-lg);
+            }
+
+            .sidebar.open {
+                display: block;
+            }
+
+            .sidebar-toggle {
+                display: flex;
+            }
+
+            .main {
+                padding: 0 20px 60px;
+            }
+
+            .hero {
+                margin: 0 -20px 30px;
+                padding: 36px 24px;
+            }
+
+            .hero h1 {
+                font-size: 1.7rem;
+            }
+
+            .quick-start {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-box {
+                width: 280px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .top-nav-inner {
+                padding: 0 10px;
+            }
+
+            .top-nav a {
+                padding: 12px 12px;
+                font-size: 0.82rem;
+            }
+
+            .main {
+                padding: 0 14px 40px;
+            }
+
+            .hero {
+                margin: 0 -14px 24px;
+                padding: 28px 18px;
+            }
+
+            .hero h1 {
+                font-size: 1.4rem;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+            }
+
+            .flow-box {
+                width: 100%;
+            }
+
+            pre {
+                padding: 14px 16px;
+                font-size: 0.82rem;
+            }
+        }
+
+        /* ===== Print Styles ===== */
+        @media print {
+            .top-nav,
+            .sidebar,
+            .sidebar-toggle {
+                display: none !important;
+            }
+
+            .layout {
+                display: block;
+            }
+
+            .main {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .hero {
+                margin: 0 0 20px;
+                padding: 20px;
+                background: var(--accent-bg) !important;
+                color: var(--text) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .hero h1, .hero p {
+                color: var(--text) !important;
+            }
+
+            details {
+                break-inside: avoid;
+            }
+
+            details[open] .details-content {
+                display: block !important;
+            }
+
+            pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                background: #f5f5f5 !important;
+                color: #333 !important;
+                border: 1px solid #ccc;
+            }
+
+            .flow-diagram {
+                box-shadow: none;
+                border: 1px solid var(--border);
+            }
+
+            .card, .quick-start-item, .window-item {
+                box-shadow: none;
+                border: 1px solid var(--border);
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            thead {
+                background: var(--accent-lighter) !important;
+                color: var(--text) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .footer {
+                margin-top: 20px;
+                border-top: 2px solid var(--border);
+            }
+        }
+
+        /* ===== Overlay for mobile sidebar ===== */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 998;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="top-nav">
+    <div class="top-nav-inner">
+        <a href="README.html">&#128218; README</a>
+        <a href="USER_GUIDE.html">&#128214; Посібник</a>
+        <a href="INSTALLATION.html">&#128268; Встановлення</a>
+        <a href="BAT_SCRIPTS_GUIDE.html" class="active">&#128421;&#65039; BAT-скрипти</a>
+    </div>
+</nav>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Layout -->
+<div class="layout">
+
+    <!-- Sidebar Table of Contents -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-title">&#128209; Зміст</div>
+        <nav>
+            <a href="#overview">&#128506;&#65039; Загальна схема</a>
+            <a href="#scripts-list">&#128203; Список скриптів</a>
+            <a href="#install-prerequisites">&#128295; install-prerequisites.bat</a>
+            <a href="#setup" class="sub">&#9881;&#65039; setup.bat</a>
+            <a href="#create-db" class="sub">&#128452;&#65039; create-db.bat</a>
+            <a href="#start" class="sub">&#128640; start.bat</a>
+            <a href="#start-backend" class="sub">&#128994; start-backend.bat</a>
+            <a href="#start-frontend" class="sub">&#128309; start-frontend.bat</a>
+            <a href="#stop" class="sub">&#128721; stop.bat</a>
+            <a href="#faq">&#10067; Часті питання</a>
+            <a href="#troubleshooting">&#128293; Вирішення проблем</a>
+            <a href="#summary-table">&#128202; Зведена таблиця</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="badge">&#128421;&#65039; Документація</div>
+            <h1>&#128421;&#65039; Інструкція з використання BAT-скриптів</h1>
+            <p><strong>Облік ОЗ</strong> — Повний набір скриптів для встановлення, налаштування, запуску та зупинки системи</p>
+        </div>
+
+        <!-- ============================== -->
+        <!-- ЗАГАЛЬНА СХЕМА                 -->
+        <!-- ============================== -->
+        <h2 id="overview" class="section-anchor">&#128506;&#65039; Загальна схема</h2>
+
+        <p>Скрипти виконуються в певному порядку. Ось повний шлях від чистої системи до працюючого додатку:</p>
+
+        <div class="flow-diagram">
+            <div class="flow-box muted">
+                <div class="flow-box-title">&#128421;&#65039; ЧИСТА СИСТЕМА WINDOWS</div>
+            </div>
+            <div class="flow-arrow"></div>
+            <div class="flow-box primary">
+                <span class="flow-box-step">Крок 1 (один раз)</span>
+                <div class="flow-box-title">&#128295; install-prerequisites</div>
+                <div class="flow-box-detail">
+                    Встановлює:<br>
+                    &#8226; Python 3.12 &nbsp; &#8226; Node.js LTS &nbsp; &#8226; PostgreSQL 16
+                </div>
+            </div>
+            <div class="flow-arrow"></div>
+            <div class="flow-box primary">
+                <span class="flow-box-step">Крок 2 (один раз)</span>
+                <div class="flow-box-title">&#9881;&#65039; setup.bat</div>
+                <div class="flow-box-detail">
+                    Налаштовує:<br>
+                    &#8226; .env конфігурація &nbsp; &#8226; Python venv + pip<br>
+                    &#8226; База даних + міграції &nbsp; &#8226; Початкові дані &nbsp; &#8226; npm install
+                </div>
+            </div>
+            <div class="flow-arrow"></div>
+            <div class="flow-box primary">
+                <span class="flow-box-step">Крок 3 (щоразу)</span>
+                <div class="flow-box-title">&#128640; start.bat</div>
+                <div class="flow-box-detail">
+                    Запускає:<br>
+                    &#8226; Django backend &nbsp; &#8226; React frontend &nbsp; &#8226; Відкриває браузер
+                </div>
+            </div>
+            <div class="flow-arrow"></div>
+            <div class="flow-box success">
+                <div class="flow-box-title">&#9989; Система працює!</div>
+                <div class="flow-box-detail">http://localhost:5173</div>
+            </div>
+            <div class="flow-arrow"></div>
+            <div class="flow-box danger">
+                <div class="flow-box-title">&#128721; stop.bat</div>
+                <div class="flow-box-detail">Коли потрібно зупинити — зупиняє всі сервіси</div>
+            </div>
+        </div>
+
+        <h3>&#9889; Швидкий старт (3 команди)</h3>
+
+        <div class="quick-start">
+            <div class="quick-start-item">
+                <div class="step-num">1</div>
+                <div class="step-icon">&#128295;</div>
+                <div class="step-title">Встановити програми</div>
+                <div class="step-desc">Потрібні права адміністратора</div>
+                <code>install-prerequisites.bat</code>
+            </div>
+            <div class="quick-start-item">
+                <div class="step-num">2</div>
+                <div class="step-icon">&#9881;&#65039;</div>
+                <div class="step-title">Налаштувати проєкт</div>
+                <div class="step-desc">Один раз після клонування</div>
+                <code>setup.bat</code>
+            </div>
+            <div class="quick-start-item">
+                <div class="step-num">3</div>
+                <div class="step-icon">&#128640;</div>
+                <div class="step-title">Запустити систему</div>
+                <div class="step-desc">Щоразу для роботи</div>
+                <code>start.bat</code>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- СПИСОК УСІХ СКРИПТІВ            -->
+        <!-- ============================== -->
+        <h2 id="scripts-list" class="section-anchor">&#128203; Список усіх скриптів</h2>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Скрипт</th>
+                        <th>Призначення</th>
+                        <th>Коли запускати</th>
+                        <th>Права адміна</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#128295; <code>install-prerequisites.bat</code></td>
+                        <td>Встановлення Python, Node.js, PostgreSQL</td>
+                        <td>Один раз на новій системі</td>
+                        <td>&#9989; Потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#9881;&#65039; <code>setup.bat</code></td>
+                        <td>Повне налаштування проєкту з нуля</td>
+                        <td>Один раз після клонування</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128452;&#65039; <code>create-db.bat</code></td>
+                        <td>Створення бази даних окремо</td>
+                        <td>За потреби</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128640; <code>start.bat</code></td>
+                        <td>Запуск Backend + Frontend разом</td>
+                        <td>Щоразу для роботи</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128994; <code>start-backend.bat</code></td>
+                        <td>Запуск тільки Django сервера</td>
+                        <td>Для розробки</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128309; <code>start-frontend.bat</code></td>
+                        <td>Запуск тільки React dev-сервера</td>
+                        <td>Для розробки</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128721; <code>stop.bat</code></td>
+                        <td>Зупинка всіх сервісів</td>
+                        <td>Коли потрібно зупинити</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- install-prerequisites.bat       -->
+        <!-- ============================== -->
+        <h2 id="install-prerequisites" class="section-anchor">&#128295; install-prerequisites.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Автоматично встановлює всі необхідні програми для роботи системи через <strong>Windows Package Manager (winget)</strong>. Цей скрипт потрібно запустити <strong>лише один раз</strong> на новому комп'ютері.</p>
+
+        <h3>&#128230; Що встановлює</h3>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Програма</th>
+                        <th>Версія</th>
+                        <th>Навіщо потрібна</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#128013; <strong>Python</strong></td>
+                        <td>3.12</td>
+                        <td>Мова програмування для backend (Django)</td>
+                    </tr>
+                    <tr>
+                        <td>&#129001; <strong>Node.js</strong></td>
+                        <td>LTS (22.x)</td>
+                        <td>Середовище для frontend (React + Vite)</td>
+                    </tr>
+                    <tr>
+                        <td>&#128024; <strong>PostgreSQL</strong></td>
+                        <td>16</td>
+                        <td>База даних</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>&#128640; Як запустити</h3>
+        <ol>
+            <li><strong>Натисніть правою кнопкою миші</strong> на файл <code>install-prerequisites.bat</code></li>
+            <li>Виберіть <strong>&laquo;Запустити від імені адміністратора&raquo;</strong></li>
+            <li>Підтвердіть запит UAC (Windows запитає дозвіл)</li>
+        </ol>
+
+        <div class="callout callout-tip">
+            &#128161; <strong>Підказка:</strong> Якщо запустити без прав адміністратора — скрипт автоматично перезапуститься з UAC-промптом.
+        </div>
+
+        <h3>&#128202; Що відбувається крок за кроком</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Облiк ОЗ — Встановлення програм              &#9553;
+&#9553;   Python, Node.js, PostgreSQL                   &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+<span class="code-ok">[OK]</span> Права адмiнiстратора пiдтверджено.
+
+<span class="code-label">[1/6]</span> Перевiрка Windows Package Manager (winget)...
+  Знайдено: winget v1.9.25200
+
+<span class="code-label">[2/6]</span> Перевiрка Python...
+  Python не знайдено. Встановлення Python 3.12...     <span class="code-arrow">&larr; Автоматично!</span>
+  Python 3.12 встановлено.
+
+<span class="code-label">[3/6]</span> Перевiрка Node.js...
+  Вже встановлено: Node.js v22.12.0                   <span class="code-arrow">&larr; Пропускає якщо є</span>
+
+<span class="code-label">[4/6]</span> Перевiрка PostgreSQL...
+  PostgreSQL не знайдено. Встановлення PostgreSQL 16...<span class="code-arrow">&larr; Автоматично!</span>
+  PostgreSQL 16 встановлено.
+
+<span class="code-label">[5/6]</span> Оновлення PATH...
+
+<span class="code-label">[6/6]</span> Верифiкацiя встановлення...
+
+  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+  &#9474; Програма     &#9474; Статус                        &#9474;
+  &#9474; Python       &#9474; 3.12.8                        &#9474;
+  &#9474; Node.js      &#9474; v22.12.0                      &#9474;
+  &#9474; PostgreSQL   &#9474; 16.6                          &#9474;
+  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+
+<span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Всi програми встановлено!                    &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+  Запустити setup.bat зараз? (Y/N)</code></pre>
+
+        <h3>&#9888;&#65039; Вимоги</h3>
+        <ul>
+            <li><strong>Windows 10</strong> версії 1709 або новіша / <strong>Windows 11</strong></li>
+            <li><strong>winget</strong> (Windows Package Manager) — зазвичай вже встановлений</li>
+            <li><strong>Інтернет-з'єднання</strong> — для завантаження програм</li>
+        </ul>
+
+        <h3>&#128295; Якщо winget не знайдено</h3>
+        <ol>
+            <li>Відкрийте <strong>Microsoft Store</strong></li>
+            <li>Знайдіть <strong>&laquo;App Installer&raquo;</strong> (від Microsoft)</li>
+            <li>Натисніть <strong>&laquo;Оновити&raquo;</strong> або <strong>&laquo;Встановити&raquo;</strong></li>
+            <li>Перезапустіть скрипт</li>
+        </ol>
+        <p>Або завантажте з: <a href="https://aka.ms/getwinget" target="_blank" rel="noopener">https://aka.ms/getwinget</a></p>
+
+        <h3>&#9201;&#65039; Тривалість</h3>
+        <ul class="duration-list">
+            <li><span class="duration-dot green"></span> Якщо все вже встановлено: <strong>~5 секунд</strong></li>
+            <li><span class="duration-dot yellow"></span> Якщо потрібно встановити 1-2 програми: <strong>3-5 хвилин</strong></li>
+            <li><span class="duration-dot red"></span> Якщо потрібно встановити все: <strong>10-15 хвилин</strong> (залежить від швидкості інтернету)</li>
+        </ul>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- setup.bat                       -->
+        <!-- ============================== -->
+        <h2 id="setup" class="section-anchor">&#9881;&#65039; setup.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Повне налаштування проєкту з нуля. Створює віртуальне середовище Python, встановлює залежності, налаштовує базу даних, створює адміністратора та встановлює frontend-залежності.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>setup.bat</code> (права адміністратора <strong>не потрібні</strong>).</p>
+
+        <h3>&#128202; Що відбувається крок за кроком</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Облiк ОЗ — Повне встановлення з нуля        &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+<span class="code-label">[1/8]</span> Перевiрка Python...              <span class="code-arrow">&larr; Перевіряє наявність Python</span>
+  Знайдено: Python 3.12.8
+
+<span class="code-label">[2/8]</span> Перевiрка Node.js...             <span class="code-arrow">&larr; Перевіряє наявність Node.js</span>
+  Знайдено: Node.js v22.12.0
+
+<span class="code-label">[3/8]</span> Перевiрка PostgreSQL...          <span class="code-arrow">&larr; Перевіряє наявність PostgreSQL</span>
+  Знайдено: PostgreSQL 16.6
+
+<span class="code-label">[4/8]</span> Налаштування конфiгурацiї...     <span class="code-arrow">&larr; Створює .env файл</span>
+  Створено .env з шаблону .env.example
+  <span class="code-keyword">*** ВАЖЛИВО: вiдредагуйте backend\.env ***</span>
+  (Відкриється Блокнот для редагування)
+
+<span class="code-label">[5/8]</span> Створення Python-середовища...   <span class="code-arrow">&larr; venv + pip + залежності</span>
+  Вiртуальне середовище створено.
+  Оновлення pip...
+  Встановлення Python-залежностей...
+  Python-залежностi встановлено.
+
+<span class="code-label">[6/8]</span> Створення бази даних та мiграцiї...  <span class="code-arrow">&larr; БД + Django migrate</span>
+  База даних buh_assets створена.
+  Мiграцiї виконано успiшно.
+
+<span class="code-label">[7/8]</span> Заповнення початкових даних...   <span class="code-arrow">&larr; 16 груп ОЗ + суперюзер</span>
+  16 груп ОЗ згiдно ПКУ ст. 138.3.3 створено.
+  Створення суперкористувача:
+  Username: admin                      <span class="code-arrow">&larr; Ви вводите логін</span>
+  Email: admin@example.com             <span class="code-arrow">&larr; Ви вводите email</span>
+  Password: ********                   <span class="code-arrow">&larr; Ви вводите пароль</span>
+
+<span class="code-label">[8/8]</span> Встановлення frontend-залежностей...  <span class="code-arrow">&larr; npm install</span>
+  Frontend-залежностi встановлено.
+
+<span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Встановлення завершено успiшно!              &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span></code></pre>
+
+        <h3>&#128273; Крок 4 — Налаштування .env (детально)</h3>
+
+        <p>На кроці 4 автоматично відкриється <strong>Блокнот</strong> з файлом <code>backend\.env</code>. Вам потрібно встановити <strong>пароль PostgreSQL</strong>:</p>
+
+<pre><code><span class="code-comment">## Налаштування системи обліку основних засобів</span>
+
+<span class="code-comment"># Django</span>
+<span class="code-variable">DJANGO_SECRET_KEY</span>=<span class="code-string">django-insecure-auto-generated-123456789</span>
+<span class="code-variable">DEBUG</span>=<span class="code-string">True</span>
+
+<span class="code-comment"># PostgreSQL</span>
+<span class="code-variable">POSTGRES_DB</span>=<span class="code-string">buh_assets</span>
+<span class="code-variable">POSTGRES_USER</span>=<span class="code-string">postgres</span>
+<span class="code-variable">POSTGRES_PASSWORD</span>=<span class="code-string">your_password_here</span>    <span class="code-arrow">&larr; &#9888;&#65039; ЗМІНІТЬ НА СВІЙ ПАРОЛЬ!</span>
+<span class="code-variable">POSTGRES_HOST</span>=<span class="code-string">localhost</span>
+<span class="code-variable">POSTGRES_PORT</span>=<span class="code-string">5432</span>
+
+<span class="code-comment"># CORS</span>
+<span class="code-variable">CORS_ORIGINS</span>=<span class="code-string">http://localhost:5173,http://127.0.0.1:5173</span></code></pre>
+
+        <div class="callout callout-warning">
+            &#9888;&#65039; <strong>Важливо:</strong> Значення <code>POSTGRES_PASSWORD</code> повинно збігатися з паролем, який ви задали при встановленні PostgreSQL. Якщо ви використовували <code>install-prerequisites.bat</code>, це пароль з установника PostgreSQL.
+        </div>
+
+        <h3>&#128273; Крок 7 — Створення суперкористувача (детально)</h3>
+
+        <p>Скрипт запитає дані для адміністратора системи:</p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Поле</th>
+                        <th>Що вводити</th>
+                        <th>Приклад</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#128100; <strong>Username</strong></td>
+                        <td>Логін адміністратора</td>
+                        <td><code>admin</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#128231; <strong>Email</strong></td>
+                        <td>Електронна пошта</td>
+                        <td><code>admin@company.com</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#128274; <strong>Password</strong></td>
+                        <td>Пароль (не менше 8 символів)</td>
+                        <td><code>MySecurePass123</code></td>
+                    </tr>
+                    <tr>
+                        <td>&#128274; <strong>Password (again)</strong></td>
+                        <td>Повторіть пароль</td>
+                        <td><code>MySecurePass123</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout callout-tip">
+            &#128161; <strong>Підказка:</strong> Ці дані використовуються для входу в систему за адресою <a href="http://localhost:5173">http://localhost:5173</a> та в Django Admin за адресою <a href="http://localhost:8000/admin/">http://localhost:8000/admin/</a>
+        </div>
+
+        <h3>&#9201;&#65039; Тривалість</h3>
+        <ul class="duration-list">
+            <li><span class="duration-dot yellow"></span> Типовий час: <strong>3-7 хвилин</strong> (залежить від швидкості інтернету та диска)</li>
+            <li>Найдовший крок — встановлення Python-залежностей (pip install)</li>
+        </ul>
+
+        <h3>&#9888;&#65039; Можливі помилки</h3>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Помилка</th>
+                        <th>Причина</th>
+                        <th>Рішення</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>Python не знайдено</code></td>
+                        <td>Python не встановлений або не в PATH</td>
+                        <td>Запустіть <code>install-prerequisites.bat</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Node.js не знайдено</code></td>
+                        <td>Node.js не встановлений</td>
+                        <td>Запустіть <code>install-prerequisites.bat</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Не вдалося створити вiртуальне середовище</code></td>
+                        <td>Пошкоджений Python</td>
+                        <td>Перевстановіть Python</td>
+                    </tr>
+                    <tr>
+                        <td><code>Не вдалося встановити Python-залежностi</code></td>
+                        <td>Проблеми з мережею або pip</td>
+                        <td><code>cd backend &amp; venv\Scripts\activate &amp; pip install -r requirements.txt</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Мiграцiї не вдалися</code></td>
+                        <td>PostgreSQL не запущений або невірний пароль</td>
+                        <td>Перевірте службу PostgreSQL та <code>backend\.env</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>npm install не вдався</code></td>
+                        <td>Node.js не в PATH або проблеми з мережею</td>
+                        <td><code>cd frontend &amp; npm install</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- create-db.bat                   -->
+        <!-- ============================== -->
+        <h2 id="create-db" class="section-anchor">&#128452;&#65039; create-db.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Створює базу даних <code>buh_assets</code> в PostgreSQL. Цей скрипт є <strong>допоміжним</strong> — <code>setup.bat</code> вже виконує цю дію автоматично. Використовуйте його, якщо потрібно створити базу окремо (наприклад, після перевстановлення PostgreSQL).</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>create-db.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Облiк ОЗ — Створення бази даних             &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+Читаю налаштування з backend\.env...       <span class="code-arrow">&larr; Автоматично бере з .env</span>
+  Користувач: postgres
+  Хост: localhost:5432
+
+Створення бази даних buh_assets...
+
+<span class="code-ok">[OK]</span> База даних buh_assets створена успiшно!</code></pre>
+
+        <h3>&#128295; Як це працює</h3>
+        <ol class="steps-list">
+            <li><span class="step-icon-sm">&#128270;</span> <span>Перевіряє наявність <code>psql</code> в PATH</span></li>
+            <li><span class="step-icon-sm">&#128214;</span> <span>Читає налаштування підключення з <code>backend\.env</code> (користувач, хост, порт)</span></li>
+            <li><span class="step-icon-sm">&#128452;&#65039;</span> <span>Виконує SQL-команду: <code>CREATE DATABASE buh_assets ENCODING 'UTF8';</code></span></li>
+            <li><span class="step-icon-sm">&#9989;</span> <span>Повідомляє про результат</span></li>
+        </ol>
+
+        <div class="callout callout-tip">
+            &#128161; <strong>Підказка:</strong> Якщо база вже існує — скрипт повідомить про це, але це не помилка.
+        </div>
+
+        <h3>&#128274; Пароль</h3>
+        <p>Під час виконання PostgreSQL запитає пароль користувача <code>postgres</code> — введіть той самий пароль, що і в <code>backend\.env</code>.</p>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- start.bat                       -->
+        <!-- ============================== -->
+        <h2 id="start" class="section-anchor">&#128640; start.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p><strong>Головний скрипт запуску.</strong> Запускає одночасно Backend (Django) та Frontend (React), а потім автоматично відкриває браузер з додатком.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>start.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Облiк ОЗ — Запуск системи                   &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+Запуск Backend (Django)...          <span class="code-arrow">&larr; Відкривається нове вікно (зелене)</span>
+Очiкування запуску backend...       <span class="code-arrow">&larr; Чекає 3 секунди</span>
+Запуск Frontend (React)...          <span class="code-arrow">&larr; Відкривається ще одне вікно (синє)</span>
+
+<span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Система запущена!                            &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+  Backend:  <span class="code-url">http://localhost:8000</span>
+  Frontend: <span class="code-url">http://localhost:5173</span>       <span class="code-arrow">&larr; Браузер відкриється автоматично!</span>
+  Адмiнка:  <span class="code-url">http://localhost:8000/admin/</span>
+
+  Для зупинки: stop.bat</code></pre>
+
+        <h3>&#128468;&#65039; Вікна які з'являться</h3>
+
+        <p>Після запуску у вас буде <strong>3 вікна командного рядка</strong>:</p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Вікно</th>
+                        <th>Назва</th>
+                        <th>Що робить</th>
+                        <th>Можна закрити?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1&#65039;&#8419;</td>
+                        <td><code>Облiк ОЗ — Запуск системи</code></td>
+                        <td>Головне вікно</td>
+                        <td>&#9989; Так, після запуску</td>
+                    </tr>
+                    <tr>
+                        <td>2&#65039;&#8419;</td>
+                        <td><code>Облiк ОЗ — Backend</code></td>
+                        <td>Django сервер (порт 8000)</td>
+                        <td>&#10060; Ні! Система зупиниться</td>
+                    </tr>
+                    <tr>
+                        <td>3&#65039;&#8419;</td>
+                        <td><code>Облiк ОЗ — Frontend</code></td>
+                        <td>Vite dev-сервер (порт 5173)</td>
+                        <td>&#10060; Ні! Система зупиниться</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout callout-warning">
+            &#9888;&#65039; <strong>Важливо:</strong> Вікна Backend та Frontend повинні залишатися відкритими, поки ви працюєте з системою! Щоб зупинити — використовуйте <code>stop.bat</code>.
+        </div>
+
+        <h3>&#127760; Адреси після запуску</h3>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Адреса</th>
+                        <th>Що відкриється</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#127968; <a href="http://localhost:5173">http://localhost:5173</a></td>
+                        <td><strong>Головна сторінка</strong> (React-додаток)</td>
+                    </tr>
+                    <tr>
+                        <td>&#128295; <a href="http://localhost:8000/admin/">http://localhost:8000/admin/</a></td>
+                        <td><strong>Django Admin</strong> (адміністрування)</td>
+                    </tr>
+                    <tr>
+                        <td>&#128225; <a href="http://localhost:8000/api/">http://localhost:8000/api/</a></td>
+                        <td><strong>API</strong> (для розробників)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>&#9888;&#65039; Перевірки перед запуском</h3>
+
+        <p>Скрипт автоматично перевіряє:</p>
+        <ul>
+            <li>&#9989; Наявність <code>backend\venv</code> (Python-середовище встановлено)</li>
+            <li>&#9989; Наявність <code>frontend\node_modules</code> (Frontend-залежності встановлені)</li>
+        </ul>
+
+        <p>Якщо чогось не вистачає — скрипт підкаже запустити <code>setup.bat</code>.</p>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- start-backend.bat               -->
+        <!-- ============================== -->
+        <h2 id="start-backend" class="section-anchor">&#128994; start-backend.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Запускає <strong>тільки Django-сервер</strong> (backend). Корисно для розробки, коли потрібно працювати лише з API або Django Admin.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>start-backend.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Django Backend — http://localhost:8000       &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+Застосування мiграцiй...              <span class="code-arrow">&larr; Автоматично оновлює БД</span>
+  Operations to perform:
+    Apply all migrations: ...
+  Running migrations:
+    No migrations to apply.
+
+Запуск Django сервера...
+Натиснiть Ctrl+C для зупинки
+
+Watching for file changes with StatReloader
+Starting development server at <span class="code-url">http://0.0.0.0:8000/</span></code></pre>
+
+        <h3>&#128295; Що робить скрипт</h3>
+        <ol class="steps-list">
+            <li><span class="step-icon-sm">&#128194;</span> <span>Переходить у папку <code>backend</code></span></li>
+            <li><span class="step-icon-sm">&#128013;</span> <span>Активує Python-середовище (<code>venv</code>)</span></li>
+            <li><span class="step-icon-sm">&#128452;&#65039;</span> <span>Виконує міграції (<code>python manage.py migrate</code>)</span></li>
+            <li><span class="step-icon-sm">&#128640;</span> <span>Запускає Django-сервер на порту <strong>8000</strong></span></li>
+        </ol>
+
+        <h3>&#9199;&#65039; Як зупинити</h3>
+        <p>Натисніть <strong><code>Ctrl+C</code></strong> у вікні командного рядка, потім підтвердіть <code>Y</code>.</p>
+
+        <h3>&#127760; Що доступно</h3>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Адреса</th>
+                        <th>Опис</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><a href="http://localhost:8000/admin/">http://localhost:8000/admin/</a></td>
+                        <td>Django Admin панель</td>
+                    </tr>
+                    <tr>
+                        <td><a href="http://localhost:8000/api/">http://localhost:8000/api/</a></td>
+                        <td>REST API</td>
+                    </tr>
+                    <tr>
+                        <td><a href="http://localhost:8000/api/docs/">http://localhost:8000/api/docs/</a></td>
+                        <td>Swagger документація API</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- start-frontend.bat              -->
+        <!-- ============================== -->
+        <h2 id="start-frontend" class="section-anchor">&#128309; start-frontend.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Запускає <strong>тільки React dev-сервер</strong> (frontend). Корисно для розробки інтерфейсу, коли backend вже запущений окремо.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>start-frontend.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   React Frontend — http://localhost:5173       &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+Запуск Vite dev-сервера...
+Натиснiть Ctrl+C для зупинки
+
+  VITE v6.x.x  ready in 800 ms
+
+  &#10148;  Local:   <span class="code-url">http://localhost:5173/</span>
+  &#10148;  Network: <span class="code-url">http://192.168.x.x:5173/</span></code></pre>
+
+        <h3>&#128295; Що робить скрипт</h3>
+        <ol class="steps-list">
+            <li><span class="step-icon-sm">&#128194;</span> <span>Переходить у папку <code>frontend</code></span></li>
+            <li><span class="step-icon-sm">&#128230;</span> <span>Перевіряє наявність <code>node_modules</code> (якщо немає — автоматично запускає <code>npm install</code>)</span></li>
+            <li><span class="step-icon-sm">&#128640;</span> <span>Запускає Vite dev-сервер на порту <strong>5173</strong></span></li>
+        </ol>
+
+        <h3>&#9199;&#65039; Як зупинити</h3>
+        <p>Натисніть <strong><code>Ctrl+C</code></strong> у вікні командного рядка.</p>
+
+        <h3>&#128260; Гаряче перезавантаження (HMR)</h3>
+        <p>Vite автоматично оновлює сторінку в браузері при зміні файлів. Не потрібно перезапускати сервер після кожної зміни коду!</p>
+
+        <div class="callout callout-warning">
+            &#9888;&#65039; <strong>Важливо:</strong> Frontend потребує працюючий backend для роботи з даними. Якщо backend не запущений, ви побачите помилки при спробі завантажити дані.
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- stop.bat                        -->
+        <!-- ============================== -->
+        <h2 id="stop" class="section-anchor">&#128721; stop.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Зупиняє <strong>всі сервіси</strong> системи — і Backend, і Frontend. Використовує два методи для гарантованої зупинки.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>stop.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+
+<pre><code><span class="code-header">&#9556;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9559;
+&#9553;   Облiк ОЗ — Зупинка системи                  &#9553;
+&#9562;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9565;</span>
+
+Зупинка Backend...                            <span class="code-arrow">&larr; Закриває вікна за назвою</span>
+Зупинка процесiв на порту 8000 (Django)...    <span class="code-arrow">&larr; Вбиває процеси на порту</span>
+Зупинка процесiв на порту 5173 (Vite)...      <span class="code-arrow">&larr; Вбиває процеси на порту</span>
+
+<span class="code-ok">Усi сервiси зупинено.</span></code></pre>
+
+        <h3>&#128295; Методи зупинки</h3>
+
+        <p>Скрипт використовує <strong>два методи</strong> для надійної зупинки:</p>
+
+        <ol>
+            <li>&#128468;&#65039; <strong>За назвою вікна</strong> — закриває всі вікна з назвою <code>Oblik OZ*</code></li>
+            <li>&#128268; <strong>За портом</strong> — знаходить і завершує процеси, які слухають порти 8000 та 5173</li>
+        </ol>
+
+        <div class="callout callout-tip">
+            &#128161; Навіть якщо ви закрили вікна вручну, але процеси &laquo;зависли&raquo; — <code>stop.bat</code> їх знайде і завершить.
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- FAQ                             -->
+        <!-- ============================== -->
+        <h2 id="faq" class="section-anchor">&#10067; Часті питання (FAQ)</h2>
+
+        <details>
+            <summary>&#128313; Який порядок запуску на новому комп'ютері?</summary>
+            <div class="details-content">
+<pre><code>1&#65039;&#8419;  install-prerequisites.bat     (один раз — встановлює програми)
+2&#65039;&#8419;  setup.bat                     (один раз — налаштовує проєкт)
+3&#65039;&#8419;  start.bat                     (щоразу — запускає систему)</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Я вже маю Python/Node.js/PostgreSQL, що запускати?</summary>
+            <div class="details-content">
+                <p>Пропустіть <code>install-prerequisites.bat</code> і одразу запустіть:</p>
+<pre><code>1&#65039;&#8419;  setup.bat     (налаштування проєкту)
+2&#65039;&#8419;  start.bat     (запуск системи)</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Як запустити систему наступного разу?</summary>
+            <div class="details-content">
+                <p>Просто запустіть <code>start.bat</code> — він зробить все необхідне. Повторно запускати <code>setup.bat</code> чи <code>install-prerequisites.bat</code> <strong>не потрібно</strong>.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Чи можна запускати Backend та Frontend окремо?</summary>
+            <div class="details-content">
+                <p>Так! Це зручно при розробці:</p>
+<pre><code><span class="code-comment">:: В одному терміналі:</span>
+start-backend.bat
+
+<span class="code-comment">:: В іншому терміналі:</span>
+start-frontend.bat</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Як змінити порти?</summary>
+            <div class="details-content">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Сервіс</th>
+                                <th>Файл</th>
+                                <th>Де змінити</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Backend (8000)</td>
+                                <td><code>start-backend.bat</code></td>
+                                <td>Замініть <code>0.0.0.0:8000</code> на потрібний порт</td>
+                            </tr>
+                            <tr>
+                                <td>Frontend (5173)</td>
+                                <td><code>frontend\vite.config.ts</code></td>
+                                <td>Додайте <code>server: { port: XXXX }</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Як повністю перевстановити проєкт?</summary>
+            <div class="details-content">
+<pre><code><span class="code-comment">:: 1. Зупинити все</span>
+stop.bat
+
+<span class="code-comment">:: 2. Видалити артефакти (вручну)</span>
+rmdir /s /q backend\venv
+rmdir /s /q frontend\node_modules
+del backend\.env
+
+<span class="code-comment">:: 3. Налаштувати заново</span>
+setup.bat</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#128313; Чи можна поставити систему на іншому ПК через локальну мережу?</summary>
+            <div class="details-content">
+                <p>Так! Після запуску <code>start.bat</code> система доступна з інших комп'ютерів у тій самій мережі:</p>
+                <ul>
+                    <li>Дізнайтесь вашу IP-адресу: <code>ipconfig</code></li>
+                    <li>Відкрийте на іншому ПК: <code>http://&lt;ваш-IP&gt;:5173</code></li>
+                </ul>
+                <div class="callout callout-warning">
+                    &#9888;&#65039; Переконайтесь, що Windows Firewall дозволяє вхідні з'єднання на порти 5173 та 8000.
+                </div>
+            </div>
+        </details>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- TROUBLESHOOTING                 -->
+        <!-- ============================== -->
+        <h2 id="troubleshooting" class="section-anchor">&#128293; Вирішення проблем</h2>
+
+        <!-- Python -->
+        <div class="trouble-category">
+            <h3>&#128013; Python</h3>
+        </div>
+
+        <details>
+            <summary>&#10060; &laquo;Python не знайдено&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Python не встановлений або не доданий у PATH.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Запустіть <code>install-prerequisites.bat</code></li>
+                    <li>Або встановіть вручну з <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">https://www.python.org/downloads/</a></li>
+                    <li>&#9888;&#65039; При встановленні обов'язково поставте галочку <strong>&laquo;Add Python to PATH&raquo;</strong></li>
+                    <li>Після встановлення <strong>перезапустіть</strong> командний рядок</li>
+                </ol>
+                <p><strong>Перевірка:</strong></p>
+<pre><code>python --version
+<span class="code-comment">:: Має вивести: Python 3.12.x</span></code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; &laquo;Не вдалося створити вiртуальне середовище&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Пошкоджена інсталяція Python або відсутній модуль <code>venv</code>.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Видаліть Python через &laquo;Програми та компоненти&raquo;</li>
+                    <li>Перевстановіть Python з <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">https://www.python.org/downloads/</a></li>
+                    <li>При встановленні оберіть <strong>&laquo;Customize installation&raquo;</strong> та переконайтесь, що &#9989; <code>pip</code> та &#9989; <code>venv</code> відмічені</li>
+                    <li>Запустіть <code>setup.bat</code> повторно</li>
+                </ol>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; &laquo;Не вдалося встановити Python-залежностi&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Проблеми з мережею, старий pip, або несумісні пакети.</p>
+                <p><strong>Рішення:</strong></p>
+<pre><code>cd backend
+venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt --verbose</code></pre>
+                <p>Прочитайте повідомлення про помилку — зазвичай воно вказує на конкретний пакет.</p>
+            </div>
+        </details>
+
+        <!-- Node.js -->
+        <div class="trouble-category">
+            <h3>&#129001; Node.js</h3>
+        </div>
+
+        <details>
+            <summary>&#10060; &laquo;Node.js не знайдено&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Node.js не встановлений або не в PATH.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Запустіть <code>install-prerequisites.bat</code></li>
+                    <li>Або встановіть вручну з <a href="https://nodejs.org/" target="_blank" rel="noopener">https://nodejs.org/</a> (оберіть LTS-версію)</li>
+                    <li>Перезапустіть командний рядок</li>
+                </ol>
+                <p><strong>Перевірка:</strong></p>
+<pre><code>node --version
+npm --version</code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; &laquo;npm install не вдався&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Проблеми з мережею, кеш npm або несумісні залежності.</p>
+                <p><strong>Рішення:</strong></p>
+<pre><code>cd frontend
+npm cache clean --force
+npm install</code></pre>
+                <p>Якщо не допомогло:</p>
+<pre><code>rmdir /s /q node_modules
+del package-lock.json
+npm install</code></pre>
+            </div>
+        </details>
+
+        <!-- PostgreSQL -->
+        <div class="trouble-category">
+            <h3>&#128024; PostgreSQL</h3>
+        </div>
+
+        <details>
+            <summary>&#10060; &laquo;psql не знайдено в PATH&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> PostgreSQL встановлений, але шлях до <code>bin</code> не в PATH.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Знайдіть папку PostgreSQL (зазвичай <code>C:\Program Files\PostgreSQL\16\bin</code>)</li>
+                    <li>Додайте її у змінну PATH:
+                        <ul>
+                            <li>&#128468;&#65039; Win+R &rarr; <code>sysdm.cpl</code> &rarr; <strong>Додатково</strong> &rarr; <strong>Змінні середовища</strong></li>
+                            <li>У <strong>Системних змінних</strong> знайдіть <code>Path</code> &rarr; <strong>Редагувати</strong></li>
+                            <li>Додайте: <code>C:\Program Files\PostgreSQL\16\bin</code></li>
+                            <li>Натисніть <strong>OK</strong> &rarr; <strong>OK</strong></li>
+                        </ul>
+                    </li>
+                    <li>Перезапустіть командний рядок</li>
+                </ol>
+                <p><strong>Перевірка:</strong></p>
+<pre><code>psql --version
+<span class="code-comment">:: Має вивести: psql (PostgreSQL) 16.x</span></code></pre>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; &laquo;Мiграцiї не вдалися&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> PostgreSQL не запущений, невірний пароль, або база даних не існує.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li><strong>Перевірте чи PostgreSQL запущений:</strong>
+                        <ul>
+                            <li>&#128468;&#65039; Win+R &rarr; <code>services.msc</code></li>
+                            <li>Знайдіть <code>postgresql-x64-16</code></li>
+                            <li>Стан повинен бути: <strong>&laquo;Виконується&raquo;</strong> / <strong>&laquo;Running&raquo;</strong></li>
+                            <li>Якщо зупинений &rarr; натисніть правою кнопкою &rarr; <strong>&laquo;Запустити&raquo;</strong></li>
+                        </ul>
+                    </li>
+                    <li><strong>Перевірте пароль у <code>backend\.env</code>:</strong>
+<pre><code><span class="code-variable">POSTGRES_PASSWORD</span>=<span class="code-string">ваш_реальний_пароль</span></code></pre>
+                    </li>
+                    <li><strong>Перевірте чи база існує:</strong>
+<pre><code>psql -U postgres -c "\l"
+<span class="code-comment">:: Шукайте buh_assets у списку</span></code></pre>
+                    </li>
+                    <li><strong>Створіть базу вручну:</strong>
+<pre><code>create-db.bat
+<span class="code-comment">:: або</span>
+psql -U postgres -c "CREATE DATABASE buh_assets ENCODING 'UTF8';"</code></pre>
+                    </li>
+                </ol>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; PostgreSQL запитує пароль, а я його не пам'ятаю</summary>
+            <div class="details-content">
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Відкрийте файл <code>C:\Program Files\PostgreSQL\16\data\pg_hba.conf</code></li>
+                    <li>Знайдіть рядок:
+<pre><code>host  all  all  127.0.0.1/32  scram-sha-256</code></pre>
+                    </li>
+                    <li>Змініть <code>scram-sha-256</code> на <code>trust</code></li>
+                    <li>Перезапустіть службу PostgreSQL (<code>services.msc</code>)</li>
+                    <li>Тепер можна змінити пароль:
+<pre><code>psql -U postgres -c "ALTER USER postgres PASSWORD '<span class="code-string">новий_пароль</span>';"</code></pre>
+                    </li>
+                    <li>Поверніть <code>trust</code> назад на <code>scram-sha-256</code></li>
+                    <li>Перезапустіть PostgreSQL</li>
+                    <li>Оновіть пароль у <code>backend\.env</code></li>
+                </ol>
+            </div>
+        </details>
+
+        <!-- Windows / General -->
+        <div class="trouble-category">
+            <h3>&#128468;&#65039; Windows / Загальні</h3>
+        </div>
+
+        <details>
+            <summary>&#10060; &laquo;winget не знайдено&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Windows Package Manager (App Installer) не встановлений або застаріла версія Windows.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Відкрийте <strong>Microsoft Store</strong></li>
+                    <li>Знайдіть <strong>&laquo;App Installer&raquo;</strong> від Microsoft</li>
+                    <li>Натисніть <strong>&laquo;Оновити&raquo;</strong> або <strong>&laquo;Встановити&raquo;</strong></li>
+                    <li>Перезапустіть <code>install-prerequisites.bat</code></li>
+                </ol>
+                <div class="callout callout-tip">
+                    &#8505;&#65039; winget доступний на Windows 10 (1709+) та Windows 11.
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; Програми встановились, але &laquo;не знайдено&raquo;</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> PATH не оновився в поточному вікні.</p>
+                <p><strong>Рішення:</strong></p>
+                <ol>
+                    <li>Закрийте <strong>всі</strong> вікна командного рядка</li>
+                    <li>Відкрийте <strong>нове</strong> вікно</li>
+                    <li>Запустіть скрипт повторно</li>
+                </ol>
+                <p>Або перезавантажте комп'ютер.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; Скрипт показує кракозябри замість українських літер</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Неправильна кодова сторінка терміналу.</p>
+                <p><strong>Рішення:</strong></p>
+                <p>Усі скрипти вже містять <code>chcp 65001</code> для переключення на UTF-8. Якщо проблема залишається:</p>
+                <ol>
+                    <li>&#128468;&#65039; Win+R &rarr; <code>intl.cpl</code></li>
+                    <li>Вкладка <strong>&laquo;Адміністрування&raquo;</strong> &rarr; <strong>&laquo;Змінити мову системи&raquo;</strong></li>
+                    <li>Поставте &#9989; <strong>&laquo;Beta: Use Unicode UTF-8 for worldwide language support&raquo;</strong></li>
+                    <li>Перезавантажте комп'ютер</li>
+                </ol>
+            </div>
+        </details>
+
+        <details>
+            <summary>&#10060; Порт 8000 або 5173 вже зайнятий</summary>
+            <div class="details-content">
+                <p><strong>Причина:</strong> Інший процес вже використовує порт.</p>
+                <p><strong>Рішення:</strong></p>
+<pre><code><span class="code-comment">:: 1. Зупиніть всі сервіси</span>
+stop.bat
+
+<span class="code-comment">:: 2. Перевірте що займає порт</span>
+netstat -aon | findstr :8000
+netstat -aon | findstr :5173
+
+<span class="code-comment">:: 3. Якщо процес ще живий, завершіть його за PID</span>
+taskkill /f /pid &lt;PID&gt;</code></pre>
+            </div>
+        </details>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- SUMMARY TABLE                   -->
+        <!-- ============================== -->
+        <h2 id="summary-table" class="section-anchor">&#128202; Зведена таблиця</h2>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Скрипт</th>
+                        <th>Що робить</th>
+                        <th>Коли</th>
+                        <th>Час</th>
+                        <th>Результат</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>&#128295; <code>install-prerequisites</code></td>
+                        <td>Python + Node.js + PostgreSQL</td>
+                        <td>1 раз</td>
+                        <td>5-15 хв</td>
+                        <td>Програми встановлені</td>
+                    </tr>
+                    <tr>
+                        <td>&#9881;&#65039; <code>setup</code></td>
+                        <td>venv + pip + DB + npm</td>
+                        <td>1 раз</td>
+                        <td>3-7 хв</td>
+                        <td>Проєкт готовий</td>
+                    </tr>
+                    <tr>
+                        <td>&#128452;&#65039; <code>create-db</code></td>
+                        <td>БД <code>buh_assets</code></td>
+                        <td>За потреби</td>
+                        <td>5 сек</td>
+                        <td>БД створена</td>
+                    </tr>
+                    <tr>
+                        <td>&#128640; <code>start</code></td>
+                        <td>Backend + Frontend</td>
+                        <td>Щоразу</td>
+                        <td>10 сек</td>
+                        <td>Система працює</td>
+                    </tr>
+                    <tr>
+                        <td>&#128994; <code>start-backend</code></td>
+                        <td>Тільки Django</td>
+                        <td>Розробка</td>
+                        <td>5 сек</td>
+                        <td>API працює</td>
+                    </tr>
+                    <tr>
+                        <td>&#128309; <code>start-frontend</code></td>
+                        <td>Тільки React</td>
+                        <td>Розробка</td>
+                        <td>5 сек</td>
+                        <td>UI працює</td>
+                    </tr>
+                    <tr>
+                        <td>&#128721; <code>stop</code></td>
+                        <td>Зупинка всього</td>
+                        <td>За потреби</td>
+                        <td>3 сек</td>
+                        <td>Все зупинено</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+    <p>&#127963;&#65039; <strong>Облік ОЗ</strong> — Система обліку основних засобів</p>
+    <p style="margin-top: 8px; font-size: 0.85rem;">Після запуску відкрийте: <a href="http://localhost:5173">http://localhost:5173</a></p>
+</footer>
+
+<!-- Sidebar Toggle Button (Mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Зміст">
+    &#9776;
+</button>
+
+<script>
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('open');
+    }
+
+    // Close sidebar when clicking a link (mobile)
+    document.querySelectorAll('.sidebar nav a').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 1024) {
+                var sidebar = document.getElementById('sidebar');
+                var overlay = document.getElementById('sidebarOverlay');
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+        });
+    });
+
+    // Highlight active section in sidebar on scroll
+    (function() {
+        var sections = document.querySelectorAll('.section-anchor');
+        var sidebarLinks = document.querySelectorAll('.sidebar nav a');
+
+        function highlightActive() {
+            var scrollPos = window.scrollY + 100;
+            var current = '';
+
+            sections.forEach(function(section) {
+                if (section.offsetTop <= scrollPos) {
+                    current = section.id;
+                }
+            });
+
+            sidebarLinks.forEach(function(link) {
+                link.style.background = '';
+                link.style.color = '';
+                link.style.fontWeight = '';
+                if (link.getAttribute('href') === '#' + current) {
+                    link.style.background = 'var(--accent-bg)';
+                    link.style.color = 'var(--accent)';
+                    link.style.fontWeight = '600';
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightActive);
+        highlightActive();
+    })();
+</script>
+
+</body>
+</html>
