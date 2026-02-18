@@ -1,78 +1,77 @@
 @echo off
-chcp 65001 >nul
-echo ╔════════════════════════════════════════════════╗
-echo ║   Облiк ОЗ — Повне встановлення з нуля        ║
-echo ╚════════════════════════════════════════════════╝
+echo ================================================
+echo   Oblik OZ -- Povne vstanovlennya z nulya
+echo ================================================
 echo.
 
-:: ─────────────────────────────────────────────
-:: 1. Перевірка Python
-:: ─────────────────────────────────────────────
-echo [1/8] Перевiрка Python...
+:: -------------------------------------------------
+:: 1. Perevirka Python
+:: -------------------------------------------------
+echo [1/8] Perevirka Python...
 where python >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo [ПОМИЛКА] Python не знайдено!
-    echo   Встановiть Python 3.11+ з https://www.python.org/downloads/
-    echo   При встановленнi обов'язково поставте галочку "Add Python to PATH"
+    echo [POMYLKA] Python ne znajdeno!
+    echo   Vstanovit Python 3.11+ z https://www.python.org/downloads/
+    echo   Pry vstanovlenni obovyazkovo postavte galochku "Add Python to PATH"
     echo.
     pause
     exit /b 1
 )
-for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do echo   Знайдено: Python %%v
+for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do echo   Znajdeno: Python %%v
 echo.
 
-:: ─────────────────────────────────────────────
-:: 2. Перевірка Node.js
-:: ─────────────────────────────────────────────
-echo [2/8] Перевiрка Node.js...
+:: -------------------------------------------------
+:: 2. Perevirka Node.js
+:: -------------------------------------------------
+echo [2/8] Perevirka Node.js...
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo [ПОМИЛКА] Node.js не знайдено!
-    echo   Встановiть Node.js 18+ з https://nodejs.org/
+    echo [POMYLKA] Node.js ne znajdeno!
+    echo   Vstanovit Node.js 18+ z https://nodejs.org/
     echo.
     pause
     exit /b 1
 )
-for /f "tokens=1 delims= " %%v in ('node --version 2^>^&1') do echo   Знайдено: Node.js %%v
+for /f "tokens=1 delims= " %%v in ('node --version 2^>^&1') do echo   Znajdeno: Node.js %%v
 echo.
 
-:: ─────────────────────────────────────────────
-:: 3. Перевірка PostgreSQL
-:: ─────────────────────────────────────────────
-echo [3/8] Перевiрка PostgreSQL...
+:: -------------------------------------------------
+:: 3. Perevirka PostgreSQL
+:: -------------------------------------------------
+echo [3/8] Perevirka PostgreSQL...
 where psql >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo [УВАГА] psql не знайдено в PATH.
-    echo   Якщо PostgreSQL встановлений, додайте шлях до bin у змiнну PATH.
-    echo   Типовий шлях: C:\Program Files\PostgreSQL\16\bin
+    echo [UVAGA] psql ne znajdeno v PATH.
+    echo   Yakshcho PostgreSQL vstanovlenyj, dodajte shlyakh do bin u zminnu PATH.
+    echo   Typovyj shlyakh: C:\Program Files\PostgreSQL\16\bin
     echo.
-    echo   Або створiть базу даних вручну:
+    echo   Abo stvorit bazu danykh vruchnu:
     echo   CREATE DATABASE buh_assets ENCODING 'UTF8';
     echo.
     set SKIP_DB=1
 ) else (
-    for /f "tokens=3 delims= " %%v in ('psql --version 2^>^&1') do echo   Знайдено: PostgreSQL %%v
+    for /f "tokens=3 delims= " %%v in ('psql --version 2^>^&1') do echo   Znajdeno: PostgreSQL %%v
     set SKIP_DB=0
 )
 echo.
 
-:: ─────────────────────────────────────────────
-:: 4. Налаштування .env
-:: ─────────────────────────────────────────────
-echo [4/8] Налаштування конфiгурацiї...
+:: -------------------------------------------------
+:: 4. Nalashtuvannya .env
+:: -------------------------------------------------
+echo [4/8] Nalashtuvannya konfiguracii...
 cd /d "%~dp0backend"
 
 if not exist ".env" (
     if exist ".env.example" (
         copy .env.example .env >nul
-        echo   Створено .env з шаблону .env.example
+        echo   Stvoreno .env z shablonu .env.example
     ) else (
-        echo   Створюю .env з налаштуваннями за замовчуванням...
+        echo   Stvoryuyu .env z nalashtuvannyamy za zamovchuvanniam...
         (
-            echo ## Налаштування системи облiку основних засобiв
+            echo ## Nalashtuvannya systemy obliku osnovnykh zasobiv
             echo.
             echo # Django
             echo DJANGO_SECRET_KEY=django-insecure-auto-generated-%RANDOM%%RANDOM%%RANDOM%
@@ -90,139 +89,139 @@ if not exist ".env" (
         ) > .env
     )
     echo.
-    echo   *** ВАЖЛИВО: вiдредагуйте backend\.env ***
-    echo   Встановiть пароль PostgreSQL (POSTGRES_PASSWORD)
+    echo   *** VAZHLYVO: vidredagujte backend\.env ***
+    echo   Vstanovit parol PostgreSQL (POSTGRES_PASSWORD)
     echo.
     notepad .env
-    echo   Натиснiть будь-яку клавiшу пiсля збереження .env...
+    echo   Natysnit bud-yaku klavishu pislya zberezhennya .env...
     pause >nul
 ) else (
-    echo   .env вже iснує — пропускаю.
+    echo   .env vzhe isnuye -- propuskayu.
 )
 echo.
 
-:: ─────────────────────────────────────────────
-:: 5. Python venv + залежності
-:: ─────────────────────────────────────────────
-echo [5/8] Створення Python-середовища та встановлення залежностей...
+:: -------------------------------------------------
+:: 5. Python venv + zalezhnosti
+:: -------------------------------------------------
+echo [5/8] Stvorennya Python-seredovyshcha ta vstanovlennya zalezhnostej...
 
 if exist "venv" (
-    echo   Видаляю старе середовище...
+    echo   Vydalyayu stare seredovyshche...
     rmdir /s /q venv
 )
 python -m venv venv
 if %errorlevel% neq 0 (
-    echo [ПОМИЛКА] Не вдалося створити вiртуальне середовище
+    echo [POMYLKA] Ne vdalosya stvoryty virtualne seredovyshche
     pause
     exit /b 1
 )
-echo   Вiртуальне середовище створено.
+echo   Virtualne seredovyshche stvoreno.
 
 call venv\Scripts\activate.bat
-echo   Оновлення pip...
+echo   Onovlennya pip...
 python -m pip install --upgrade pip --quiet
-echo   Встановлення Python-залежностей (це може зайняти кiлька хвилин)...
+echo   Vstanovlennya Python-zalezhnostej (ce mozhe zajnyaty kilka khvylyn)...
 pip install -r requirements.txt --quiet
 if %errorlevel% neq 0 (
     echo.
-    echo [ПОМИЛКА] Не вдалося встановити Python-залежностi
-    echo   Спробуйте вручну: cd backend ^& venv\Scripts\activate ^& pip install -r requirements.txt
+    echo [POMYLKA] Ne vdalosya vstanovyty Python-zalezhnosti
+    echo   Sprobujte vruchnu: cd backend ^& venv\Scripts\activate ^& pip install -r requirements.txt
     pause
     exit /b 1
 )
-echo   Python-залежностi встановлено.
+echo   Python-zalezhnosti vstanovleno.
 echo.
 
-:: ─────────────────────────────────────────────
-:: 6. Створення бази даних
-:: ─────────────────────────────────────────────
-echo [6/8] Створення бази даних та мiграцiї...
+:: -------------------------------------------------
+:: 6. Stvorennya bazy danykh
+:: -------------------------------------------------
+echo [6/8] Stvorennya bazy danykh ta migracii...
 
-:: Спробувати створити БД якщо psql доступний
+:: Sprobuvatystvoryty BD yakshcho psql dostupnyj
 if "%SKIP_DB%"=="0" (
-    echo   Спроба створити базу даних buh_assets...
+    echo   Sproba stvoryty bazu danykh buh_assets...
 
-    :: Читаємо дані з .env
+    :: Chytayemo dani z .env
     for /f "tokens=1,* delims==" %%a in ('findstr "POSTGRES_USER" .env') do set "PGUSER=%%b"
     for /f "tokens=1,* delims==" %%a in ('findstr "POSTGRES_HOST" .env') do set "PGHOST=%%b"
     for /f "tokens=1,* delims==" %%a in ('findstr "POSTGRES_PORT" .env') do set "PGPORT=%%b"
 
     psql -U %PGUSER% -h %PGHOST% -p %PGPORT% -c "CREATE DATABASE buh_assets ENCODING 'UTF8';" 2>nul
     if %errorlevel% equ 0 (
-        echo   База даних buh_assets створена.
+        echo   Baza danykh buh_assets stvorena.
     ) else (
-        echo   База даних вже iснує або не вдалося створити — продовжую.
+        echo   Baza danykh vzhe isnuye abo ne vdalosya stvoryty -- prodovzhuyu.
     )
 )
 
-echo   Виконання мiграцiй...
+echo   Vykonannya migracij...
 python manage.py makemigrations accounts assets documents reports 2>nul
 python manage.py migrate
 if %errorlevel% neq 0 (
     echo.
-    echo [ПОМИЛКА] Мiграцiї не вдалися. Перевiрте:
-    echo   1. PostgreSQL запущений
-    echo   2. База даних buh_assets iснує
-    echo   3. Налаштування в backend\.env коректнi
+    echo [POMYLKA] Migracii ne vdalysya. Pereverte:
+    echo   1. PostgreSQL zapushchenyj
+    echo   2. Baza danykh buh_assets isnuye
+    echo   3. Nalashtuvannya v backend\.env korektni
     echo.
-    echo   Створити БД вручну: psql -U postgres -c "CREATE DATABASE buh_assets;"
+    echo   Stvoryty BD vruchnu: psql -U postgres -c "CREATE DATABASE buh_assets;"
     pause
     exit /b 1
 )
-echo   Мiграцiї виконано успiшно.
+echo   Migracii vykonano uspishno.
 echo.
 
-:: ─────────────────────────────────────────────
-:: 7. Початкові дані + суперкористувач
-:: ─────────────────────────────────────────────
-echo [7/8] Заповнення початкових даних...
+:: -------------------------------------------------
+:: 7. Pochatkovi dani + superkorystuvach
+:: -------------------------------------------------
+echo [7/8] Zapovnennya pochatkovykh danykh...
 python manage.py seed_asset_groups
-echo   16 груп ОЗ згiдно ПКУ ст. 138.3.3 створено.
+echo   16 grup OZ zgidno PKU st. 138.3.3 stvoreno.
 echo.
 
-echo   Створення суперкористувача (адмiнiстратора):
-echo   Введiть логiн, email та пароль
+echo   Stvorennya superkorystuvacha (administratora):
+echo   Vvedit login, email ta parol
 echo.
 python manage.py createsuperuser
 echo.
 
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
 :: 8. Frontend
-:: ─────────────────────────────────────────────
-echo [8/8] Встановлення frontend-залежностей...
+:: -------------------------------------------------
+echo [8/8] Vstanovlennya frontend-zalezhnostej...
 cd /d "%~dp0frontend"
 
 if exist "node_modules" (
-    echo   Видаляю старi node_modules...
+    echo   Vydalyayu stari node_modules...
     rmdir /s /q node_modules
 )
 
 call npm install
 if %errorlevel% neq 0 (
     echo.
-    echo [ПОМИЛКА] npm install не вдався
-    echo   Спробуйте вручну: cd frontend ^& npm install
+    echo [POMYLKA] npm install ne vdavsya
+    echo   Sprobujte vruchnu: cd frontend ^& npm install
     pause
     exit /b 1
 )
-echo   Frontend-залежностi встановлено.
+echo   Frontend-zalezhnosti vstanovleno.
 echo.
 
-:: ─────────────────────────────────────────────
-:: Готово!
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
+:: Gotovo!
+:: -------------------------------------------------
 echo.
-echo ╔════════════════════════════════════════════════╗
-echo ║   Встановлення завершено успiшно!              ║
-echo ╚════════════════════════════════════════════════╝
+echo ================================================
+echo   Vstanovlennya zaversheno uspishno!
+echo ================================================
 echo.
-echo   Для запуску системи:
+echo   Dlya zapusku systemy:
 echo.
-echo     start.bat          — запустити Backend + Frontend
-echo     start-backend.bat  — тiльки Django сервер
-echo     start-frontend.bat — тiльки React dev-сервер
-echo     stop.bat           — зупинити все
+echo     start.bat          -- zapustyty Backend + Frontend
+echo     start-backend.bat  -- tilky Django server
+echo     start-frontend.bat -- tilky React dev-server
+echo     stop.bat           -- zupynyty vse
 echo.
-echo   Вiдкрийте: http://localhost:5173
+echo   Vidkryjte: http://localhost:5173
 echo.
 pause

@@ -1,19 +1,18 @@
 @echo off
-chcp 65001 >nul
-title Облiк ОЗ — Backend
-echo ╔════════════════════════════════════════════════╗
-echo ║   Django Backend — http://localhost:8000       ║
-echo ╚════════════════════════════════════════════════╝
+title Oblik OZ -- Backend
+echo ================================================
+echo   Django Backend -- http://localhost:8000
+echo ================================================
 echo.
 
 cd /d "%~dp0backend"
 
-:: ─────────────────────────────────────────────
-:: Перевірка venv
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
+:: Perevirka venv
+:: -------------------------------------------------
 if not exist "venv\Scripts\activate.bat" (
-    echo [ПОМИЛКА] Вiртуальне середовище не знайдено!
-    echo   Спочатку запустiть: setup.bat
+    echo [POMYLKA] Virtualne seredovyshche ne znajdeno!
+    echo   Spochatku zapustit: setup.bat
     echo.
     pause
     exit /b 1
@@ -21,25 +20,25 @@ if not exist "venv\Scripts\activate.bat" (
 
 call venv\Scripts\activate.bat
 
-:: ─────────────────────────────────────────────
-:: Міграції
-:: ─────────────────────────────────────────────
-echo Застосування мiграцiй...
+:: -------------------------------------------------
+:: Migracii
+:: -------------------------------------------------
+echo Zastosuvannya migracij...
 python manage.py migrate --no-input
 if %errorlevel% neq 0 (
     echo.
-    echo [УВАГА] Мiграцiї не вдалися. Перевiрте:
-    echo   1. PostgreSQL запущений
-    echo   2. Налаштування в backend\.env коректнi
+    echo [UVAGA] Migracii ne vdalysya. Pereverte:
+    echo   1. PostgreSQL zapushchenyj
+    echo   2. Nalashtuvannya v backend\.env korektni
     echo.
 )
 
-:: ─────────────────────────────────────────────
-:: Запуск сервера
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
+:: Zapusk servera
+:: -------------------------------------------------
 echo.
-echo Запуск Django сервера...
-echo Натиснiть Ctrl+C для зупинки
+echo Zapusk Django servera...
+echo Natysnit Ctrl+C dlya zupynky
 echo.
 python manage.py runserver 0.0.0.0:8000
 pause

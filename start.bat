@@ -1,63 +1,62 @@
 @echo off
-chcp 65001 >nul
-echo ╔════════════════════════════════════════════════╗
-echo ║   Облiк ОЗ — Запуск системи                   ║
-echo ╚════════════════════════════════════════════════╝
+echo ================================================
+echo   Oblik OZ -- Zapusk systemy
+echo ================================================
 echo.
 
-:: ─────────────────────────────────────────────
-:: Перевірка наявності встановлення
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
+:: Perevirka nayavnosti vstanovlennya
+:: -------------------------------------------------
 if not exist "%~dp0backend\venv" (
-    echo [ПОМИЛКА] Backend не встановлено!
-    echo   Спочатку запустiть: setup.bat
+    echo [POMYLKA] Backend ne vstanovleno!
+    echo   Spochatku zapustit: setup.bat
     echo.
     pause
     exit /b 1
 )
 if not exist "%~dp0frontend\node_modules" (
-    echo [ПОМИЛКА] Frontend не встановлено!
-    echo   Спочатку запустiть: setup.bat
+    echo [POMYLKA] Frontend ne vstanovleno!
+    echo   Spochatku zapustit: setup.bat
     echo.
     pause
     exit /b 1
 )
 
-:: ─────────────────────────────────────────────
-:: Запуск Backend
-:: ─────────────────────────────────────────────
-echo Запуск Backend (Django)...
+:: -------------------------------------------------
+:: Zapusk Backend
+:: -------------------------------------------------
+echo Zapusk Backend (Django)...
 start "Oblik OZ - Backend" cmd /k ""%~dp0start-backend.bat""
 
-:: Чекаємо поки backend піднімається
-echo Очiкування запуску backend...
+:: Chekayemo poky backend pidnimayetsya
+echo Ochikuvannya zapusku backend...
 timeout /t 3 /nobreak >nul
 
-:: ─────────────────────────────────────────────
-:: Запуск Frontend
-:: ─────────────────────────────────────────────
-echo Запуск Frontend (React)...
+:: -------------------------------------------------
+:: Zapusk Frontend
+:: -------------------------------------------------
+echo Zapusk Frontend (React)...
 start "Oblik OZ - Frontend" cmd /k ""%~dp0start-frontend.bat""
 
-:: Чекаємо поки frontend піднімається
+:: Chekayemo poky frontend pidnimayetsya
 timeout /t 5 /nobreak >nul
 
-:: ─────────────────────────────────────────────
-:: Готово
-:: ─────────────────────────────────────────────
+:: -------------------------------------------------
+:: Gotovo
+:: -------------------------------------------------
 echo.
-echo ╔════════════════════════════════════════════════╗
-echo ║   Система запущена!                            ║
-echo ╚════════════════════════════════════════════════╝
+echo ================================================
+echo   Systema zapushchena!
+echo ================================================
 echo.
 echo   Backend:  http://localhost:8000
 echo   Frontend: http://localhost:5173
-echo   Адмiнка:  http://localhost:8000/admin/
+echo   Admin:    http://localhost:8000/admin/
 echo.
-echo   Для зупинки: stop.bat
+echo   Dlya zupynky: stop.bat
 echo.
 
-:: Відкриваємо браузер
+:: Vidkryvayemo brauzer
 start http://localhost:5173
 
 pause
