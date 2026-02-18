@@ -27,27 +27,16 @@ echo.
 :: 2. Перевірка winget
 :: ─────────────────────────────────────────────
 echo [1/6] Перевiрка Windows Package Manager (winget)...
-where winget >nul 2>&1
-if %errorlevel% neq 0 (
+
+winget --version >nul 2>&1
+if errorlevel 1 (
     echo.
     echo [ПОМИЛКА] winget не знайдено!
-    echo.
-    echo   winget — це вбудований менеджер пакетiв Windows.
-    echo   Щоб встановити:
-    echo.
-    echo   1. Вiдкрийте Microsoft Store
-    echo   2. Знайдiть "App Installer" (вiд Microsoft)
-    echo   3. Натиснiть "Оновити" або "Встановити"
-    echo.
-    echo   Або завантажте з:
-    echo   https://aka.ms/getwinget
-    echo.
-    echo   Пiсля встановлення winget перезапустiть цей скрипт.
-    echo.
     pause
     exit /b 1
 )
-for /f "tokens=*" %%v in ('winget --version 2^>^&1') do echo   Знайдено: winget %%v
+
+for /f "tokens=*" %%v in ('winget --version') do echo   Знайдено: winget %%v
 echo.
 
 :: ─────────────────────────────────────────────
