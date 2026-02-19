@@ -5,8 +5,14 @@ from .models import (
     DepreciationRecord, Inventory, InventoryItem,
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
-    Location, ResponsiblePerson,
+    Location, ResponsiblePerson, Position,
 )
+
+
+class PositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Position
+        fields = '__all__'
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -21,6 +27,9 @@ class ResponsiblePersonSerializer(serializers.ModelSerializer):
     assets_count = serializers.IntegerField(read_only=True, default=0)
     location_name = serializers.CharField(
         source='location.name', read_only=True, default=''
+    )
+    position_name = serializers.CharField(
+        source='position.name', read_only=True, default=''
     )
 
     class Meta:
@@ -195,7 +204,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 class InventoryListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     commission_head_name = serializers.CharField(
-        source='commission_head.get_full_name', read_only=True, default=''
+        source='commission_head.full_name', read_only=True, default=''
     )
     location_name = serializers.CharField(
         source='location.name', read_only=True, default=''
@@ -215,7 +224,7 @@ class InventoryDetailSerializer(serializers.ModelSerializer):
     items = InventoryItemSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     commission_head_name = serializers.CharField(
-        source='commission_head.get_full_name', read_only=True, default=''
+        source='commission_head.full_name', read_only=True, default=''
     )
     location_name = serializers.CharField(
         source='location.name', read_only=True, default=''

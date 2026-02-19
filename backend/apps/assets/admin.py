@@ -2,7 +2,27 @@ from django.contrib import admin
 from .models import (
     AssetGroup, Asset, AssetReceipt, AssetDisposal,
     DepreciationRecord, Inventory, InventoryItem,
+    Position, Location, ResponsiblePerson,
 )
+
+
+@admin.register(Position)
+class PositionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active']
+    search_fields = ['name']
+
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active']
+    search_fields = ['name']
+
+
+@admin.register(ResponsiblePerson)
+class ResponsiblePersonAdmin(admin.ModelAdmin):
+    list_display = ['full_name', 'ipn', 'position', 'location', 'is_employee', 'is_active']
+    list_filter = ['is_employee', 'is_active']
+    search_fields = ['full_name', 'ipn']
 
 
 @admin.register(AssetGroup)

@@ -6,13 +6,16 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    position_name = serializers.CharField(
+        source='position.name', read_only=True, default=''
+    )
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'patronymic', 'role', 'position', 'phone', 'full_name',
-            'is_active',
+            'patronymic', 'role', 'position', 'position_name', 'phone',
+            'full_name', 'is_active',
         ]
         read_only_fields = ['id']
 

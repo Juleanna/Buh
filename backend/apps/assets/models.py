@@ -52,11 +52,32 @@ class Location(models.Model):
         return self.name
 
 
+class Position(models.Model):
+    """Посада — довідник."""
+    name = models.CharField('Назва', max_length=255, unique=True)
+    is_active = models.BooleanField('Активна', default=True)
+
+    class Meta:
+        verbose_name = 'Посада'
+        verbose_name_plural = 'Посади'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class ResponsiblePerson(models.Model):
     """Матеріально відповідальна особа (МВО) — довідник."""
     ipn = models.CharField('ІПН', max_length=10, unique=True)
     full_name = models.CharField('ПІП', max_length=255)
-    position = models.CharField('Посада', max_length=255, blank=True)
+    position = models.ForeignKey(
+        Position,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_persons',
+        verbose_name='Посада',
+    )
     location = models.ForeignKey(
         Location,
         on_delete=models.SET_NULL,
@@ -65,6 +86,7 @@ class ResponsiblePerson(models.Model):
         related_name='responsible_persons',
         verbose_name='Місце розташування',
     )
+    is_employee = models.BooleanField('Співробітник', default=False)
     is_active = models.BooleanField('Активна', default=True)
 
     class Meta:
@@ -73,7 +95,7 @@ class ResponsiblePerson(models.Model):
         ordering = ['full_name']
 
     def __str__(self):
-        return f'{self.full_name} ({self.position})' if self.position else self.full_name
+        return f'{self.full_name} ({self.position.name})' if self.position else self.full_name
 
 
 class Asset(models.Model):
@@ -446,14 +468,15 @@ class Inventory(models.Model):
 
     # Комісія
     commission_head = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        ResponsiblePerson,
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name='headed_inventories',
         verbose_name='Голова комісії',
     )
     commission_members = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
+        ResponsiblePerson,
         blank=True,
         related_name='inventories_as_member',
         verbose_name='Члени комісії',

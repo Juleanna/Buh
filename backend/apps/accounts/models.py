@@ -17,7 +17,13 @@ class User(AbstractUser):
         default=Role.ACCOUNTANT,
     )
     patronymic = models.CharField('По батькові', max_length=150, blank=True)
-    position = models.CharField('Посада', max_length=255, blank=True)
+    position = models.ForeignKey(
+        'assets.Position',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Посада',
+    )
     phone = models.CharField('Телефон', max_length=20, blank=True)
 
     class Meta:

@@ -6,7 +6,7 @@ import {
 import { message } from '../utils/globalMessage'
 import {
   PlusOutlined, EyeOutlined, PlayCircleOutlined,
-  CheckCircleOutlined,
+  CheckCircleOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -77,6 +77,16 @@ const InventoriesPage: React.FC = () => {
     }
   }
 
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/inventories/${id}/`)
+      message.success('Інвентаризацію видалено')
+      loadInventories()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
+    }
+  }
+
   const handleComplete = async (id: number) => {
     try {
       const { data } = await api.post(`/assets/inventories/${id}/complete/`)
@@ -139,6 +149,13 @@ const InventoriesPage: React.FC = () => {
             baseFilename={`inventory_${record.number}`}
             tooltip="Інвентаризаційний опис"
           />
+          {record.status !== 'completed' && (
+            <Tooltip title="Видалити">
+              <Popconfirm title="Видалити інвентаризацію?" onConfirm={() => handleDelete(record.id)}>
+                <Button size="small" icon={<DeleteOutlined />} danger />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },

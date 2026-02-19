@@ -13,7 +13,7 @@ from .models import (
     DepreciationRecord, Inventory, InventoryItem,
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
-    Location, ResponsiblePerson,
+    Location, ResponsiblePerson, Position,
 )
 from .serializers import (
     AssetGroupSerializer, AssetListSerializer, AssetDetailSerializer,
@@ -24,7 +24,7 @@ from .serializers import (
     OrganizationSerializer, AccountEntrySerializer,
     AssetRevaluationSerializer, AssetImprovementSerializer,
     AssetAttachmentSerializer, AuditLogSerializer, NotificationSerializer,
-    LocationSerializer, ResponsiblePersonSerializer,
+    LocationSerializer, ResponsiblePersonSerializer, PositionSerializer,
 )
 from .depreciation import calculate_monthly_depreciation
 from .entries import (
@@ -40,6 +40,15 @@ from .notifications import (
 )
 
 
+class PositionViewSet(viewsets.ModelViewSet):
+    """CRUD для посад."""
+    queryset = Position.objects.all()
+    serializer_class = PositionSerializer
+    permission_classes = [IsAuthenticated]
+    search_fields = ['name']
+    filterset_fields = ['is_active']
+
+
 class LocationViewSet(viewsets.ModelViewSet):
     """CRUD для місцезнаходжень."""
     queryset = Location.objects.annotate(
@@ -53,13 +62,13 @@ class LocationViewSet(viewsets.ModelViewSet):
 
 class ResponsiblePersonViewSet(viewsets.ModelViewSet):
     """CRUD для матеріально відповідальних осіб."""
-    queryset = ResponsiblePerson.objects.select_related('location').annotate(
+    queryset = ResponsiblePerson.objects.select_related('location', 'position').annotate(
         assets_count=Count('assets')
     ).order_by('full_name')
     serializer_class = ResponsiblePersonSerializer
     permission_classes = [IsAuthenticated]
-    search_fields = ['full_name', 'ipn', 'position']
-    filterset_fields = ['is_active']
+    search_fields = ['full_name', 'ipn']
+    filterset_fields = ['is_active', 'is_employee']
 
 
 class AssetGroupViewSet(viewsets.ModelViewSet):
