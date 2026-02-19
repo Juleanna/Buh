@@ -175,16 +175,22 @@
 # 1. Клонувати репозиторій
 git clone <url> && cd Buh
 
-# 2. Запустити всі сервіси
-docker-compose up -d
+# 2. Створити файл .env для backend
+cp backend/.env.example backend/.env
+# Відредагуйте backend/.env — вкажіть POSTGRES_PASSWORD та DJANGO_SECRET_KEY
 
-# 3. Виконати міграції та створити початкові дані
-docker-compose exec backend python manage.py migrate
-docker-compose exec backend python manage.py seed_asset_groups
-docker-compose exec backend python manage.py createsuperuser
+# 3. Збудувати та запустити всі сервіси (6 контейнерів)
+docker compose up -d --build
 
-# 4. Відкрити http://localhost:5173
+# 4. Виконати міграції та створити початкові дані
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py seed_asset_groups
+docker compose exec backend python manage.py createsuperuser
+
+# 5. Відкрити http://localhost
 ```
+
+> Запускаються 6 сервісів: PostgreSQL, Redis, Django (Gunicorn), Celery Worker, Celery Beat, Frontend (nginx).
 
 ### 💻 Варіант 2: Ручна установка
 
@@ -215,11 +221,11 @@ npm run dev
 
 #### 🔗 Результат
 
-| Сервіс | URL |
-|--------|-----|
-| 🌐 Frontend | http://localhost:5173 |
-| 🐍 Backend API | http://localhost:8000/api/ |
-| 🗄️ Django Admin | http://localhost:8000/admin/ |
+| Сервіс | URL (Docker) | URL (ручна установка) |
+|--------|-------------|----------------------|
+| 🌐 Frontend | http://localhost | http://localhost:5173 |
+| 🐍 Backend API | http://localhost/api/ | http://localhost:8000/api/ |
+| 🗄️ Django Admin | http://localhost/admin/ | http://localhost:8000/admin/ |
 
 > 📖 **Детальна інструкція** для різних ОС → [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
@@ -485,9 +491,13 @@ npm run build                      # Збірка production
 npm run preview                    # Попередній перегляд збірки
 
 # 🐳 Docker
-docker-compose up -d               # Запустити у фоновому режимі
-docker-compose logs -f backend     # Логи backend
-docker-compose exec backend bash   # Консоль в контейнері
+docker compose up -d --build         # Збудувати та запустити всі сервіси
+docker compose down                  # Зупинити всі сервіси
+docker compose ps                    # Статус контейнерів
+docker compose logs -f backend       # Логи backend (Gunicorn)
+docker compose logs -f celery        # Логи Celery Worker
+docker compose exec backend bash     # Консоль в контейнері
+docker compose exec backend python manage.py migrate  # Міграції
 ```
 
 ### 📁 16 груп ОЗ згідно ПКУ ст. 138.3.3

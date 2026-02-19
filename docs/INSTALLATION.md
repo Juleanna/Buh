@@ -175,13 +175,14 @@ DEBUG=True
 POSTGRES_DB=buh_assets
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password
-POSTGRES_HOST=db
+POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-CORS_ORIGINS=http://localhost:5173
-CELERY_BROKER_URL=redis://redis:6379/0
+CORS_ORIGINS=http://localhost
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
 ```
 
-> ⚠️ **Зверніть увагу:** `POSTGRES_HOST=db` (а не `localhost`!) — бо в Docker контейнери спілкуються через мережу Docker і `db` — це ім'я сервісу PostgreSQL.
+> ⚠️ **Зверніть увагу:** У `.env` файлі вказуйте `POSTGRES_HOST=localhost` — Docker Compose автоматично перевизначить хост на `db` та URL Redis на `redis://redis:6379/0` через секцію `environment` в `docker-compose.yml`. Також `CORS_ORIGINS=http://localhost` — бо фронтенд через Docker доступний на порті 80 (nginx).
 
 ### 1.5 🚀 Запуск усіх сервісів
 
@@ -190,16 +191,29 @@ CELERY_BROKER_URL=redis://redis:6379/0
 docker compose up -d --build
 ```
 
-> 🖼️ *Ви побачите завантаження образів (postgres:16-alpine, node, python) та збірку контейнерів. Це може зайняти 3-10 хвилин при першому запуску.*
+> 🖼️ *Ви побачите завантаження образів (postgres:16-alpine, redis:7-alpine, node:20-alpine, python:3.12-slim, nginx:alpine) та збірку контейнерів. При першому запуску це займе більше часу через збірку образів.*
 
 **✅ Очікуваний вивід:**
 ```
-[+] Running 4/4
- ✔ Network buh_default       Created
- ✔ Container buh-db-1        Started
- ✔ Container buh-backend-1   Started
- ✔ Container buh-frontend-1  Started
+[+] Running 6/6
+ ✔ Container buh_postgres     Started
+ ✔ Container buh_redis        Started
+ ✔ Container buh_backend      Started
+ ✔ Container buh_celery       Started
+ ✔ Container buh_celery_beat  Started
+ ✔ Container buh_frontend     Started
 ```
+
+> 📋 **Сервіси Docker Compose:**
+>
+> | Контейнер | Опис |
+> |-----------|------|
+> | `buh_postgres` | 🐘 PostgreSQL 16 — база даних |
+> | `buh_redis` | 🔴 Redis 7 — брокер повідомлень для Celery |
+> | `buh_backend` | 🐍 Django + Gunicorn — REST API |
+> | `buh_celery` | ⚙️ Celery Worker — фонові задачі |
+> | `buh_celery_beat` | ⏰ Celery Beat — планувальник задач |
+> | `buh_frontend` | ⚛️ React (nginx) — веб-інтерфейс |
 
 ### 1.6 📊 Перевірка статусу контейнерів
 
@@ -209,17 +223,23 @@ docker compose ps
 
 **✅ Очікуваний вивід:**
 ```
-NAME              IMAGE              COMMAND                  SERVICE    STATUS    PORTS
-buh-db-1          postgres:16-alpine "docker-entrypoint.s…"  db         Up        0.0.0.0:5432->5432/tcp
-buh-backend-1     buh-backend        "python manage.py ru…"  backend    Up        0.0.0.0:8000->8000/tcp
-buh-frontend-1    buh-frontend       "npm run dev"            frontend   Up        0.0.0.0:5173->5173/tcp
+NAME              IMAGE              COMMAND                  SERVICE       STATUS          PORTS
+buh_postgres      postgres:16-alpine "docker-entrypoint.s…"  db            Up (healthy)    0.0.0.0:5432->5432/tcp
+buh_redis         redis:7-alpine     "docker-entrypoint.s…"  redis         Up (healthy)    0.0.0.0:6379->6379/tcp
+buh_backend       buh-backend        "gunicorn config.wsg…"  backend       Up              0.0.0.0:8000->8000/tcp
+buh_celery        buh-backend        "celery -A config wo…"  celery        Up
+buh_celery_beat   buh-backend        "celery -A config be…"  celery-beat   Up
+buh_frontend      buh-frontend       "nginx -g daemon off…"  frontend      Up              0.0.0.0:80->80/tcp
 ```
 
 > 🔴 Якщо якийсь контейнер має статус **"Exited"** або **"Restarting"**, перегляньте логи:
 > ```bash
-> docker compose logs backend   # Логи Django
-> docker compose logs db        # Логи PostgreSQL
-> docker compose logs frontend  # Логи Vite/React
+> docker compose logs backend      # Логи Django (Gunicorn)
+> docker compose logs db           # Логи PostgreSQL
+> docker compose logs frontend     # Логи nginx
+> docker compose logs celery       # Логи Celery Worker
+> docker compose logs celery-beat  # Логи Celery Beat
+> docker compose logs redis        # Логи Redis
 > ```
 
 ### 1.7 🗃️ Виконання міграцій та початкових налаштувань
@@ -276,9 +296,12 @@ Superuser created successfully. ✅
 
 | Сервіс | URL | Опис |
 |--------|-----|------|
-| ⚛️ Frontend | [http://localhost:5173](http://localhost:5173) | React-додаток |
-| 🐍 Backend API | [http://localhost:8000/api/](http://localhost:8000/api/) | Django REST API |
-| 🔧 Django Admin | [http://localhost:8000/admin/](http://localhost:8000/admin/) | Панель адміністратора |
+| ⚛️ Frontend | [http://localhost](http://localhost) | React-додаток (nginx, порт 80) |
+| 🐍 Backend API | [http://localhost/api/](http://localhost/api/) | Django REST API (через nginx proxy) |
+| 🔧 Django Admin | [http://localhost/admin/](http://localhost/admin/) | Панель адміністратора (через nginx proxy) |
+| 🐍 Backend API (прямий) | [http://localhost:8000/api/](http://localhost:8000/api/) | Django REST API (прямий доступ до Gunicorn) |
+
+> 💡 **Примітка:** Фронтенд (nginx) автоматично проксирує запити `/api/`, `/admin/`, `/media/`, `/static/` на backend. Тому основна точка входу — `http://localhost` (порт 80).
 
 ### 1.9 🛑 Зупинка та керування контейнерами
 
@@ -292,12 +315,31 @@ docker compose down -v
 # 🔄 Перезапустити тільки backend
 docker compose restart backend
 
-# 📜 Переглянути логи в реальному часі
+# 🔄 Перезбудувати та перезапустити конкретний сервіс
+docker compose up -d --build backend
+
+# 📜 Переглянути логи в реальному часі (всіх сервісів)
 docker compose logs -f
 
 # 🔍 Переглянути логи конкретного сервісу
 docker compose logs -f backend
+docker compose logs -f celery
+
+# 🐚 Відкрити shell у контейнері backend
+docker compose exec backend bash
+
+# 🐍 Відкрити Django shell
+docker compose exec backend python manage.py shell
 ```
+
+> 💡 **Корисні команди для Docker:**
+> ```bash
+> # Перевірити використання диску Docker
+> docker system df
+>
+> # Очистити невикористані образи та кеш
+> docker system prune
+> ```
 
 ---
 
