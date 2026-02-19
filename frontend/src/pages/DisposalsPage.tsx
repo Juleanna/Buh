@@ -41,11 +41,15 @@ const DisposalsPage: React.FC = () => {
     setLoading(false)
   }
 
-  useEffect(() => {
-    loadDisposals()
-    api.get('/assets/items/', { params: { status: 'active', page_size: 1000 } }).then((res) => {
+  const loadAvailableAssets = () => {
+    api.get('/assets/items/', { params: { status: 'active', no_disposal: 1, page_size: 1000 } }).then((res) => {
       setAssets(res.data.results || res.data)
     })
+  }
+
+  useEffect(() => {
+    loadDisposals()
+    loadAvailableAssets()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -65,8 +69,9 @@ const DisposalsPage: React.FC = () => {
       form.resetFields()
       setEditingId(null)
       loadDisposals()
+      loadAvailableAssets()
     } catch (err: any) {
-      message.error(err.response?.data?.detail || 'Помилка')
+      message.error(err.response?.data?.asset?.[0] || err.response?.data?.detail || 'Помилка')
     }
   }
 
@@ -84,6 +89,7 @@ const DisposalsPage: React.FC = () => {
       await api.delete(`/assets/disposals/${id}/`)
       message.success('Вибуття видалено')
       loadDisposals()
+      loadAvailableAssets()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка видалення')
     }

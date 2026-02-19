@@ -89,6 +89,14 @@ class AssetViewSet(viewsets.ModelViewSet):
     search_fields = ['inventory_number', 'name', 'location__name', 'responsible_person__full_name']
     ordering_fields = ['inventory_number', 'name', 'initial_cost', 'commissioning_date']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get('no_receipt'):
+            qs = qs.exclude(id__in=AssetReceipt.objects.values('asset_id'))
+        if self.request.query_params.get('no_disposal'):
+            qs = qs.exclude(id__in=AssetDisposal.objects.values('asset_id'))
+        return qs
+
     def get_serializer_class(self):
         if self.action == 'list':
             return AssetListSerializer

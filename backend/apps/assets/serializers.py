@@ -127,6 +127,14 @@ class AssetReceiptSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['created_by', 'created_at']
 
+    def validate_asset(self, value):
+        # При створенні — перевіряємо що на ОЗ ще немає приходу
+        if not self.instance and AssetReceipt.objects.filter(asset=value).exists():
+            raise serializers.ValidationError(
+                'На цей основний засіб вже є прихід. Повторний прихід неможливий.'
+            )
+        return value
+
 
 class AssetDisposalSerializer(serializers.ModelSerializer):
     asset_name = serializers.CharField(source='asset.name', read_only=True)
@@ -144,6 +152,14 @@ class AssetDisposalSerializer(serializers.ModelSerializer):
             'book_value_at_disposal', 'accumulated_depreciation_at_disposal',
             'created_by', 'created_at',
         ]
+
+    def validate_asset(self, value):
+        # При створенні — перевіряємо що на ОЗ ще немає вибуття
+        if not self.instance and AssetDisposal.objects.filter(asset=value).exists():
+            raise serializers.ValidationError(
+                'На цей основний засіб вже є вибуття. Повторне вибуття неможливе.'
+            )
+        return value
 
 
 class DepreciationRecordSerializer(serializers.ModelSerializer):
