@@ -291,7 +291,7 @@ const InventoryDetailPage: React.FC = () => {
         onCancel={stopScanner}
         footer={[<Button key="close" onClick={stopScanner}>Закрити</Button>]}
         width={420}
-        destroyOnClose
+        destroyOnHidden
         centered
       >
         <div style={{ textAlign: 'center' }}>
