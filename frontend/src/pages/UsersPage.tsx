@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Table, Button, Typography, Modal, Form, Input, Select, Tag, Space,
+  Table, Button, Typography, Modal, Form, Input, Select, Tag, Space, Popconfirm, Switch,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { User } from '../types'
 
@@ -19,6 +19,7 @@ const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
   const loadUsers = async () => {
@@ -32,10 +33,16 @@ const UsersPage: React.FC = () => {
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      await api.post('/auth/register/', values)
-      message.success('Користувача створено')
+      if (editingId) {
+        await api.put(`/auth/users/${editingId}/`, values)
+        message.success('Користувача оновлено')
+      } else {
+        await api.post('/auth/register/', values)
+        message.success('Користувача створено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadUsers()
     } catch (err: any) {
       const detail = err.response?.data
@@ -43,6 +50,22 @@ const UsersPage: React.FC = () => {
         ? Object.values(detail).flat().join(', ')
         : 'Помилка'
       message.error(msg)
+    }
+  }
+
+  const handleEdit = (record: User) => {
+    setEditingId(record.id)
+    form.setFieldsValue(record)
+    setModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/auth/users/${id}/`)
+      message.success('Користувача видалено')
+      loadUsers()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
@@ -66,13 +89,30 @@ const UsersPage: React.FC = () => {
       key: 'active',
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Активний' : 'Неактивний'}</Tag>,
     },
+    {
+      title: 'Дії',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: User) => (
+        <Space size="small">
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Видалити користувача?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Управління користувачами</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }}>
           Новий користувач
         </Button>
       </div>
@@ -87,20 +127,22 @@ const UsersPage: React.FC = () => {
       />
 
       <Modal
-        title="Новий користувач"
+        title={editingId ? 'Редагувати користувача' : 'Новий користувач'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
-        okText="Створити"
+        okText={editingId ? 'Зберегти' : 'Створити'}
         cancelText="Скасувати"
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="username" label="Логін" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="Пароль" rules={[{ required: true, min: 8 }]}>
-            <Input.Password />
-          </Form.Item>
+          {!editingId && (
+            <Form.Item name="password" label="Пароль" rules={[{ required: true, min: 8 }]}>
+              <Input.Password />
+            </Form.Item>
+          )}
           <Form.Item name="email" label="Email">
             <Input type="email" />
           </Form.Item>
@@ -128,6 +170,11 @@ const UsersPage: React.FC = () => {
           <Form.Item name="phone" label="Телефон">
             <Input />
           </Form.Item>
+          {editingId && (
+            <Form.Item name="is_active" label="Активний" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

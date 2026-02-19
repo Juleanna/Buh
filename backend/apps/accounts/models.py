@@ -32,6 +32,11 @@ class User(AbstractUser):
         parts = [self.last_name, self.first_name, self.patronymic]
         return ' '.join(p for p in parts if p)
 
+    def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = self.Role.ADMIN
+        super().save(*args, **kwargs)
+
     @property
     def is_admin(self):
         return self.role == self.Role.ADMIN or self.is_superuser
