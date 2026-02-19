@@ -1167,15 +1167,27 @@ hr {
       <pre><code><span class="comment"># 1. Клонувати репозиторій</span>
 <span class="command">git clone</span> <span class="string">&lt;url&gt;</span> && <span class="command">cd</span> Buh
 
-<span class="comment"># 2. Запустити всі сервіси</span>
-<span class="command">docker-compose up</span> <span class="flag">-d</span>
+<span class="comment"># 2. Створити файл .env для backend</span>
+<span class="command">cp</span> backend/.env.example backend/.env
+<span class="comment"># Відредагуйте backend/.env — вкажіть POSTGRES_PASSWORD та DJANGO_SECRET_KEY</span>
 
-<span class="comment"># 3. Виконати міграції та створити початкові дані</span>
-<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py migrate
-<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py seed_asset_groups
-<span class="command">docker-compose exec</span> backend <span class="command">python</span> manage.py createsuperuser
+<span class="comment"># 3. Збірка Docker-образів (backend + frontend)</span>
+<span class="command">docker compose</span> build
 
-<span class="comment"># 4. Відкрити http://localhost:5173</span></code></pre>
+<span class="comment"># 4. Запуск усіх сервісів (6 контейнерів)</span>
+<span class="command">docker compose</span> up <span class="flag">-d</span>
+
+<span class="comment"># 5. Виконати міграції та створити початкові дані</span>
+<span class="command">docker compose</span> exec backend <span class="command">python</span> manage.py migrate
+<span class="command">docker compose</span> exec backend <span class="command">python</span> manage.py seed_asset_groups
+<span class="command">docker compose</span> exec backend <span class="command">python</span> manage.py createsuperuser
+
+<span class="comment"># 6. Відкрити http://localhost</span></code></pre>
+
+      <div class="note">
+        Збираються 2 образи: <strong>backend</strong> (Python + Django + Gunicorn) і <strong>frontend</strong> (React build + nginx).<br>
+        Запускаються 6 сервісів: PostgreSQL, Redis, Django (Gunicorn), Celery Worker, Celery Beat, Frontend (nginx).
+      </div>
 
       <h3>💻 Варіант 2: Ручна установка</h3>
 
@@ -1201,11 +1213,11 @@ hr {
       <h4>🔗 Результат</h4>
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Сервіс</th><th>URL</th></tr></thead>
+          <thead><tr><th>Сервіс</th><th>URL (Docker)</th><th>URL (ручна установка)</th></tr></thead>
           <tbody>
-            <tr><td>🌐 Frontend</td><td><span class="url-badge">http://localhost:5173</span></td></tr>
-            <tr><td>🐍 Backend API</td><td><span class="url-badge">http://localhost:8000/api/</span></td></tr>
-            <tr><td>🗄️ Django Admin</td><td><span class="url-badge">http://localhost:8000/admin/</span></td></tr>
+            <tr><td>🌐 Frontend</td><td><span class="url-badge">http://localhost</span></td><td><span class="url-badge">http://localhost:5173</span></td></tr>
+            <tr><td>🐍 Backend API</td><td><span class="url-badge">http://localhost/api/</span></td><td><span class="url-badge">http://localhost:8000/api/</span></td></tr>
+            <tr><td>🗄️ Django Admin</td><td><span class="url-badge">http://localhost/admin/</span></td><td><span class="url-badge">http://localhost:8000/admin/</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1705,9 +1717,15 @@ hr {
 <span class="command">npm run</span> preview                    <span class="comment"># Попередній перегляд збірки</span>
 
 <span class="comment"># 🐳 Docker</span>
-<span class="command">docker-compose up</span> <span class="flag">-d</span>               <span class="comment"># Запустити у фоновому режимі</span>
-<span class="command">docker-compose logs</span> <span class="flag">-f</span> backend     <span class="comment"># Логи backend</span>
-<span class="command">docker-compose exec</span> backend bash   <span class="comment"># Консоль в контейнері</span></code></pre>
+<span class="command">docker compose</span> build                 <span class="comment"># Збірка образів</span>
+<span class="command">docker compose</span> up <span class="flag">-d</span>                <span class="comment"># Запуск сервісів</span>
+<span class="command">docker compose</span> up <span class="flag">-d</span> <span class="flag">--build</span>       <span class="comment"># Збірка + запуск</span>
+<span class="command">docker compose</span> down                  <span class="comment"># Зупинити всі сервіси</span>
+<span class="command">docker compose</span> ps                    <span class="comment"># Статус контейнерів</span>
+<span class="command">docker compose</span> logs <span class="flag">-f</span> backend       <span class="comment"># Логи backend (Gunicorn)</span>
+<span class="command">docker compose</span> logs <span class="flag">-f</span> celery        <span class="comment"># Логи Celery Worker</span>
+<span class="command">docker compose</span> exec backend bash     <span class="comment"># Консоль в контейнері</span>
+<span class="command">docker compose</span> exec backend <span class="command">python</span> manage.py migrate  <span class="comment"># Міграції</span></code></pre>
     </div>
 
     <hr>

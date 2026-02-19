@@ -179,17 +179,21 @@ git clone <url> && cd Buh
 cp backend/.env.example backend/.env
 # Відредагуйте backend/.env — вкажіть POSTGRES_PASSWORD та DJANGO_SECRET_KEY
 
-# 3. Збудувати та запустити всі сервіси (6 контейнерів)
-docker compose up -d --build
+# 3. Збірка Docker-образів (backend + frontend)
+docker compose build
 
-# 4. Виконати міграції та створити початкові дані
+# 4. Запуск усіх сервісів (6 контейнерів)
+docker compose up -d
+
+# 5. Виконати міграції та створити початкові дані
 docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py seed_asset_groups
 docker compose exec backend python manage.py createsuperuser
 
-# 5. Відкрити http://localhost
+# 6. Відкрити http://localhost
 ```
 
+> Збираються 2 образи: **backend** (Python + Django + Gunicorn) і **frontend** (React build + nginx).
 > Запускаються 6 сервісів: PostgreSQL, Redis, Django (Gunicorn), Celery Worker, Celery Beat, Frontend (nginx).
 
 ### 💻 Варіант 2: Ручна установка

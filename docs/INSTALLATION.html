@@ -671,45 +671,121 @@
 <span class="comment"># Скопіюйте шаблон .env файлу</span>
 <span class="cmd">cp backend/.env.example backend/.env</span></code></pre>
 
-    <div class="alert alert-warning">
-        <span class="alert-icon">⚠️</span>
-        <div>Для Docker встановіть <code>POSTGRES_HOST=db</code> (а не <code>localhost</code>!) — контейнери спілкуються через мережу Docker.</div>
+    <h3>1.4 ⚙️ Налаштування змінних середовища</h3>
+    <pre><code><span class="comment"># Скопіюйте шаблон .env файлу</span>
+<span class="cmd">cp backend/.env.example backend/.env</span>
+
+<span class="comment"># Відредагуйте файл .env</span>
+<span class="comment"># Windows: notepad backend\.env</span>
+<span class="comment"># macOS/Linux: nano backend/.env</span></code></pre>
+
+    <p>Вміст <code>backend/.env</code> для Docker:</p>
+    <div class="env-block">
+        <span class="env-key">DJANGO_SECRET_KEY</span>=<span class="env-val">your-secret-key-here-change-me</span><br>
+        <span class="env-key">DEBUG</span>=<span class="env-val">True</span><br>
+        <span class="env-key">POSTGRES_DB</span>=<span class="env-val">buh_assets</span><br>
+        <span class="env-key">POSTGRES_USER</span>=<span class="env-val">postgres</span><br>
+        <span class="env-key">POSTGRES_PASSWORD</span>=<span class="env-val">your_password</span><br>
+        <span class="env-key">POSTGRES_HOST</span>=<span class="env-val">localhost</span><br>
+        <span class="env-key">POSTGRES_PORT</span>=<span class="env-val">5432</span><br>
+        <span class="env-key">CORS_ORIGINS</span>=<span class="env-val">http://localhost</span><br>
+        <span class="env-key">CELERY_BROKER_URL</span>=<span class="env-val">redis://localhost:6379/0</span><br>
+        <span class="env-key">CELERY_RESULT_BACKEND</span>=<span class="env-val">redis://localhost:6379/0</span>
     </div>
 
-    <h3 id="docker-run">1.5 🚀 Запуск усіх сервісів</h3>
-    <pre><code><span class="comment"># Збірка та запуск усіх контейнерів у фоновому режимі</span>
-<span class="cmd">docker compose up -d --build</span></code></pre>
+    <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div>У <code>.env</code> файлі вказуйте <code>POSTGRES_HOST=localhost</code> — Docker Compose автоматично перевизначить хост на <code>db</code> та URL Redis на <code>redis://redis:6379/0</code> через секцію <code>environment</code> в <code>docker-compose.yml</code>. <code>CORS_ORIGINS=http://localhost</code> — бо фронтенд через Docker доступний на порті 80 (nginx).</div>
+    </div>
+
+    <h3 id="docker-build">1.5 🏗️ Збірка Docker-образів</h3>
+    <p>Перед першим запуском потрібно зібрати Docker-образи для backend та frontend. Готові образи (PostgreSQL, Redis) завантажуються автоматично з Docker Hub.</p>
+    <pre><code><span class="comment"># Збірка всіх образів</span>
+<span class="cmd">docker compose build</span></code></pre>
 
     <div class="alert alert-info">
         <span class="alert-icon">⏳</span>
-        <div>Перший запуск може зайняти 3-10 хвилин (завантаження образів postgres:16-alpine, node, python).</div>
+        <div>Docker завантажить базові образи (<code>postgres:16-alpine</code>, <code>redis:7-alpine</code>, <code>node:20-alpine</code>, <code>python:3.12-slim</code>, <code>nginx:alpine</code>) та зібрає два власних образи: <strong>backend</strong> і <strong>frontend</strong>. При першому запуску це займе більше часу.</div>
+    </div>
+
+    <p><strong>Що відбувається при збірці:</strong></p>
+    <table>
+        <thead><tr><th>Образ</th><th>Що збирається</th><th>Dockerfile</th></tr></thead>
+        <tbody>
+            <tr><td>🐍 <strong>backend</strong></td><td>Python 3.12 + залежності з <code>requirements.txt</code> + <code>collectstatic</code> + Gunicorn</td><td><code>backend/Dockerfile</code></td></tr>
+            <tr><td>⚛️ <strong>frontend</strong></td><td>Node.js 20 → <code>npm ci</code> → <code>npm run build</code> → результат копіюється в nginx:alpine</td><td><code>frontend/Dockerfile</code></td></tr>
+            <tr><td>🐘 db</td><td>Готовий образ <code>postgres:16-alpine</code> (завантажується з Docker Hub)</td><td>—</td></tr>
+            <tr><td>🔴 redis</td><td>Готовий образ <code>redis:7-alpine</code> (завантажується з Docker Hub)</td><td>—</td></tr>
+        </tbody>
+    </table>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div><strong>Перезбірка:</strong> Якщо ви змінили код, перезберіть конкретний сервіс:<br>
+        <code>docker compose build backend</code> — тільки backend<br>
+        <code>docker compose build frontend</code> — тільки frontend<br>
+        <code>docker compose build</code> — все разом</div>
+    </div>
+
+    <h3 id="docker-run">1.6 🚀 Запуск усіх сервісів</h3>
+    <pre><code><span class="comment"># Запуск усіх контейнерів у фоновому режимі</span>
+<span class="cmd">docker compose up -d</span></code></pre>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>Можна збирати і запускати однією командою: <code>docker compose up -d --build</code></div>
     </div>
 
     <p><strong>✅ Очікуваний вивід:</strong></p>
-    <pre><code><span class="output">[+] Running 4/4
- ✔ Network buh_default       Created
- ✔ Container buh-db-1        Started
- ✔ Container buh-backend-1   Started
- ✔ Container buh-frontend-1  Started</span></code></pre>
+    <pre><code><span class="output">[+] Running 6/6
+ ✔ Container buh_postgres     Started
+ ✔ Container buh_redis        Started
+ ✔ Container buh_backend      Started
+ ✔ Container buh_celery       Started
+ ✔ Container buh_celery_beat  Started
+ ✔ Container buh_frontend     Started</span></code></pre>
 
-    <h3>1.6 📊 Перевірка статусу</h3>
+    <p><strong>📋 Сервіси Docker Compose:</strong></p>
+    <table>
+        <thead><tr><th>Контейнер</th><th>Опис</th></tr></thead>
+        <tbody>
+            <tr><td><code>buh_postgres</code></td><td>🐘 PostgreSQL 16 — база даних</td></tr>
+            <tr><td><code>buh_redis</code></td><td>🔴 Redis 7 — брокер повідомлень для Celery</td></tr>
+            <tr><td><code>buh_backend</code></td><td>🐍 Django + Gunicorn — REST API (порт 8000)</td></tr>
+            <tr><td><code>buh_celery</code></td><td>⚙️ Celery Worker — фонові задачі (амортизація, сповіщення)</td></tr>
+            <tr><td><code>buh_celery_beat</code></td><td>⏰ Celery Beat — планувальник задач (щоденні/щомісячні)</td></tr>
+            <tr><td><code>buh_frontend</code></td><td>⚛️ React (nginx) — веб-інтерфейс + reverse proxy (порт 80)</td></tr>
+        </tbody>
+    </table>
+    <p><strong>Порядок запуску:</strong> db → redis → backend → celery, celery-beat, frontend.<br>
+    PostgreSQL та Redis мають healthcheck — backend не запуститься, поки вони не будуть готові.</p>
+
+    <h3>1.7 📊 Перевірка статусу</h3>
     <pre><code><span class="cmd">docker compose ps</span></code></pre>
     <table>
         <thead><tr><th>Контейнер</th><th>Сервіс</th><th>Порт</th><th>Статус</th></tr></thead>
         <tbody>
-            <tr><td>buh-db-1</td><td>🐘 PostgreSQL</td><td>5432</td><td><span class="badge badge-green">Up</span></td></tr>
-            <tr><td>buh-backend-1</td><td>🐍 Django</td><td>8000</td><td><span class="badge badge-green">Up</span></td></tr>
-            <tr><td>buh-frontend-1</td><td>⚛️ React</td><td>5173</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh_postgres</td><td>🐘 PostgreSQL 16</td><td>5432</td><td><span class="badge badge-green">Up (healthy)</span></td></tr>
+            <tr><td>buh_redis</td><td>🔴 Redis 7</td><td>6379</td><td><span class="badge badge-green">Up (healthy)</span></td></tr>
+            <tr><td>buh_backend</td><td>🐍 Django + Gunicorn</td><td>8000</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh_celery</td><td>⚙️ Celery Worker</td><td>—</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh_celery_beat</td><td>⏰ Celery Beat</td><td>—</td><td><span class="badge badge-green">Up</span></td></tr>
+            <tr><td>buh_frontend</td><td>⚛️ React (nginx)</td><td>80</td><td><span class="badge badge-green">Up</span></td></tr>
         </tbody>
     </table>
 
     <div class="alert alert-danger">
         <span class="alert-icon">🔴</span>
         <div>Якщо якийсь контейнер має статус <strong>"Exited"</strong> або <strong>"Restarting"</strong>, перегляньте логи:<br>
-        <code>docker compose logs backend</code></div>
+        <code>docker compose logs backend</code> — Django (Gunicorn)<br>
+        <code>docker compose logs db</code> — PostgreSQL<br>
+        <code>docker compose logs frontend</code> — nginx<br>
+        <code>docker compose logs celery</code> — Celery Worker<br>
+        <code>docker compose logs celery-beat</code> — Celery Beat<br>
+        <code>docker compose logs redis</code> — Redis</div>
     </div>
 
-    <h3 id="docker-migrate">1.7 🗃️ Міграції та початкові налаштування</h3>
+    <h3 id="docker-migrate">1.8 🗃️ Міграції та початкові налаштування</h3>
     <pre><code><span class="comment"># 📦 Застосування міграцій бази даних</span>
 <span class="cmd">docker compose exec backend python manage.py migrate</span>
 
@@ -719,23 +795,32 @@
 <span class="comment"># 👤 Створення суперкористувача</span>
 <span class="cmd">docker compose exec backend python manage.py createsuperuser</span></code></pre>
 
-    <h3>1.8 🎉 Перевірка роботи</h3>
+    <h3>1.9 🎉 Перевірка роботи</h3>
     <div class="url-table">
         <div class="url-row">
             <span class="icon">⚛️</span>
-            <div><div class="label">Frontend</div><div class="url">http://localhost:5173</div></div>
+            <div><div class="label">Frontend</div><div class="url">http://localhost</div></div>
         </div>
         <div class="url-row">
             <span class="icon">🐍</span>
-            <div><div class="label">Backend API</div><div class="url">http://localhost:8000/api/</div></div>
+            <div><div class="label">Backend API (через nginx proxy)</div><div class="url">http://localhost/api/</div></div>
         </div>
         <div class="url-row">
             <span class="icon">🔧</span>
-            <div><div class="label">Django Admin</div><div class="url">http://localhost:8000/admin/</div></div>
+            <div><div class="label">Django Admin (через nginx proxy)</div><div class="url">http://localhost/admin/</div></div>
+        </div>
+        <div class="url-row">
+            <span class="icon">🐍</span>
+            <div><div class="label">Backend API (прямий доступ)</div><div class="url">http://localhost:8000/api/</div></div>
         </div>
     </div>
 
-    <h3>1.9 🛑 Керування контейнерами</h3>
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>Фронтенд (nginx) автоматично проксирує запити <code>/api/</code>, <code>/admin/</code>, <code>/media/</code>, <code>/static/</code> на backend. Тому основна точка входу — <code>http://localhost</code> (порт 80).</div>
+    </div>
+
+    <h3>1.10 🛑 Керування контейнерами</h3>
     <pre><code><span class="comment"># 🛑 Зупинити всі контейнери</span>
 <span class="cmd">docker compose down</span>
 
@@ -745,8 +830,21 @@
 <span class="comment"># 🔄 Перезапустити тільки backend</span>
 <span class="cmd">docker compose restart backend</span>
 
-<span class="comment"># 📜 Переглянути логи в реальному часі</span>
-<span class="cmd">docker compose logs -f</span></code></pre>
+<span class="comment"># 🔄 Перезбудувати та перезапустити конкретний сервіс</span>
+<span class="cmd">docker compose up -d --build backend</span>
+
+<span class="comment"># 📜 Переглянути логи в реальному часі (всіх сервісів)</span>
+<span class="cmd">docker compose logs -f</span>
+
+<span class="comment"># 🔍 Переглянути логи конкретного сервісу</span>
+<span class="cmd">docker compose logs -f backend</span>
+<span class="cmd">docker compose logs -f celery</span>
+
+<span class="comment"># 🐚 Відкрити shell у контейнері backend</span>
+<span class="cmd">docker compose exec backend bash</span>
+
+<span class="comment"># 🐍 Відкрити Django shell</span>
+<span class="cmd">docker compose exec backend python manage.py shell</span></code></pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════ -->
@@ -1776,7 +1874,7 @@ WantedBy=multi-user.target</code></pre>
             <p><strong>Часті причини:</strong></p>
             <ul style="padding-left:20px;">
                 <li>Немає <code>.env</code> файлу → створіть <code>backend/.env</code></li>
-                <li>Неправильний <code>POSTGRES_HOST</code> → має бути <code>db</code> (не <code>localhost</code>)</li>
+                <li>Немає <code>POSTGRES_PASSWORD</code> або <code>DJANGO_SECRET_KEY</code> у <code>.env</code></li>
                 <li>Контейнер db ще не готовий → <code>docker compose restart backend</code></li>
             </ul>
         </div>
@@ -1844,11 +1942,15 @@ WantedBy=multi-user.target</code></pre>
         </div>
         <div class="card">
             <h4>🐳 Docker</h4>
-            <pre><code><span class="cmd">docker compose up -d --build</span>
-<span class="cmd">docker compose down</span>
-<span class="cmd">docker compose logs -f</span>
-<span class="cmd">docker compose exec backend python manage.py migrate</span>
-<span class="cmd">docker compose up -d --build backend</span></code></pre>
+            <pre><code><span class="cmd">docker compose build</span>              <span class="comment"># Збірка образів</span>
+<span class="cmd">docker compose up -d</span>               <span class="comment"># Запуск сервісів</span>
+<span class="cmd">docker compose up -d --build</span>       <span class="comment"># Збірка + запуск</span>
+<span class="cmd">docker compose down</span>                <span class="comment"># Зупинка</span>
+<span class="cmd">docker compose ps</span>                  <span class="comment"># Статус</span>
+<span class="cmd">docker compose logs -f backend</span>     <span class="comment"># Логи Django</span>
+<span class="cmd">docker compose logs -f celery</span>      <span class="comment"># Логи Celery</span>
+<span class="cmd">docker compose exec backend bash</span>   <span class="comment"># Shell</span>
+<span class="cmd">docker compose exec backend python manage.py migrate</span></code></pre>
         </div>
     </div>
 </div>
