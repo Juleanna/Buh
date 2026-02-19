@@ -141,6 +141,7 @@ class AssetExcelExportView(APIView):
         'Первісна вартість',
         'Залишкова вартість',
         'Знос',
+        'Вхідна амортизація',
         'Метод амортизації',
         'Дата введення',
         'МВО',
@@ -200,6 +201,7 @@ class AssetExcelExportView(APIView):
                 asset.initial_cost,
                 asset.current_book_value,
                 asset.accumulated_depreciation,
+                asset.incoming_depreciation,
                 self.DEPRECIATION_METHOD_LABELS.get(
                     asset.depreciation_method, asset.depreciation_method
                 ),
@@ -216,10 +218,10 @@ class AssetExcelExportView(APIView):
                 cell.border = thin_border
 
                 # Number formatting for monetary columns
-                if col_idx in (4, 5, 6):
+                if col_idx in (4, 5, 6, 7):
                     cell.number_format = '#,##0.00'
                 # Date formatting
-                if col_idx == 8 and value is not None:
+                if col_idx == 9 and value is not None:
                     cell.number_format = 'DD.MM.YYYY'
 
         # ----- auto-width -----

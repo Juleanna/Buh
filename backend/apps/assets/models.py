@@ -130,6 +130,14 @@ class Asset(models.Model):
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
+    incoming_depreciation = models.DecimalField(
+        'Вхідна амортизація (знос), грн',
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Знос, нарахований до отримання ОЗ від іншої організації',
+    )
     current_book_value = models.DecimalField(
         'Залишкова (балансова) вартість, грн',
         max_digits=15,
@@ -256,6 +264,14 @@ class AssetReceipt(models.Model):
     document_number = models.CharField('Номер документа', max_length=100)
     document_date = models.DateField('Дата документа')
     supplier = models.CharField('Постачальник / джерело', max_length=500, blank=True)
+    supplier_organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='receipts_as_supplier',
+        verbose_name='Організація-постачальник',
+    )
     amount = models.DecimalField(
         'Сума, грн',
         max_digits=15,
@@ -535,11 +551,21 @@ class Organization(models.Model):
     director = models.CharField('Директор', max_length=255, blank=True)
     accountant = models.CharField('Головний бухгалтер', max_length=255, blank=True)
     is_active = models.BooleanField('Активна', default=True)
+    is_own = models.BooleanField(
+        'Власна організація',
+        default=False,
+        help_text='Тільки одна організація може бути позначена як власна.',
+    )
 
     class Meta:
         verbose_name = 'Організація'
         verbose_name_plural = 'Організації'
         ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        if self.is_own:
+            Organization.objects.filter(is_own=True).exclude(pk=self.pk).update(is_own=False)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.short_name or self.name

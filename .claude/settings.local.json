@@ -15,7 +15,8 @@
       "Bash(npm run build:*)",
       "Bash(curl:*)",
       "Bash(DJANGO_SETTINGS_MODULE=config.settings python:*)",
-      "Bash(wc -l:*)"
+      "Bash(wc -l:*)",
+      "Bash(grep:*)"
     ]
   }
 }

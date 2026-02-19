@@ -76,6 +76,13 @@ const OrganizationsPage: React.FC = () => {
     { title: 'Директор', dataIndex: 'director', key: 'director', ellipsis: true },
     { title: 'Гол. бухгалтер', dataIndex: 'accountant', key: 'accountant', ellipsis: true },
     {
+      title: 'Власна',
+      dataIndex: 'is_own',
+      key: 'is_own',
+      width: 100,
+      render: (v: boolean) => v ? <Tag color="blue">Власна</Tag> : null,
+    },
+    {
       title: 'Статус',
       dataIndex: 'is_active',
       key: 'status',
@@ -139,7 +146,7 @@ const OrganizationsPage: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{ is_active: true }}
+          initialValues={{ is_active: true, is_own: false }}
         >
           <Form.Item name="name" label="Назва" rules={[{ required: true, message: 'Введіть назву організації' }]}>
             <Input />
@@ -160,6 +167,10 @@ const OrganizationsPage: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="is_active" label="Активна" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="is_own" label="Власна організація" valuePropName="checked"
+            tooltip="Тільки одна організація може бути власною. При позначенні — попередня скидається.">
             <Switch />
           </Form.Item>
         </Form>

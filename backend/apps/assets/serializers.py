@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from .models import (
     AssetGroup, Asset, AssetReceipt, AssetDisposal,
@@ -84,6 +85,21 @@ class AssetDetailSerializer(serializers.ModelSerializer):
             'created_by', 'created_at', 'updated_at',
         ]
 
+    def validate(self, data):
+        incoming = data.get('incoming_depreciation', Decimal('0.00'))
+        initial = data.get('initial_cost')
+        if self.instance:
+            if initial is None:
+                initial = self.instance.initial_cost
+            if 'incoming_depreciation' not in data:
+                incoming = self.instance.incoming_depreciation
+        if incoming and initial and incoming > initial:
+            raise serializers.ValidationError({
+                'incoming_depreciation':
+                    'Вхідна амортизація не може перевищувати первісну вартість.'
+            })
+        return data
+
 
 class AssetReceiptSerializer(serializers.ModelSerializer):
     asset_name = serializers.CharField(source='asset.name', read_only=True)
@@ -92,6 +108,9 @@ class AssetReceiptSerializer(serializers.ModelSerializer):
     )
     receipt_type_display = serializers.CharField(
         source='get_receipt_type_display', read_only=True
+    )
+    supplier_organization_name = serializers.CharField(
+        source='supplier_organization.name', read_only=True, default=''
     )
 
     class Meta:
@@ -146,6 +165,10 @@ class DepreciationRecordSerializer(serializers.ModelSerializer):
     )
     asset_useful_life_months = serializers.IntegerField(
         source='asset.useful_life_months', read_only=True
+    )
+    asset_incoming_depreciation = serializers.DecimalField(
+        source='asset.incoming_depreciation', read_only=True,
+        max_digits=15, decimal_places=2
     )
 
     class Meta:

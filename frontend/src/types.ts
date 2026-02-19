@@ -77,6 +77,7 @@ export interface Asset {
   status_display: string
   initial_cost: string
   residual_value: string
+  incoming_depreciation: string
   current_book_value: string
   accumulated_depreciation: string
   depreciation_method: DepreciationMethod
@@ -113,6 +114,8 @@ export interface AssetReceipt {
   document_number: string
   document_date: string
   supplier: string
+  supplier_organization: number | null
+  supplier_organization_name: string
   amount: string
   notes: string
   created_by: number | null
@@ -159,6 +162,7 @@ export interface DepreciationRecord {
   asset_residual_value: string
   asset_depreciation_rate: string | null
   asset_useful_life_months: number
+  asset_incoming_depreciation: string
 }
 
 export interface Inventory {
@@ -205,6 +209,7 @@ export interface Organization {
   director: string
   accountant: string
   is_active: boolean
+  is_own: boolean
 }
 
 export interface AccountEntry {

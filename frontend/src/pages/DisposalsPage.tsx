@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, Space, Tag,
+  DatePicker, InputNumber, Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined, CarOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
@@ -27,6 +27,7 @@ const DisposalsPage: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
   const loadDisposals = async (p = page) => {
@@ -46,16 +47,42 @@ const DisposalsPage: React.FC = () => {
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      await api.post('/assets/disposals/', {
+      const payload = {
         ...values,
         document_date: (values.document_date as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      message.success('Вибуття оформлено')
+      }
+      if (editingId) {
+        await api.put(`/assets/disposals/${editingId}/`, payload)
+        message.success('Вибуття оновлено')
+      } else {
+        await api.post('/assets/disposals/', payload)
+        message.success('Вибуття оформлено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadDisposals()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка')
+    }
+  }
+
+  const handleEdit = (record: AssetDisposal) => {
+    setEditingId(record.id)
+    form.setFieldsValue({
+      ...record,
+      document_date: dayjs(record.document_date),
+    })
+    setModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/disposals/${id}/`)
+      message.success('Вибуття видалено')
+      loadDisposals()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
@@ -92,9 +119,13 @@ const DisposalsPage: React.FC = () => {
     {
       title: 'Дії',
       key: 'actions',
-      width: 120,
+      width: 180,
       render: (_: unknown, record: AssetDisposal) => (
         <Space size="small">
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Видалити вибуття?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
           <ExportIconButton
             url={`/documents/disposal/${record.id}/act/`}
             baseFilename={`disposal_act_${record.document_number}`}
@@ -115,7 +146,11 @@ const DisposalsPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Вибуття основних засобів</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)} danger>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }} danger>
           Оформити вибуття
         </Button>
       </div>
@@ -133,9 +168,9 @@ const DisposalsPage: React.FC = () => {
       />
 
       <Modal
-        title="Вибуття ОЗ"
+        title={editingId ? 'Редагувати вибуття ОЗ' : 'Вибуття ОЗ'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
         okText="Оформити"
         cancelText="Скасувати"

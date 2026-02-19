@@ -341,6 +341,9 @@ const AssetDetailPage: React.FC = () => {
                 <Descriptions.Item label="Метод амортизації">{asset.depreciation_method_display}</Descriptions.Item>
                 <Descriptions.Item label="Первісна вартість">{fmtMoney(asset.initial_cost)}</Descriptions.Item>
                 <Descriptions.Item label="Ліквідаційна вартість">{fmtMoney(asset.residual_value)}</Descriptions.Item>
+                <Descriptions.Item label="Вхідна амортизація">
+                  {Number(asset.incoming_depreciation) > 0 ? fmtMoney(asset.incoming_depreciation) : '—'}
+                </Descriptions.Item>
                 <Descriptions.Item label="Залишкова вартість">
                   <Text strong style={{ color: '#1677ff' }}>{fmtMoney(asset.current_book_value)}</Text>
                 </Descriptions.Item>

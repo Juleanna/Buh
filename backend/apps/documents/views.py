@@ -502,8 +502,11 @@ def _official_signatures(roles_and_names, styles, page_width=170 * mm,
 
 
 def _get_org_from_request_or_default(request):
-    """Try to determine the organization from request user or return first."""
+    """Try to determine the organization: prefer is_own=True, then first."""
     try:
+        org = Organization.objects.filter(is_own=True).first()
+        if org:
+            return org
         return Organization.objects.first()
     except Exception:
         return None
@@ -559,6 +562,7 @@ class AssetCardPDFView(APIView):
         write_section_header(ws, row, 'Вартiснi характеристики', num_cols); row += 1
         write_info_row(ws, row, 'Первiсна вартiсть, грн:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
         write_info_row(ws, row, 'Лiквiдацiйна вартiсть, грн:', float(asset.residual_value) if asset.residual_value else 0); row += 1
+        write_info_row(ws, row, 'Вхiдна амортизацiя, грн:', float(asset.incoming_depreciation) if asset.incoming_depreciation else 0); row += 1
         write_info_row(ws, row, 'Залишкова (балансова) вартiсть, грн:', float(asset.current_book_value) if asset.current_book_value else 0); row += 1
         write_info_row(ws, row, 'Накопичений знос, грн:', float(asset.accumulated_depreciation) if asset.accumulated_depreciation else 0); row += 1
         row += 1
@@ -723,6 +727,7 @@ class AssetCardPDFView(APIView):
         cost_rows = [
             ['Первiсна вартiсть, грн:', _fmt(asset.initial_cost)],
             ['Лiквiдацiйна вартiсть, грн:', _fmt(asset.residual_value)],
+            ['Вхiдна амортизацiя, грн:', _fmt(asset.incoming_depreciation)],
             ['Залишкова (балансова) вартiсть, грн:',
              _fmt(asset.current_book_value)],
             ['Накопичений знос, грн:',
@@ -902,7 +907,7 @@ class DepreciationReportPDFView(APIView):
             if first_asset.organization:
                 org = first_asset.organization
         if org is None:
-            org = Organization.objects.first()
+            org = Organization.objects.filter(is_own=True).first() or Organization.objects.first()
 
         # -- Landscape header --
         approval_text = 'Наказ Мiнiстерства фiнансiв України\n13.09.2016 № 818'
@@ -945,10 +950,11 @@ class DepreciationReportPDFView(APIView):
         for rec in records:
             asset = rec.asset
             sub_account = asset.group.account_number if asset.group else ''
-            depreciable_value = asset.initial_cost - asset.residual_value
+            incoming = asset.incoming_depreciation or Decimal('0.00')
+            depreciable_value = asset.initial_cost - asset.residual_value - incoming
             if asset.depreciation_rate:
                 annual_depreciation = (
-                    asset.initial_cost * asset.depreciation_rate / Decimal('100')
+                    depreciable_value * asset.depreciation_rate / Decimal('100')
                 )
             else:
                 annual_depreciation = rec.amount * 12
@@ -1097,12 +1103,13 @@ class DepreciationReportPDFView(APIView):
             sub_account = asset.group.account_number if asset.group else ''
 
             # Column 4: Вартість, яка амортизується
-            depreciable_value = asset.initial_cost - asset.residual_value
+            incoming = asset.incoming_depreciation or Decimal('0.00')
+            depreciable_value = asset.initial_cost - asset.residual_value - incoming
 
             # Column 5: Річна сума амортизації
             if asset.depreciation_rate:
                 annual_depreciation = (
-                    asset.initial_cost * asset.depreciation_rate / Decimal('100')
+                    depreciable_value * asset.depreciation_rate / Decimal('100')
                 )
             else:
                 annual_depreciation = rec.amount * 12
@@ -2118,7 +2125,8 @@ class AssetReceiptActPDFView(APIView):
 
         # -- Section 1: Document details --
         write_info_row(ws, row, 'Тип надходження:', receipt.get_receipt_type_display()); row += 1
-        write_info_row(ws, row, 'Постачальник / джерело:', receipt.supplier or '\u2014'); row += 1
+        supplier_name = (receipt.supplier_organization.name if receipt.supplier_organization else receipt.supplier) or '\u2014'
+        write_info_row(ws, row, 'Постачальник / джерело:', supplier_name); row += 1
         row += 1
 
         # -- Section 2: Asset info --
@@ -2142,6 +2150,7 @@ class AssetReceiptActPDFView(APIView):
         write_info_row(ws, row, 'Сума за документом, грн:', float(receipt.amount) if receipt.amount else 0); row += 1
         write_info_row(ws, row, 'Первiсна вартiсть, грн:', float(asset.initial_cost) if asset.initial_cost else 0); row += 1
         write_info_row(ws, row, 'Лiквiдацiйна вартiсть, грн:', float(asset.residual_value) if asset.residual_value else 0); row += 1
+        write_info_row(ws, row, 'Вхiдна амортизацiя, грн:', float(asset.incoming_depreciation) if asset.incoming_depreciation else 0); row += 1
 
         # -- Notes --
         if receipt.notes:
@@ -2162,6 +2171,7 @@ class AssetReceiptActPDFView(APIView):
         receipt = AssetReceipt.objects.select_related(
             'asset', 'asset__group', 'asset__responsible_person',
             'asset__organization', 'asset__location', 'created_by',
+            'supplier_organization',
         ).get(pk=pk)
         asset = receipt.asset
         org = asset.organization or _get_org_from_request_or_default(request)
@@ -2206,9 +2216,10 @@ class AssetReceiptActPDFView(APIView):
         ])
 
         # -- Section 1: Document details --
+        supplier_name = (receipt.supplier_organization.name if receipt.supplier_organization else receipt.supplier) or '\u2014'
         doc_rows = [
             ['Тип надходження:', receipt.get_receipt_type_display()],
-            ['Постачальник / джерело:', receipt.supplier or '\u2014'],
+            ['Постачальник / джерело:', supplier_name],
         ]
         doc_table = Table(doc_rows, colWidths=[55 * mm, 115 * mm])
         doc_table.setStyle(compact_table_style)
@@ -2254,6 +2265,7 @@ class AssetReceiptActPDFView(APIView):
             ['Сума за документом, грн:', _fmt(receipt.amount)],
             ['Первiсна вартiсть, грн:', _fmt(asset.initial_cost)],
             ['Лiквiдацiйна вартiсть, грн:', _fmt(asset.residual_value)],
+            ['Вхiдна амортизацiя, грн:', _fmt(asset.incoming_depreciation)],
         ]
         cost_table = Table(cost_rows, colWidths=[55 * mm, 60 * mm])
         cost_table.setStyle(compact_table_style)
@@ -2977,7 +2989,7 @@ class TurnoverStatementPDFView(APIView):
             if first_asset.organization:
                 org = first_asset.organization
         if org is None:
-            org = Organization.objects.first()
+            org = Organization.objects.filter(is_own=True).first() or Organization.objects.first()
 
         # -- Landscape header --
         approval_text = 'Наказ Мiнiстерства фiнансiв України\n5 лютого 2021 року №101'

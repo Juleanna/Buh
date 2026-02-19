@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, Space,
+  DatePicker, InputNumber, Space, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
-import type { AssetReceipt, Asset, PaginatedResponse } from '../types'
+import type { AssetReceipt, Asset, Organization, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -24,10 +24,12 @@ const RECEIPT_TYPES = [
 const ReceiptsPage: React.FC = () => {
   const [receipts, setReceipts] = useState<AssetReceipt[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
   const loadReceipts = async (p = page) => {
@@ -43,20 +45,49 @@ const ReceiptsPage: React.FC = () => {
     api.get('/assets/items/', { params: { status: 'active', page_size: 1000 } }).then((res) => {
       setAssets(res.data.results || res.data)
     })
+    api.get('/assets/organizations/counterparties/').then((res) => {
+      setOrganizations(res.data)
+    })
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      await api.post('/assets/receipts/', {
+      const payload = {
         ...values,
         document_date: (values.document_date as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      message.success('Прихід створено')
+      }
+      if (editingId) {
+        await api.put(`/assets/receipts/${editingId}/`, payload)
+        message.success('Прихід оновлено')
+      } else {
+        await api.post('/assets/receipts/', payload)
+        message.success('Прихід створено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadReceipts()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка')
+    }
+  }
+
+  const handleEdit = (record: AssetReceipt) => {
+    setEditingId(record.id)
+    form.setFieldsValue({
+      ...record,
+      document_date: dayjs(record.document_date),
+    })
+    setModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/receipts/${id}/`)
+      message.success('Прихід видалено')
+      loadReceipts()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
@@ -77,17 +108,29 @@ const ReceiptsPage: React.FC = () => {
       key: 'amount',
       render: (v: string) => Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }),
     },
-    { title: 'Постачальник', dataIndex: 'supplier', key: 'supplier', ellipsis: true },
+    {
+      title: 'Постачальник',
+      key: 'supplier',
+      ellipsis: true,
+      render: (_: unknown, r: AssetReceipt) =>
+        r.supplier_organization_name || r.supplier || '\u2014',
+    },
     {
       title: 'Дії',
       key: 'actions',
-      width: 80,
+      width: 140,
       render: (_: unknown, record: AssetReceipt) => (
-        <ExportIconButton
-          url={`/documents/receipt/${record.id}/act/`}
-          baseFilename={`receipt_act_${record.document_number}`}
-          tooltip="Акт ОЗ-1"
-        />
+        <Space size="small">
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Видалити прихід?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+          <ExportIconButton
+            url={`/documents/receipt/${record.id}/act/`}
+            baseFilename={`receipt_act_${record.document_number}`}
+            tooltip="Акт ОЗ-1"
+          />
+        </Space>
       ),
     },
   ]
@@ -96,7 +139,11 @@ const ReceiptsPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Прихід основних засобів</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }}>
           Новий прихід
         </Button>
       </div>
@@ -114,9 +161,9 @@ const ReceiptsPage: React.FC = () => {
       />
 
       <Modal
-        title="Новий прихід ОЗ"
+        title={editingId ? 'Редагувати прихід ОЗ' : 'Новий прихід ОЗ'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
         okText="Зберегти"
         cancelText="Скасувати"
@@ -141,8 +188,17 @@ const ReceiptsPage: React.FC = () => {
           <Form.Item name="amount" label="Сума, грн" rules={[{ required: true }]}>
             <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="supplier" label="Постачальник / джерело">
-            <Input />
+          <Form.Item name="supplier_organization" label="Постачальник / джерело">
+            <Select
+              showSearch
+              allowClear
+              optionFilterProp="label"
+              placeholder="Оберіть контрагента"
+              options={organizations.map(o => ({
+                value: o.id,
+                label: `${o.name} (${o.edrpou})`,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="notes" label="Примітки">
             <Input.TextArea rows={2} />

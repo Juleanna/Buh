@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Table, Typography, Select, Space, Tag } from 'antd'
+import { Table, Typography, Select, Space, Tag, Descriptions } from 'antd'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import type { AuditLogEntry, PaginatedResponse } from '../types'
@@ -28,6 +28,39 @@ const ACTION_COLORS: Record<string, string> = {
   revaluation: 'gold',
   improvement: 'geekblue',
   inventory: 'orange',
+}
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  asset: 'Основний засіб',
+  assetreceipt: 'Прихід ОЗ',
+  assetdisposal: 'Вибуття ОЗ',
+  assetrevaluation: 'Переоцінка ОЗ',
+  assetimprovement: 'Поліпшення ОЗ',
+  depreciationrecord: 'Амортизація',
+  organization: 'Організація',
+  accountentry: 'Проводка',
+  assetattachment: 'Документ ОЗ',
+  inventoryrecord: 'Інвентаризація',
+}
+
+const CHANGE_FIELD_LABELS: Record<string, string> = {
+  old_book_value: 'Залишкова вартість (до)',
+  new_book_value: 'Залишкова вартість (після)',
+  old_initial_cost: 'Початкова вартість (до)',
+  new_initial_cost: 'Початкова вартість (після)',
+  old_depreciation: 'Знос (до)',
+  new_depreciation: 'Знос (після)',
+  status: 'Статус',
+  amount: 'Сума',
+  initial_cost: 'Початкова вартість',
+  current_book_value: 'Залишкова вартість',
+  accumulated_depreciation: 'Накопичений знос',
+  disposal_date: 'Дата вибуття',
+  revaluation_amount: 'Сума переоцінки',
+  fair_value: 'Справедлива вартість',
+  book_value_at_disposal: 'Залишкова вартість при вибутті',
+  sale_amount: 'Сума продажу',
+  increases_value: 'Збільшує вартість',
 }
 
 const AuditLogPage: React.FC = () => {
@@ -102,6 +135,7 @@ const AuditLogPage: React.FC = () => {
       dataIndex: 'content_type_name',
       key: 'content_type_name',
       width: 160,
+      render: (name: string) => CONTENT_TYPE_LABELS[name] || name,
     },
     {
       title: 'IP',
@@ -142,9 +176,13 @@ const AuditLogPage: React.FC = () => {
         }}
         expandable={{
           expandedRowRender: (record: AuditLogEntry) => (
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 13 }}>
-              {JSON.stringify(record.changes, null, 2)}
-            </pre>
+            <Descriptions size="small" column={2} bordered>
+              {Object.entries(record.changes).map(([key, value]) => (
+                <Descriptions.Item label={CHANGE_FIELD_LABELS[key] || key} key={key}>
+                  {String(value)}
+                </Descriptions.Item>
+              ))}
+            </Descriptions>
           ),
           rowExpandable: (record: AuditLogEntry) =>
             record.changes !== null &&

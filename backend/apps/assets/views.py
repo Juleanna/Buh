@@ -86,10 +86,37 @@ class AssetViewSet(viewsets.ModelViewSet):
         return AssetDetailSerializer
 
     def perform_create(self, serializer):
+        initial_cost = serializer.validated_data['initial_cost']
+        incoming = serializer.validated_data.get(
+            'incoming_depreciation', Decimal('0.00')
+        )
         serializer.save(
             created_by=self.request.user,
-            current_book_value=serializer.validated_data['initial_cost'],
+            current_book_value=initial_cost - incoming,
+            accumulated_depreciation=incoming,
         )
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        old_incoming = instance.incoming_depreciation
+        new_incoming = serializer.validated_data.get(
+            'incoming_depreciation', old_incoming
+        )
+        new_initial = serializer.validated_data.get(
+            'initial_cost', instance.initial_cost
+        )
+
+        extra = {}
+        if new_incoming != old_incoming or new_initial != instance.initial_cost:
+            total_monthly = (
+                instance.depreciation_records.aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0.00')
+            )
+            new_accumulated = new_incoming + total_monthly
+            extra['accumulated_depreciation'] = new_accumulated
+            extra['current_book_value'] = new_initial - new_accumulated
+        serializer.save(**extra)
 
     @action(detail=False, methods=['get'])
     def lookup(self, request):
@@ -140,7 +167,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 class AssetReceiptViewSet(viewsets.ModelViewSet):
     """CRUD для приходів ОЗ."""
-    queryset = AssetReceipt.objects.select_related('asset', 'created_by')
+    queryset = AssetReceipt.objects.select_related('asset', 'created_by', 'supplier_organization')
     serializer_class = AssetReceiptSerializer
     permission_classes = [IsAccountant]
     filterset_fields = ['asset', 'receipt_type']
@@ -154,6 +181,26 @@ class AssetReceiptViewSet(viewsets.ModelViewSet):
             ip_address=get_client_ip(self.request),
         )
         notify_receipt(instance, self.request.user)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        old = self.get_object()
+        AccountEntry.objects.filter(
+            asset=old.asset,
+            entry_type=AccountEntry.EntryType.RECEIPT,
+            document_number=old.document_number,
+        ).delete()
+        instance = serializer.save()
+        create_receipt_entries(instance.asset, instance, user=self.request.user)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        AccountEntry.objects.filter(
+            asset=instance.asset,
+            entry_type=AccountEntry.EntryType.RECEIPT,
+            document_number=instance.document_number,
+        ).delete()
+        instance.delete()
 
 
 class AssetDisposalViewSet(viewsets.ModelViewSet):
@@ -180,6 +227,47 @@ class AssetDisposalViewSet(viewsets.ModelViewSet):
             ip_address=get_client_ip(self.request),
         )
         notify_disposal(instance, self.request.user)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        old = self.get_object()
+        old_asset = old.asset
+        # Скасувати: повернути статус ОЗ
+        old_asset.status = Asset.Status.ACTIVE
+        old_asset.disposal_date = None
+        old_asset.save()
+        # Видалити старі проводки
+        AccountEntry.objects.filter(
+            asset=old_asset,
+            entry_type=AccountEntry.EntryType.DISPOSAL,
+            document_number=old.document_number,
+        ).delete()
+        # Зберегти оновлений запис
+        asset = serializer.validated_data['asset']
+        instance = serializer.save(
+            book_value_at_disposal=asset.current_book_value,
+            accumulated_depreciation_at_disposal=asset.accumulated_depreciation,
+        )
+        # Застосувати нові побічні ефекти
+        asset.status = Asset.Status.DISPOSED
+        asset.disposal_date = instance.document_date
+        asset.save()
+        create_disposal_entries(asset, instance, user=self.request.user)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        asset = instance.asset
+        # Повернути ОЗ у активний стан
+        asset.status = Asset.Status.ACTIVE
+        asset.disposal_date = None
+        asset.save()
+        # Видалити проводки
+        AccountEntry.objects.filter(
+            asset=asset,
+            entry_type=AccountEntry.EntryType.DISPOSAL,
+            document_number=instance.document_number,
+        ).delete()
+        instance.delete()
 
 
 class DepreciationRecordViewSet(viewsets.ModelViewSet):
@@ -382,6 +470,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = [IsAuthenticated]
     search_fields = ['name', 'short_name', 'edrpou']
+    filterset_fields = ['is_active', 'is_own']
+
+    @action(detail=False, methods=['get'])
+    def counterparties(self, request):
+        """Контрагенти (все крім власної організації)."""
+        qs = Organization.objects.filter(is_active=True, is_own=False)
+        serializer = OrganizationSerializer(qs, many=True)
+        return Response(serializer.data)
 
 
 class AccountEntryViewSet(viewsets.ModelViewSet):
@@ -477,6 +573,69 @@ class AssetRevaluationViewSet(viewsets.ModelViewSet):
         )
         notify_revaluation(instance, self.request.user)
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        old = self.get_object()
+        old_asset = old.asset
+        # Відкотити: повернути старі значення
+        old_asset.initial_cost = old.old_initial_cost
+        old_asset.accumulated_depreciation = old.old_depreciation
+        old_asset.current_book_value = old.old_book_value
+        old_asset.save()
+        # Видалити старі проводки
+        AccountEntry.objects.filter(
+            asset=old_asset,
+            entry_type=AccountEntry.EntryType.REVALUATION,
+            document_number=old.document_number,
+        ).delete()
+        # Перерахувати нові значення
+        asset = serializer.validated_data.get('asset', old_asset)
+        asset.refresh_from_db()
+        fair_value = serializer.validated_data['fair_value']
+        old_initial = asset.initial_cost
+        old_depr = asset.accumulated_depreciation
+        old_book = asset.current_book_value
+        if old_book > 0:
+            index = fair_value / old_book
+        else:
+            index = Decimal('1')
+        new_initial = (old_initial * index).quantize(Decimal('0.01'))
+        new_depr = (old_depr * index).quantize(Decimal('0.01'))
+        new_book = new_initial - new_depr
+        reval_type = 'upward' if fair_value > old_book else 'downward'
+        reval_amount = new_book - old_book
+        instance = serializer.save(
+            revaluation_type=reval_type,
+            old_initial_cost=old_initial,
+            old_depreciation=old_depr,
+            old_book_value=old_book,
+            new_initial_cost=new_initial,
+            new_depreciation=new_depr,
+            new_book_value=new_book,
+            revaluation_amount=reval_amount,
+        )
+        asset.initial_cost = new_initial
+        asset.accumulated_depreciation = new_depr
+        asset.current_book_value = new_book
+        asset.save()
+        create_revaluation_entries(asset, instance, user=self.request.user)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        asset = instance.asset
+        # Відкотити значення
+        asset.initial_cost = instance.old_initial_cost
+        asset.accumulated_depreciation = instance.old_depreciation
+        asset.current_book_value = instance.old_book_value
+        asset.save()
+        # Видалити проводки
+        AccountEntry.objects.filter(
+            asset=asset,
+            entry_type=AccountEntry.EntryType.REVALUATION,
+            document_number=instance.document_number,
+        ).delete()
+        instance.delete()
+
 
 class AssetImprovementViewSet(viewsets.ModelViewSet):
     """CRUD для поліпшень / ремонтів ОЗ."""
@@ -501,6 +660,47 @@ class AssetImprovementViewSet(viewsets.ModelViewSet):
             self.request.user, AuditLog.Action.IMPROVEMENT, instance,
             ip_address=get_client_ip(self.request),
         )
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        old = self.get_object()
+        asset = old.asset
+        # Скасувати старий ефект
+        if old.increases_value:
+            asset.initial_cost -= old.amount
+            asset.current_book_value -= old.amount
+            asset.save()
+        # Видалити старі проводки
+        AccountEntry.objects.filter(
+            asset=asset,
+            entry_type=AccountEntry.EntryType.IMPROVEMENT,
+            document_number=old.document_number,
+        ).delete()
+        # Зберегти
+        instance = serializer.save()
+        # Застосувати новий ефект
+        if instance.increases_value:
+            asset.refresh_from_db()
+            asset.initial_cost += instance.amount
+            asset.current_book_value += instance.amount
+            asset.save()
+        create_improvement_entries(asset, instance, user=self.request.user)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        asset = instance.asset
+        # Скасувати ефект
+        if instance.increases_value:
+            asset.initial_cost -= instance.amount
+            asset.current_book_value -= instance.amount
+            asset.save()
+        # Видалити проводки
+        AccountEntry.objects.filter(
+            asset=asset,
+            entry_type=AccountEntry.EntryType.IMPROVEMENT,
+            document_number=instance.document_number,
+        ).delete()
+        instance.delete()
 
 
 class AssetAttachmentViewSet(viewsets.ModelViewSet):

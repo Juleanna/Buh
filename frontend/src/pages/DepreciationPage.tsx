@@ -78,7 +78,7 @@ const DepreciationPage: React.FC = () => {
       width: 140,
       align: 'right' as const,
       render: (_: unknown, r: DepreciationRecord) =>
-        fmtNum(Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0)),
+        fmtNum(Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0) - Number(r.asset_incoming_depreciation || 0)),
     },
     {
       title: 'Річна сума амортизації',
@@ -87,7 +87,7 @@ const DepreciationPage: React.FC = () => {
       align: 'right' as const,
       render: (_: unknown, r: DepreciationRecord) => {
         if (r.asset_depreciation_rate && Number(r.asset_depreciation_rate) > 0) {
-          const depreciable = Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0)
+          const depreciable = Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0) - Number(r.asset_incoming_depreciation || 0)
           return fmtNum(depreciable * Number(r.asset_depreciation_rate) / 100)
         }
         return fmtNum(Number(r.amount) * 12)

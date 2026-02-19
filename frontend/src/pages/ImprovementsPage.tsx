@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, Space, Tag,
+  DatePicker, InputNumber, Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import type { AssetImprovement, Asset, PaginatedResponse } from '../types'
@@ -25,6 +25,7 @@ const ImprovementsPage: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
   const loadImprovements = async (p = page) => {
@@ -44,16 +45,42 @@ const ImprovementsPage: React.FC = () => {
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      await api.post('/assets/improvements/', {
+      const payload = {
         ...values,
         date: (values.date as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      message.success('Поліпшення створено')
+      }
+      if (editingId) {
+        await api.put(`/assets/improvements/${editingId}/`, payload)
+        message.success('Поліпшення оновлено')
+      } else {
+        await api.post('/assets/improvements/', payload)
+        message.success('Поліпшення створено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadImprovements()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка')
+    }
+  }
+
+  const handleEdit = (record: AssetImprovement) => {
+    setEditingId(record.id)
+    form.setFieldsValue({
+      ...record,
+      date: dayjs(record.date),
+    })
+    setModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/improvements/${id}/`)
+      message.success('Поліпшення видалено')
+      loadImprovements()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
@@ -85,13 +112,30 @@ const ImprovementsPage: React.FC = () => {
       ),
     },
     { title: 'Рах.витрат', dataIndex: 'expense_account', key: 'expense_account' },
+    {
+      title: 'Дії',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: AssetImprovement) => (
+        <Space size="small">
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Видалити поліпшення?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Поліпшення та ремонти ОЗ</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }}>
           Нове поліпшення
         </Button>
       </div>
@@ -109,9 +153,9 @@ const ImprovementsPage: React.FC = () => {
       />
 
       <Modal
-        title="Нове поліпшення ОЗ"
+        title={editingId ? 'Редагувати поліпшення ОЗ' : 'Нове поліпшення ОЗ'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
         okText="Зберегти"
         cancelText="Скасувати"

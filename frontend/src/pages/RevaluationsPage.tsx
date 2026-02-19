@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
-  DatePicker, InputNumber, Space, Tag,
+  DatePicker, InputNumber, Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import type { AssetRevaluation, Asset, PaginatedResponse } from '../types'
@@ -18,6 +18,7 @@ const RevaluationsPage: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
   const loadRevaluations = async (p = page) => {
@@ -37,16 +38,42 @@ const RevaluationsPage: React.FC = () => {
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      await api.post('/assets/revaluations/', {
+      const payload = {
         ...values,
         date: (values.date as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      message.success('Переоцінку створено')
+      }
+      if (editingId) {
+        await api.put(`/assets/revaluations/${editingId}/`, payload)
+        message.success('Переоцінку оновлено')
+      } else {
+        await api.post('/assets/revaluations/', payload)
+        message.success('Переоцінку створено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadRevaluations()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка')
+    }
+  }
+
+  const handleEdit = (record: AssetRevaluation) => {
+    setEditingId(record.id)
+    form.setFieldsValue({
+      ...record,
+      date: dayjs(record.date),
+    })
+    setModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/revaluations/${id}/`)
+      message.success('Переоцінку видалено')
+      loadRevaluations()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
@@ -93,13 +120,30 @@ const RevaluationsPage: React.FC = () => {
       key: 'new_book_value',
       render: fmtMoney,
     },
+    {
+      title: 'Дії',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: AssetRevaluation) => (
+        <Space size="small">
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Видалити переоцінку?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" icon={<DeleteOutlined />} danger />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Переоцінки основних засобів</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }}>
           Нова переоцінка
         </Button>
       </div>
@@ -117,9 +161,9 @@ const RevaluationsPage: React.FC = () => {
       />
 
       <Modal
-        title="Нова переоцінка ОЗ"
+        title={editingId ? 'Редагувати переоцінку ОЗ' : 'Нова переоцінка ОЗ'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
         okText="Зберегти"
         cancelText="Скасувати"

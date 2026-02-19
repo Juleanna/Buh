@@ -317,6 +317,23 @@ const AssetsPage: React.FC = () => {
             <Form.Item name="residual_value" label="Ліквідаційна вартість, грн">
               <InputNumber min={0} step={0.01} style={{ width: 200 }} />
             </Form.Item>
+            <Form.Item
+              name="incoming_depreciation"
+              label="Вхідна амортизація, грн"
+              tooltip="Знос, нарахований до отримання ОЗ від іншої організації"
+              dependencies={['initial_cost']}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || value <= getFieldValue('initial_cost'))
+                      return Promise.resolve()
+                    return Promise.reject('Не може перевищувати первісну вартість')
+                  },
+                }),
+              ]}
+            >
+              <InputNumber min={0} step={0.01} style={{ width: 200 }} />
+            </Form.Item>
           </Space>
           <Space size="large">
             <Form.Item name="depreciation_method" label="Метод амортизації" rules={[{ required: true }]}>
