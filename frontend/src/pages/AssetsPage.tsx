@@ -55,7 +55,7 @@ const AssetsPage: React.FC = () => {
 
   const loadResponsiblePersons = async () => {
     try {
-      const { data } = await api.get('/assets/responsible-persons/', { params: { is_active: true } })
+      const { data } = await api.get('/assets/responsible-persons/', { params: { is_active: true, is_employee: true } })
       setResponsiblePersons(data.results || data)
     } catch { /* */ }
   }

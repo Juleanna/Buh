@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
@@ -253,6 +254,32 @@ class Asset(models.Model):
 
     def __str__(self):
         return f'{self.inventory_number} — {self.name}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.depreciation_start_date and self.commissioning_date:
+            if self.depreciation_start_date < self.commissioning_date:
+                errors['depreciation_start_date'] = (
+                    'Дата початку амортизації не може бути раніше дати введення в експлуатацію.'
+                )
+        if self.disposal_date and self.commissioning_date:
+            if self.disposal_date < self.commissioning_date:
+                errors['disposal_date'] = (
+                    'Дата вибуття не може бути раніше дати введення в експлуатацію.'
+                )
+        if self.residual_value and self.initial_cost:
+            if self.residual_value >= self.initial_cost:
+                errors['residual_value'] = (
+                    'Ліквідаційна вартість не може перевищувати первісну вартість.'
+                )
+        if self.incoming_depreciation and self.initial_cost:
+            if self.incoming_depreciation > self.initial_cost:
+                errors['incoming_depreciation'] = (
+                    'Вхідна амортизація не може перевищувати первісну вартість.'
+                )
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         if not self.current_book_value or self.current_book_value == self.initial_cost:

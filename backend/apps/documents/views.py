@@ -396,13 +396,13 @@ def _commission_signatures_block(head_user, members_qs, styles,
     col_w = [page_width * 0.28, page_width * 0.30, page_width * 0.42]
 
     # Collect rows: (label, name)
-    head_name = head_user.get_full_name() if head_user else ''
+    head_name = head_user.full_name if head_user else ''
     rows = [('Голова комiсiї:', head_name)]
 
     if members_qs:
         for i, member in enumerate(list(members_qs)):
             label = 'Члени комiсiї:' if i == 0 else ''
-            rows.append((label, member.get_full_name()))
+            rows.append((label, member.full_name))
     else:
         for i in range(3):
             label = 'Члени комiсiї:' if i == 0 else ''
@@ -1453,10 +1453,10 @@ class InventoryReportPDFView(APIView):
         # -- Commission signatures --
         head_name = ''
         if inventory.commission_head:
-            head_name = inventory.commission_head.get_full_name()
+            head_name = inventory.commission_head.full_name
 
         members = list(inventory.commission_members.all())
-        member_names = [m.get_full_name() for m in members]
+        member_names = [m.full_name for m in members]
 
         row = write_commission_signatures(
             ws, row,
@@ -1951,13 +1951,13 @@ class InventoryReportPDFView(APIView):
         # -- Commission signatures (LINEBELOW) --
         head_name = ''
         if inventory.commission_head:
-            head_name = inventory.commission_head.get_full_name()
+            head_name = inventory.commission_head.full_name
 
         members = list(inventory.commission_members.all())
         sig_rows = [('Голова комiсiї:', head_name)]
         for idx in range(max(len(members), 3)):
             label = 'Члени комiсiї:' if idx == 0 else ''
-            name = members[idx].get_full_name() if idx < len(members) else ''
+            name = members[idx].full_name if idx < len(members) else ''
             sig_rows.append((label, name))
 
         sig_col_w = [40 * mm, 40 * mm, 30 * mm, 60 * mm]

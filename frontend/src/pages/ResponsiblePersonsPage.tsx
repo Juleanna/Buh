@@ -4,9 +4,9 @@ import {
   Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../api/client'
-import type { ResponsiblePerson, Location, PaginatedResponse } from '../types'
+import type { ResponsiblePerson, Location, Position, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -15,14 +15,18 @@ const ResponsiblePersonsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
   const [locations, setLocations] = useState<Location[]>([])
+  const [positions, setPositions] = useState<Position[]>([])
 
-  const loadPersons = async (p = page) => {
+  const loadPersons = async (p = page, s = search) => {
     setLoading(true)
-    const { data } = await api.get<PaginatedResponse<ResponsiblePerson>>('/assets/responsible-persons/', { params: { page: p } })
+    const params: Record<string, string | number> = { page: p }
+    if (s) params.search = s
+    const { data } = await api.get<PaginatedResponse<ResponsiblePerson>>('/assets/responsible-persons/', { params })
     setPersons(data.results)
     setTotal(data.count)
     setLoading(false)
@@ -37,9 +41,19 @@ const ResponsiblePersonsPage: React.FC = () => {
     }
   }
 
+  const loadPositions = async () => {
+    try {
+      const { data } = await api.get<PaginatedResponse<Position>>('/assets/positions/', { params: { page_size: 1000, is_active: true } })
+      setPositions(data.results)
+    } catch {
+      setPositions([])
+    }
+  }
+
   useEffect(() => {
     loadPersons()
     loadLocations()
+    loadPositions()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -83,9 +97,18 @@ const ResponsiblePersonsPage: React.FC = () => {
   const columns = [
     { title: 'ПІП', dataIndex: 'full_name', key: 'full_name', ellipsis: true },
     { title: 'ІПН', dataIndex: 'ipn', key: 'ipn', width: 120 },
-    { title: 'Посада', dataIndex: 'position', key: 'position', ellipsis: true },
+    { title: 'Посада', dataIndex: 'position_name', key: 'position_name', ellipsis: true },
     { title: 'Місцезнаходження', dataIndex: 'location_name', key: 'location_name', ellipsis: true },
     { title: 'К-ть ОЗ', dataIndex: 'assets_count', key: 'assets_count', width: 100 },
+    {
+      title: 'Співробітник',
+      dataIndex: 'is_employee',
+      key: 'is_employee',
+      width: 120,
+      render: (v: boolean) => (
+        <Tag color={v ? 'blue' : 'default'}>{v ? 'Так' : 'Ні'}</Tag>
+      ),
+    },
     {
       title: 'Статус',
       dataIndex: 'is_active',
@@ -123,6 +146,14 @@ const ResponsiblePersonsPage: React.FC = () => {
         </Button>
       </div>
 
+      <Input.Search
+        placeholder="Пошук за ПІП або ІПН..."
+        onSearch={(v) => { setSearch(v); setPage(1); loadPersons(1, v) }}
+        style={{ marginBottom: 16, maxWidth: 400 }}
+        allowClear
+        prefix={<SearchOutlined />}
+      />
+
       <Table
         dataSource={persons}
         columns={columns}
@@ -150,7 +181,7 @@ const ResponsiblePersonsPage: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{ is_active: true }}
+          initialValues={{ is_active: true, is_employee: false }}
         >
           <Form.Item name="full_name" label="ПІП" rules={[{ required: true, message: 'Введіть ПІП' }]}>
             <Input />
@@ -159,7 +190,11 @@ const ResponsiblePersonsPage: React.FC = () => {
             <Input maxLength={10} />
           </Form.Item>
           <Form.Item name="position" label="Посада">
-            <Input />
+            <Select allowClear placeholder="Оберіть посаду" showSearch optionFilterProp="label">
+              {positions.map((pos) => (
+                <Select.Option key={pos.id} value={pos.id}>{pos.name}</Select.Option>
+              ))}
+            </Select>
           </Form.Item>
           <Form.Item name="location" label="Місцезнаходження">
             <Select allowClear placeholder="Оберіть місцезнаходження">
@@ -167,6 +202,9 @@ const ResponsiblePersonsPage: React.FC = () => {
                 <Select.Option key={loc.id} value={loc.id}>{loc.name}</Select.Option>
               ))}
             </Select>
+          </Form.Item>
+          <Form.Item name="is_employee" label="Співробітник" valuePropName="checked">
+            <Switch />
           </Form.Item>
           <Form.Item name="is_active" label="Активна" valuePropName="checked">
             <Switch />

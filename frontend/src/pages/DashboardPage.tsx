@@ -299,6 +299,86 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* High wear and near full depreciation */}
+      {((data.high_wear_assets?.length ?? 0) > 0 || (data.near_full_depreciation?.length ?? 0) > 0) && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          {data.high_wear_assets?.length > 0 && (
+            <Col xs={24} lg={12}>
+              <Card title={<><WarningOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />ОЗ з високим зносом ({'\u2265'}80%)</>}>
+                <Table
+                  dataSource={data.high_wear_assets}
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    { title: 'Інв.номер', dataIndex: 'inventory_number', width: 100 },
+                    { title: 'Назва', dataIndex: 'name', ellipsis: true },
+                    {
+                      title: 'Знос',
+                      key: 'wear',
+                      width: 160,
+                      render: (_: unknown, r: DashboardData['high_wear_assets'][0]) => (
+                        <Progress
+                          percent={Math.round(Number(r.wear_pct))}
+                          size="small"
+                          strokeColor={Number(r.wear_pct) > 90 ? '#ff4d4f' : '#faad14'}
+                        />
+                      ),
+                    },
+                    {
+                      title: 'Зал. вартість',
+                      dataIndex: 'current_book_value',
+                      width: 130,
+                      render: (v: string) => fmtMoney(Number(v)),
+                    },
+                  ]}
+                  onRow={(record) => ({
+                    style: { cursor: 'pointer' },
+                    onClick: () => navigate(`/assets/${record.id}`),
+                  })}
+                />
+              </Card>
+            </Col>
+          )}
+          {data.near_full_depreciation?.length > 0 && (
+            <Col xs={24} lg={12}>
+              <Card title={<><WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />Скоро повністю амортизовані ({'\u2264'}10%)</>}>
+                <Table
+                  dataSource={data.near_full_depreciation}
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    { title: 'Інв.номер', dataIndex: 'inventory_number', width: 100 },
+                    { title: 'Назва', dataIndex: 'name', ellipsis: true },
+                    {
+                      title: 'Залишок',
+                      key: 'remaining',
+                      width: 120,
+                      render: (_: unknown, r: DashboardData['near_full_depreciation'][0]) => (
+                        <Tag color={Number(r.remaining_pct) < 5 ? 'red' : 'orange'}>
+                          {Number(r.remaining_pct).toFixed(1)}%
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: 'Зал. вартість',
+                      dataIndex: 'current_book_value',
+                      width: 130,
+                      render: (v: string) => fmtMoney(Number(v)),
+                    },
+                  ]}
+                  onRow={(record) => ({
+                    style: { cursor: 'pointer' },
+                    onClick: () => navigate(`/assets/${record.id}`),
+                  })}
+                />
+              </Card>
+            </Col>
+          )}
+        </Row>
+      )}
     </div>
   )
 }

@@ -23,6 +23,7 @@ import {
   IdcardOutlined,
   TableOutlined,
   FolderOpenOutlined,
+  SaveOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
@@ -102,6 +103,7 @@ const AppLayout: React.FC = () => {
       children: [
         { key: '/organizations', icon: <BankOutlined />, label: 'Організації' },
         { key: '/responsible-persons', icon: <IdcardOutlined />, label: 'МВО' },
+        { key: '/positions', icon: <TeamOutlined />, label: 'Посади' },
         { key: '/locations', icon: <EnvironmentOutlined />, label: 'Місцезнаходження' },
       ],
     },
@@ -115,11 +117,18 @@ const AppLayout: React.FC = () => {
       icon: <BellOutlined />,
       label: 'Сповіщення',
     },
-    ...(user?.role === 'admin' ? [{
-      key: '/users',
-      icon: <TeamOutlined />,
-      label: 'Користувачі',
-    }] : []),
+    ...(user?.role === 'admin' ? [
+      {
+        key: '/users',
+        icon: <TeamOutlined />,
+        label: 'Користувачі',
+      },
+      {
+        key: '/backup',
+        icon: <SaveOutlined />,
+        label: 'Резервна копія',
+      },
+    ] : []),
   ]
 
   const userMenuItems = [

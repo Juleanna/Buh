@@ -179,11 +179,30 @@ class DepreciationRecordSerializer(serializers.ModelSerializer):
         source='asset.incoming_depreciation', read_only=True,
         max_digits=15, decimal_places=2
     )
+    wear_before = serializers.SerializerMethodField()
+    wear_after = serializers.SerializerMethodField()
 
     class Meta:
         model = DepreciationRecord
         fields = '__all__'
         read_only_fields = ['created_by', 'created_at']
+
+    def get_wear_before(self, obj):
+        """Сума зносу на початок періоду = вхідна амортизація + сума всіх попередніх нарахувань."""
+        from django.db.models import Sum, Q
+        incoming = obj.asset.incoming_depreciation or Decimal('0.00')
+        prior = DepreciationRecord.objects.filter(
+            asset=obj.asset,
+        ).filter(
+            Q(period_year__lt=obj.period_year) |
+            Q(period_year=obj.period_year, period_month__lt=obj.period_month) |
+            Q(period_year=obj.period_year, period_month=obj.period_month, id__lt=obj.id)
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        return incoming + prior
+
+    def get_wear_after(self, obj):
+        """Сума зносу на кінець періоду = знос на початок + амортизація за період."""
+        return self.get_wear_before(obj) + obj.amount
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):

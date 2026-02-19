@@ -4,7 +4,7 @@ import {
   DatePicker, InputNumber, Space, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
@@ -28,13 +28,16 @@ const ReceiptsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
-  const loadReceipts = async (p = page) => {
+  const loadReceipts = async (p = page, s = search) => {
     setLoading(true)
-    const { data } = await api.get<PaginatedResponse<AssetReceipt>>('/assets/receipts/', { params: { page: p } })
+    const params: Record<string, string | number> = { page: p }
+    if (s) params.search = s
+    const { data } = await api.get<PaginatedResponse<AssetReceipt>>('/assets/receipts/', { params })
     setReceipts(data.results)
     setTotal(data.count)
     setLoading(false)
@@ -148,6 +151,14 @@ const ReceiptsPage: React.FC = () => {
         </Button>
       </div>
 
+      <Input.Search
+        placeholder="Пошук за номером документа або постачальником..."
+        onSearch={(v) => { setSearch(v); setPage(1); loadReceipts(1, v) }}
+        style={{ marginBottom: 16, maxWidth: 400 }}
+        allowClear
+        prefix={<SearchOutlined />}
+      />
+
       <Table
         dataSource={receipts}
         columns={columns}
@@ -156,6 +167,7 @@ const ReceiptsPage: React.FC = () => {
         pagination={{
           current: page, total, pageSize: 25,
           onChange: (p) => { setPage(p); loadReceipts(p) },
+          showTotal: (t) => `Всього: ${t}`,
         }}
         size="small"
       />

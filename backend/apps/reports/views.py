@@ -1,10 +1,21 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Count, Q
-from decimal import Decimal
+import io
+import os
+import subprocess
+import shutil
+import tempfile
 from datetime import date, datetime
+from decimal import Decimal
 
+from django.conf import settings
+from django.core.management import call_command
+from django.db import connection
+from django.db.models import Sum, Count, Q, F, ExpressionWrapper, DecimalField
+from django.http import FileResponse
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.accounts.permissions import IsAdmin
 from apps.assets.models import (
     Asset, AssetGroup, AssetReceipt, AssetDisposal,
     DepreciationRecord, AssetImprovement,
@@ -17,6 +28,41 @@ class DashboardView(APIView):
 
     def get(self, request):
         active_assets = Asset.objects.filter(status=Asset.Status.ACTIVE)
+
+        # ОЗ з високим зносом (>80%)
+        high_wear = list(
+            active_assets.filter(
+                initial_cost__gt=0,
+            ).annotate(
+                wear_pct=ExpressionWrapper(
+                    F('accumulated_depreciation') * 100 / F('initial_cost'),
+                    output_field=DecimalField(),
+                ),
+            ).filter(
+                wear_pct__gte=80,
+            ).order_by('-wear_pct').values(
+                'id', 'inventory_number', 'name', 'initial_cost',
+                'current_book_value', 'accumulated_depreciation', 'wear_pct',
+            )[:10]
+        )
+
+        # ОЗ, що скоро будуть повністю амортизовані (залишок < 10% від початкової)
+        near_full = list(
+            active_assets.filter(
+                initial_cost__gt=0,
+                current_book_value__gt=F('residual_value'),
+            ).annotate(
+                remaining_pct=ExpressionWrapper(
+                    (F('current_book_value') - F('residual_value')) * 100 / F('initial_cost'),
+                    output_field=DecimalField(),
+                ),
+            ).filter(
+                remaining_pct__lte=10,
+            ).order_by('remaining_pct').values(
+                'id', 'inventory_number', 'name', 'initial_cost',
+                'current_book_value', 'residual_value', 'remaining_pct',
+            )[:10]
+        )
 
         return Response({
             'assets': {
@@ -47,6 +93,8 @@ class DashboardView(APIView):
                 .annotate(count=Count('id'))
                 .order_by('depreciation_method')
             ),
+            'high_wear_assets': high_wear,
+            'near_full_depreciation': near_full,
         })
 
 
@@ -231,3 +279,121 @@ class TurnoverStatementView(APIView):
                 period_year__lt=date_to.year,
             )
         return q
+
+
+class DatabaseBackupView(APIView):
+    """Інформація про БД та створення бекапу — один endpoint."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        # GET — інформація про БД
+        db_conf = settings.DATABASES['default']
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()))")
+            db_size = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = 'public'"
+            )
+            tables_count = cursor.fetchone()[0]
+
+        return Response({
+            'database_name': db_conf['NAME'],
+            'database_host': db_conf['HOST'],
+            'database_size': db_size,
+            'tables_count': tables_count,
+            'assets_count': Asset.objects.count(),
+        })
+
+    def post(self, request):
+        """POST — створити та завантажити бекап."""
+        backup_format = request.data.get('format', request.query_params.get('format', 'sql'))
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        db_name = settings.DATABASES['default']['NAME']
+
+        if backup_format == 'json':
+            return self._backup_json(timestamp, db_name)
+        return self._backup_sql(timestamp, db_name)
+
+    def _backup_sql(self, timestamp, db_name):
+        """Бекап через pg_dump (SQL формат) — вивід прямо в пам'ять."""
+        from django.http import HttpResponse
+
+        db_conf = settings.DATABASES['default']
+
+        pg_dump = shutil.which('pg_dump')
+        if not pg_dump:
+            for ver in range(20, 12, -1):
+                candidate = f'C:/Program Files/PostgreSQL/{ver}/bin/pg_dump.exe'
+                if os.path.isfile(candidate):
+                    pg_dump = candidate
+                    break
+
+        if not pg_dump:
+            return Response(
+                {'error': 'pg_dump не знайдено. Встановіть PostgreSQL або додайте pg_dump до PATH.'},
+                status=500,
+            )
+
+        env = {**os.environ, 'PGPASSWORD': db_conf['PASSWORD']}
+        cmd = [
+            pg_dump,
+            '-h', db_conf['HOST'],
+            '-p', str(db_conf['PORT']),
+            '-U', db_conf['USER'],
+            '-F', 'p',
+            '--no-owner',
+            '--no-privileges',
+            db_conf['NAME'],
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd, env=env, capture_output=True, timeout=300,
+            )
+            if result.returncode != 0:
+                err = result.stderr.decode('utf-8', errors='replace')[:500]
+                return Response(
+                    {'error': f'pg_dump помилка: {err}'},
+                    status=500,
+                )
+        except subprocess.TimeoutExpired:
+            return Response({'error': 'Бекап перевищив ліміт часу (5 хв).'}, status=500)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+        filename = f'backup_{db_name}_{timestamp}.sql'
+        response = HttpResponse(
+            result.stdout,
+            content_type='application/octet-stream',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['X-Backup-Filename'] = filename
+        return response
+
+    def _backup_json(self, timestamp, db_name):
+        """Бекап через Django dumpdata (JSON формат)."""
+        buf = io.StringIO()
+        try:
+            call_command(
+                'dumpdata',
+                '--natural-foreign',
+                '--natural-primary',
+                '--indent', '2',
+                exclude=['contenttypes', 'auth.Permission', 'sessions', 'admin.logentry'],
+                stdout=buf,
+            )
+        except Exception as e:
+            return Response({'error': f'dumpdata помилка: {str(e)}'}, status=500)
+
+        content = buf.getvalue().encode('utf-8')
+        filename = f'backup_{db_name}_{timestamp}.json'
+
+        response = FileResponse(
+            io.BytesIO(content),
+            content_type='application/json',
+            as_attachment=True,
+            filename=filename,
+        )
+        response['X-Backup-Filename'] = filename
+        return response

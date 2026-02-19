@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import {
   Descriptions, Card, Typography, Tag, Button, Space, Table, Spin, Tabs,
   Upload, Image, Popconfirm, Progress, Empty, Modal, Form,
-  Input, Select, Row, Col,
+  Input, Select, Row, Col, Timeline,
 } from 'antd'
 import { message } from '../utils/globalMessage'
 import {
@@ -10,6 +10,8 @@ import {
   UploadOutlined, DeleteOutlined, DownloadOutlined,
   FileOutlined, FileImageOutlined, EyeOutlined,
   InboxOutlined, FileTextOutlined, CameraOutlined, FilePdfOutlined,
+  HistoryOutlined, PlusCircleOutlined, MinusCircleOutlined,
+  CalculatorOutlined, SwapOutlined, ToolOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -18,6 +20,7 @@ import { ExportDropdownButton } from '../components/ExportButton'
 import type {
   Asset, DepreciationRecord, AssetAttachment,
   AssetRevaluation, AssetImprovement, AccountEntry,
+  AssetReceipt, AssetDisposal,
 } from '../types'
 
 const { Title, Text } = Typography
@@ -55,6 +58,8 @@ const AssetDetailPage: React.FC = () => {
   const [revaluations, setRevaluations] = useState<AssetRevaluation[]>([])
   const [improvements, setImprovement] = useState<AssetImprovement[]>([])
   const [entries, setEntries] = useState<AccountEntry[]>([])
+  const [receipts, setReceipts] = useState<AssetReceipt[]>([])
+  const [disposals, setDisposals] = useState<AssetDisposal[]>([])
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -78,13 +83,17 @@ const AssetDetailPage: React.FC = () => {
       api.get('/assets/revaluations/', { params: { asset: id } }).catch(() => ({ data: { results: [] } })),
       api.get('/assets/improvements/', { params: { asset: id } }).catch(() => ({ data: { results: [] } })),
       api.get('/assets/entries/', { params: { asset: id } }).catch(() => ({ data: { results: [] } })),
-    ]).then(([assetRes, deprRes, attachRes, revalRes, imprRes, entriesRes]) => {
+      api.get('/assets/receipts/', { params: { asset: id } }).catch(() => ({ data: { results: [] } })),
+      api.get('/assets/disposals/', { params: { asset: id } }).catch(() => ({ data: { results: [] } })),
+    ]).then(([assetRes, deprRes, attachRes, revalRes, imprRes, entriesRes, rcptRes, dispRes]) => {
       setAsset(assetRes.data)
       setDeprRecords(deprRes.data.results || deprRes.data)
       setAttachments(attachRes.data.results || attachRes.data)
       setRevaluations(revalRes.data.results || revalRes.data)
       setImprovement(imprRes.data.results || imprRes.data)
       setEntries(entriesRes.data.results || entriesRes.data)
+      setReceipts(rcptRes.data.results || rcptRes.data)
+      setDisposals(dispRes.data.results || dispRes.data)
       setLoading(false)
     })
   }, [id])
@@ -562,6 +571,120 @@ const AssetDetailPage: React.FC = () => {
           ) : (
             <Empty description="Немає проводок" />
           ),
+        },
+        {
+          key: 'lifecycle',
+          label: <><HistoryOutlined /> Історія</>,
+          children: (() => {
+            type TimelineEvent = {
+              date: string
+              type: 'receipt' | 'depreciation' | 'revaluation' | 'improvement' | 'disposal' | 'commissioning'
+              title: string
+              description: string
+              color: string
+              icon: React.ReactNode
+            }
+            const events: TimelineEvent[] = []
+
+            // Commissioning
+            if (asset.commissioning_date) {
+              events.push({
+                date: asset.commissioning_date,
+                type: 'commissioning',
+                title: 'Введення в експлуатацію',
+                description: `Первісна вартість: ${fmtMoney(asset.initial_cost)}`,
+                color: 'blue',
+                icon: <PlusCircleOutlined />,
+              })
+            }
+
+            // Receipts
+            receipts.forEach(r => {
+              events.push({
+                date: r.document_date,
+                type: 'receipt',
+                title: `Прихід: ${r.receipt_type_display}`,
+                description: `Документ №${r.document_number}, сума: ${fmtMoney(r.amount)}${r.supplier ? `, постачальник: ${r.supplier}` : ''}`,
+                color: 'green',
+                icon: <PlusCircleOutlined />,
+              })
+            })
+
+            // Depreciation (group by month)
+            deprRecords.forEach(d => {
+              events.push({
+                date: `${d.period_year}-${String(d.period_month).padStart(2, '0')}-01`,
+                type: 'depreciation',
+                title: `Амортизація ${String(d.period_month).padStart(2, '0')}.${d.period_year}`,
+                description: `Сума: ${fmtMoney(d.amount)}, зал. вартість: ${fmtMoney(d.book_value_after)}`,
+                color: 'blue',
+                icon: <CalculatorOutlined />,
+              })
+            })
+
+            // Revaluations
+            revaluations.forEach(r => {
+              events.push({
+                date: r.date,
+                type: 'revaluation',
+                title: `Переоцінка: ${r.revaluation_type_display}`,
+                description: `Справедлива вартість: ${fmtMoney(r.fair_value)}, сума переоцінки: ${fmtMoney(r.revaluation_amount)}`,
+                color: r.revaluation_type === 'upward' ? 'green' : 'red',
+                icon: <SwapOutlined />,
+              })
+            })
+
+            // Improvements
+            improvements.forEach(i => {
+              events.push({
+                date: i.date,
+                type: 'improvement',
+                title: `${i.improvement_type_display}`,
+                description: `${i.description ? i.description + ', ' : ''}сума: ${fmtMoney(i.amount)}${i.increases_value ? ' (збільшує вартість)' : ''}`,
+                color: 'cyan',
+                icon: <ToolOutlined />,
+              })
+            })
+
+            // Disposals
+            disposals.forEach(d => {
+              events.push({
+                date: d.document_date,
+                type: 'disposal',
+                title: `Вибуття: ${d.disposal_type_display}`,
+                description: `Документ №${d.document_number}, зал. вартість: ${fmtMoney(d.book_value_at_disposal)}${Number(d.sale_amount) > 0 ? `, сума продажу: ${fmtMoney(d.sale_amount)}` : ''}`,
+                color: 'red',
+                icon: <MinusCircleOutlined />,
+              })
+            })
+
+            // Sort chronologically
+            events.sort((a, b) => a.date.localeCompare(b.date))
+
+            if (events.length === 0) {
+              return <Empty description="Немає подій" />
+            }
+
+            return (
+              <Card>
+                <Timeline
+                  mode="left"
+                  items={events.map(e => ({
+                    color: e.color,
+                    dot: e.icon,
+                    label: dayjs(e.date).format('DD.MM.YYYY'),
+                    children: (
+                      <div>
+                        <Text strong>{e.title}</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 13 }}>{e.description}</Text>
+                      </div>
+                    ),
+                  }))}
+                />
+              </Card>
+            )
+          })(),
         },
       ]} />
     </div>

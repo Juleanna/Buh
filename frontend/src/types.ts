@@ -12,6 +12,12 @@ export interface User {
   is_active: boolean
 }
 
+export interface Position {
+  id: number
+  name: string
+  is_active: boolean
+}
+
 export interface Location {
   id: number
   name: string
@@ -23,9 +29,11 @@ export interface ResponsiblePerson {
   id: number
   ipn: string
   full_name: string
-  position: string
+  position: number | null
+  position_name: string
   location: number | null
   location_name: string
+  is_employee: boolean
   is_active: boolean
   assets_count?: number
 }
@@ -163,6 +171,8 @@ export interface DepreciationRecord {
   asset_depreciation_rate: string | null
   asset_useful_life_months: number
   asset_incoming_depreciation: string
+  wear_before: string
+  wear_after: string
 }
 
 export interface Inventory {
@@ -343,5 +353,23 @@ export interface DashboardData {
   depreciation_by_method: Array<{
     depreciation_method: DepreciationMethod
     count: number
+  }>
+  high_wear_assets: Array<{
+    id: number
+    inventory_number: string
+    name: string
+    initial_cost: string
+    current_book_value: string
+    accumulated_depreciation: string
+    wear_pct: string
+  }>
+  near_full_depreciation: Array<{
+    id: number
+    inventory_number: string
+    name: string
+    initial_cost: string
+    current_book_value: string
+    residual_value: string
+    remaining_pct: string
   }>
 }

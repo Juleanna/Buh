@@ -44,7 +44,7 @@ class PositionViewSet(viewsets.ModelViewSet):
     """CRUD для посад."""
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAccountant]
     search_fields = ['name']
     filterset_fields = ['is_active']
 
@@ -55,7 +55,7 @@ class LocationViewSet(viewsets.ModelViewSet):
         assets_count=Count('assets')
     ).order_by('name')
     serializer_class = LocationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAccountant]
     search_fields = ['name']
     filterset_fields = ['is_active']
 
@@ -66,7 +66,7 @@ class ResponsiblePersonViewSet(viewsets.ModelViewSet):
         assets_count=Count('assets')
     ).order_by('full_name')
     serializer_class = ResponsiblePersonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAccountant]
     search_fields = ['full_name', 'ipn']
     filterset_fields = ['is_active', 'is_employee']
 
@@ -75,7 +75,7 @@ class AssetGroupViewSet(viewsets.ModelViewSet):
     """CRUD для груп основних засобів."""
     queryset = AssetGroup.objects.annotate(assets_count=Count('assets')).order_by('code')
     serializer_class = AssetGroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAccountant]
     search_fields = ['name', 'code']
 
 
@@ -218,6 +218,7 @@ class AssetDisposalViewSet(viewsets.ModelViewSet):
     serializer_class = AssetDisposalSerializer
     permission_classes = [IsAccountant]
     filterset_fields = ['asset', 'disposal_type']
+    search_fields = ['document_number', 'asset__name', 'asset__inventory_number', 'reason']
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -285,6 +286,36 @@ class DepreciationRecordViewSet(viewsets.ModelViewSet):
     serializer_class = DepreciationRecordSerializer
     permission_classes = [IsAccountant]
     filterset_fields = ['asset', 'period_year', 'period_month', 'is_posted']
+
+    def destroy(self, request, *args, **kwargs):
+        """Видалення запису амортизації з відкатом значень на ОЗ та видаленням проводок."""
+        record = self.get_object()
+        asset = record.asset
+
+        with transaction.atomic():
+            # Відкат балансової вартості та накопиченої амортизації
+            asset.accumulated_depreciation -= record.amount
+            asset.current_book_value += record.amount
+            asset.save()
+
+            # Видалення пов'язаних проводок
+            from datetime import date
+            period_date = date(record.period_year, record.period_month, 1)
+            AccountEntry.objects.filter(
+                asset=asset,
+                entry_type=AccountEntry.EntryType.DEPRECIATION,
+                date=period_date,
+                amount=record.amount,
+            ).delete()
+
+            log_action(
+                request.user, AuditLog.Action.DELETE, record,
+                ip_address=get_client_ip(request),
+            )
+
+            record.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'])
     def calculate(self, request):
@@ -534,6 +565,7 @@ class AssetRevaluationViewSet(viewsets.ModelViewSet):
     serializer_class = AssetRevaluationSerializer
     permission_classes = [IsAccountant]
     filterset_fields = ['asset', 'revaluation_type']
+    search_fields = ['document_number', 'asset__name', 'asset__inventory_number']
 
     @transaction.atomic
     def perform_create(self, serializer):

@@ -17,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
             'patronymic', 'role', 'position', 'position_name', 'phone',
             'full_name', 'is_active',
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'username', 'role']
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

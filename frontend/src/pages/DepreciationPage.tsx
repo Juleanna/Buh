@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Card, Row, Col, InputNumber,
-  Space, Statistic, Spin, Tag,
+  Space, Statistic, Spin, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { CalculatorOutlined } from '@ant-design/icons'
+import { CalculatorOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import { ExportDropdownButton } from '../components/ExportButton'
 import type { DepreciationRecord, PaginatedResponse } from '../types'
@@ -65,6 +65,29 @@ const DepreciationPage: React.FC = () => {
     }
   }
 
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/assets/depreciation/${id}/`)
+      message.success('Запис амортизації видалено')
+      loadRecords()
+      loadSummary()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    try {
+      const idsToDelete = records.map(r => r.id)
+      await Promise.all(idsToDelete.map(id => api.delete(`/assets/depreciation/${id}/`)))
+      message.success(`Видалено ${idsToDelete.length} записів амортизації`)
+      loadRecords()
+      loadSummary()
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || 'Помилка видалення')
+    }
+  }
+
   const fmtNum = (v: string | number) =>
     Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -106,7 +129,7 @@ const DepreciationPage: React.FC = () => {
       width: 140,
       align: 'right' as const,
       render: (_: unknown, r: DepreciationRecord) =>
-        fmtNum(Number(r.asset_initial_cost || 0) - Number(r.book_value_before || 0)),
+        fmtNum(Number(r.wear_before || 0)),
     },
     {
       title: 'Сума нарахованої амортизації за період',
@@ -122,7 +145,7 @@ const DepreciationPage: React.FC = () => {
       width: 150,
       align: 'right' as const,
       render: (_: unknown, r: DepreciationRecord) =>
-        fmtNum(Number(r.asset_initial_cost || 0) - Number(r.book_value_after || 0)),
+        fmtNum(Number(r.wear_after || 0)),
     },
     {
       title: 'Субрахунок витрат',
@@ -135,6 +158,16 @@ const DepreciationPage: React.FC = () => {
       title: 'Примітка',
       key: 'note',
       width: 80,
+    },
+    {
+      title: 'Дії',
+      key: 'actions',
+      width: 60,
+      render: (_: unknown, record: DepreciationRecord) => (
+        <Popconfirm title="Видалити запис амортизації? Балансову вартість ОЗ буде відновлено." onConfirm={() => handleDelete(record.id)}>
+          <Button size="small" icon={<DeleteOutlined />} danger />
+        </Popconfirm>
+      ),
     },
   ]
 
@@ -178,6 +211,19 @@ const DepreciationPage: React.FC = () => {
               Нарахувати амортизацію
             </Button>
           </Col>
+          {records.length > 0 && (
+            <Col>
+              <Popconfirm
+                title={`Видалити всі ${records.length} записів амортизації за ${month.toString().padStart(2, '0')}.${year}?`}
+                description="Балансову вартість усіх ОЗ буде відновлено."
+                onConfirm={handleDeleteAll}
+              >
+                <Button danger icon={<DeleteOutlined />}>
+                  Видалити за період
+                </Button>
+              </Popconfirm>
+            </Col>
+          )}
           <Col>
             <ExportDropdownButton
               url={`/documents/depreciation-report/?year=${year}&month=${month}`}

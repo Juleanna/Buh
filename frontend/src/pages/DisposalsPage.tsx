@@ -4,7 +4,7 @@ import {
   DatePicker, InputNumber, Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
@@ -26,13 +26,16 @@ const DisposalsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
-  const loadDisposals = async (p = page) => {
+  const loadDisposals = async (p = page, s = search) => {
     setLoading(true)
-    const { data } = await api.get<PaginatedResponse<AssetDisposal>>('/assets/disposals/', { params: { page: p } })
+    const params: Record<string, string | number> = { page: p }
+    if (s) params.search = s
+    const { data } = await api.get<PaginatedResponse<AssetDisposal>>('/assets/disposals/', { params })
     setDisposals(data.results)
     setTotal(data.count)
     setLoading(false)
@@ -155,6 +158,14 @@ const DisposalsPage: React.FC = () => {
         </Button>
       </div>
 
+      <Input.Search
+        placeholder="Пошук за номером документа або назвою ОЗ..."
+        onSearch={(v) => { setSearch(v); setPage(1); loadDisposals(1, v) }}
+        style={{ marginBottom: 16, maxWidth: 400 }}
+        allowClear
+        prefix={<SearchOutlined />}
+      />
+
       <Table
         dataSource={disposals}
         columns={columns}
@@ -163,6 +174,7 @@ const DisposalsPage: React.FC = () => {
         pagination={{
           current: page, total, pageSize: 25,
           onChange: (p) => { setPage(p); loadDisposals(p) },
+          showTotal: (t) => `Всього: ${t}`,
         }}
         size="small"
       />

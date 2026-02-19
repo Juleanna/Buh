@@ -4,7 +4,7 @@ import {
   DatePicker, InputNumber, Space, Tag, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import type { AssetRevaluation, Asset, PaginatedResponse } from '../types'
@@ -17,13 +17,16 @@ const RevaluationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
-  const loadRevaluations = async (p = page) => {
+  const loadRevaluations = async (p = page, s = search) => {
     setLoading(true)
-    const { data } = await api.get<PaginatedResponse<AssetRevaluation>>('/assets/revaluations/', { params: { page: p } })
+    const params: Record<string, string | number> = { page: p }
+    if (s) params.search = s
+    const { data } = await api.get<PaginatedResponse<AssetRevaluation>>('/assets/revaluations/', { params })
     setRevaluations(data.results)
     setTotal(data.count)
     setLoading(false)
@@ -148,6 +151,14 @@ const RevaluationsPage: React.FC = () => {
         </Button>
       </div>
 
+      <Input.Search
+        placeholder="Пошук за назвою ОЗ або інв. номером..."
+        onSearch={(v) => { setSearch(v); setPage(1); loadRevaluations(1, v) }}
+        style={{ marginBottom: 16, maxWidth: 400 }}
+        allowClear
+        prefix={<SearchOutlined />}
+      />
+
       <Table
         dataSource={revaluations}
         columns={columns}
@@ -156,6 +167,7 @@ const RevaluationsPage: React.FC = () => {
         pagination={{
           current: page, total, pageSize: 25,
           onChange: (p) => { setPage(p); loadRevaluations(p) },
+          showTotal: (t) => `Всього: ${t}`,
         }}
         size="small"
       />

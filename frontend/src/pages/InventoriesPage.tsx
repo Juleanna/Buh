@@ -6,13 +6,14 @@ import {
 import { message } from '../utils/globalMessage'
 import {
   PlusOutlined, EyeOutlined, PlayCircleOutlined,
-  CheckCircleOutlined, DeleteOutlined,
+  CheckCircleOutlined, DeleteOutlined, EditOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
-import type { Inventory, User, PaginatedResponse, Location } from '../types'
+import type { Inventory, ResponsiblePerson, PaginatedResponse, Location } from '../types'
 
 const { Title } = Typography
 
@@ -25,17 +26,21 @@ const STATUS_COLORS: Record<string, string> = {
 const InventoriesPage: React.FC = () => {
   const navigate = useNavigate()
   const [inventories, setInventories] = useState<Inventory[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [responsiblePersons, setResponsiblePersons] = useState<ResponsiblePerson[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
 
-  const loadInventories = async (p = page) => {
+  const loadInventories = async (p = page, s = search) => {
     setLoading(true)
-    const { data } = await api.get<PaginatedResponse<Inventory>>('/assets/inventories/', { params: { page: p } })
+    const params: Record<string, string | number> = { page: p }
+    if (s) params.search = s
+    const { data } = await api.get<PaginatedResponse<Inventory>>('/assets/inventories/', { params })
     setInventories(data.results)
     setTotal(data.count)
     setLoading(false)
@@ -43,8 +48,8 @@ const InventoriesPage: React.FC = () => {
 
   useEffect(() => {
     loadInventories()
-    api.get('/auth/users/').then((res) => {
-      setUsers(res.data.results || res.data)
+    api.get('/assets/responsible-persons/', { params: { is_active: true, is_employee: true, page_size: 1000 } }).then((res) => {
+      setResponsiblePersons(res.data.results || res.data)
     }).catch(() => {})
     api.get('/assets/locations/', { params: { is_active: true } }).then((res) => {
       setLocations(res.data.results || res.data)
@@ -52,19 +57,49 @@ const InventoriesPage: React.FC = () => {
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    const payload = {
+      ...values,
+      date: (values.date as dayjs.Dayjs).format('YYYY-MM-DD'),
+      order_date: (values.order_date as dayjs.Dayjs).format('YYYY-MM-DD'),
+    }
     try {
-      await api.post('/assets/inventories/', {
-        ...values,
-        date: (values.date as dayjs.Dayjs).format('YYYY-MM-DD'),
-        order_date: (values.order_date as dayjs.Dayjs).format('YYYY-MM-DD'),
-      })
-      message.success('Інвентаризацію створено')
+      if (editingId) {
+        await api.put(`/assets/inventories/${editingId}/`, payload)
+        message.success('Інвентаризацію оновлено')
+      } else {
+        await api.post('/assets/inventories/', payload)
+        message.success('Інвентаризацію створено')
+      }
       setModalOpen(false)
       form.resetFields()
+      setEditingId(null)
       loadInventories()
     } catch (err: any) {
-      message.error(err.response?.data?.detail || 'Помилка')
+      const detail = err.response?.data
+      const msg = typeof detail === 'object'
+        ? Object.values(detail).flat().join(', ')
+        : 'Помилка збереження'
+      message.error(msg)
     }
+  }
+
+  const handleEdit = async (inventory: Inventory) => {
+    setEditingId(inventory.id)
+    try {
+      const { data } = await api.get(`/assets/inventories/${inventory.id}/`)
+      form.setFieldsValue({
+        ...data,
+        date: dayjs(data.date),
+        order_date: dayjs(data.order_date),
+      })
+    } catch {
+      form.setFieldsValue({
+        ...inventory,
+        date: dayjs(inventory.date),
+        order_date: dayjs(inventory.order_date),
+      })
+    }
+    setModalOpen(true)
   }
 
   const handlePopulate = async (id: number) => {
@@ -124,12 +159,17 @@ const InventoriesPage: React.FC = () => {
     {
       title: 'Дії',
       key: 'actions',
-      width: 180,
+      width: 220,
       render: (_: unknown, record: Inventory) => (
         <Space size="small">
           <Tooltip title="Переглянути">
             <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/inventories/${record.id}`)} />
           </Tooltip>
+          {record.status !== 'completed' && (
+            <Tooltip title="Редагувати">
+              <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+            </Tooltip>
+          )}
           {record.status === 'draft' && (
             <Tooltip title="Заповнити ОЗ">
               <Popconfirm title="Заповнити активними ОЗ?" onConfirm={() => handlePopulate(record.id)}>
@@ -165,10 +205,22 @@ const InventoriesPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Інвентаризація</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setEditingId(null)
+          form.resetFields()
+          setModalOpen(true)
+        }}>
           Нова інвентаризація
         </Button>
       </div>
+
+      <Input.Search
+        placeholder="Пошук за номером або наказом..."
+        onSearch={(v) => { setSearch(v); setPage(1); loadInventories(1, v) }}
+        style={{ marginBottom: 16, maxWidth: 400 }}
+        allowClear
+        prefix={<SearchOutlined />}
+      />
 
       <Table
         dataSource={inventories}
@@ -178,16 +230,17 @@ const InventoriesPage: React.FC = () => {
         pagination={{
           current: page, total, pageSize: 25,
           onChange: (p) => { setPage(p); loadInventories(p) },
+          showTotal: (t) => `Всього: ${t}`,
         }}
         size="small"
       />
 
       <Modal
-        title="Нова інвентаризація"
+        title={editingId ? 'Редагувати інвентаризацію' : 'Нова інвентаризація'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); setEditingId(null) }}
         onOk={() => form.submit()}
-        okText="Створити"
+        okText="Зберегти"
         cancelText="Скасувати"
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
@@ -206,13 +259,13 @@ const InventoriesPage: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="commission_head" label="Голова комісії">
-            <Select allowClear placeholder="Оберіть голову комісії"
-              options={users.map(u => ({ value: u.id, label: u.full_name || u.username }))}
+            <Select allowClear placeholder="Оберіть голову комісії" showSearch optionFilterProp="label"
+              options={responsiblePersons.map(p => ({ value: p.id, label: p.full_name }))}
             />
           </Form.Item>
           <Form.Item name="commission_members" label="Члени комісії">
-            <Select mode="multiple" placeholder="Оберіть членів комісії"
-              options={users.map(u => ({ value: u.id, label: u.full_name || u.username }))}
+            <Select mode="multiple" placeholder="Оберіть членів комісії" showSearch optionFilterProp="label"
+              options={responsiblePersons.map(p => ({ value: p.id, label: p.full_name }))}
             />
           </Form.Item>
           <Form.Item name="location" label="Місце проведення">

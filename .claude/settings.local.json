@@ -16,7 +16,9 @@
       "Bash(curl:*)",
       "Bash(DJANGO_SETTINGS_MODULE=config.settings python:*)",
       "Bash(wc -l:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ]
   }
 }
