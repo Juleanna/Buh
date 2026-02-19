@@ -410,7 +410,9 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
         assets = Asset.objects.filter(status=Asset.Status.ACTIVE)
         if inventory.location:
-            assets = assets.filter(location__icontains=inventory.location)
+            assets = assets.filter(
+                Q(location=inventory.location) | Q(location__isnull=True)
+            )
 
         created = 0
         for asset in assets:

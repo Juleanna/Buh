@@ -97,13 +97,21 @@ const AssetsPage: React.FC = () => {
     }
   }
 
-  const handleEdit = (asset: Asset) => {
+  const handleEdit = async (asset: Asset) => {
     setEditingId(asset.id)
-    form.setFieldsValue({
-      ...asset,
-      commissioning_date: dayjs(asset.commissioning_date),
-      depreciation_start_date: dayjs(asset.depreciation_start_date),
-    })
+    try {
+      const { data } = await api.get(`/assets/items/${asset.id}/`)
+      form.setFieldsValue({
+        ...data,
+        commissioning_date: dayjs(data.commissioning_date),
+        depreciation_start_date: data.depreciation_start_date ? dayjs(data.depreciation_start_date) : null,
+      })
+    } catch {
+      form.setFieldsValue({
+        ...asset,
+        commissioning_date: dayjs(asset.commissioning_date),
+      })
+    }
     setModalOpen(true)
   }
 

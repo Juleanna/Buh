@@ -233,8 +233,8 @@ class Asset(models.Model):
         return f'{self.inventory_number} — {self.name}'
 
     def save(self, *args, **kwargs):
-        if not self.current_book_value:
-            self.current_book_value = self.initial_cost
+        if not self.current_book_value or self.current_book_value == self.initial_cost:
+            self.current_book_value = self.initial_cost - (self.incoming_depreciation or Decimal('0.00'))
         super().save(*args, **kwargs)
 
 
