@@ -74,18 +74,19 @@ const GroupsPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Код', dataIndex: 'code', key: 'code', width: 80 },
-    { title: 'Назва групи', dataIndex: 'name', key: 'name' },
+    { title: 'Код', dataIndex: 'code', key: 'code', width: 80, sorter: (a: AssetGroup, b: AssetGroup) => (a.code || '').localeCompare(b.code || '') },
+    { title: 'Назва групи', dataIndex: 'name', key: 'name', sorter: (a: AssetGroup, b: AssetGroup) => (a.name || '').localeCompare(b.name || '') },
     {
       title: 'Мін. строк (міс.)',
       dataIndex: 'min_useful_life_months',
       key: 'life',
       width: 150,
+      sorter: (a: AssetGroup, b: AssetGroup) => Number(a.min_useful_life_months || 0) - Number(b.min_useful_life_months || 0),
       render: (v: number | null) => v ? `${v} міс. (${Math.round(v / 12)} р.)` : <Tag>Не обмежено</Tag>,
     },
-    { title: 'Рахунок обліку', dataIndex: 'account_number', key: 'account', width: 130 },
-    { title: 'Рахунок зносу', dataIndex: 'depreciation_account', key: 'depr', width: 130 },
-    { title: 'К-сть ОЗ', dataIndex: 'assets_count', key: 'count', width: 100 },
+    { title: 'Рахунок обліку', dataIndex: 'account_number', key: 'account', width: 130, sorter: (a: AssetGroup, b: AssetGroup) => (a.account_number || '').localeCompare(b.account_number || '') },
+    { title: 'Рахунок зносу', dataIndex: 'depreciation_account', key: 'depr', width: 130, sorter: (a: AssetGroup, b: AssetGroup) => (a.depreciation_account || '').localeCompare(b.depreciation_account || '') },
+    { title: 'К-сть ОЗ', dataIndex: 'assets_count', key: 'count', width: 100, sorter: (a: AssetGroup, b: AssetGroup) => Number(a.assets_count || 0) - Number(b.assets_count || 0) },
     {
       title: 'Дії',
       key: 'actions',

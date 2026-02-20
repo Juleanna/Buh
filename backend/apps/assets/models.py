@@ -493,6 +493,16 @@ class Inventory(models.Model):
     )
     notes = models.TextField('Примітки', blank=True)
 
+    # МВО
+    responsible_person = models.ForeignKey(
+        ResponsiblePerson,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventories_as_responsible',
+        verbose_name='Матеріально відповідальна особа',
+    )
+
     # Комісія
     commission_head = models.ForeignKey(
         ResponsiblePerson,

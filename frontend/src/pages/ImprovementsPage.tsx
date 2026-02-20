@@ -7,7 +7,8 @@ import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import type { AssetImprovement, Asset, PaginatedResponse } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { Asset, AssetImprovement, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -18,9 +19,10 @@ const IMPROVEMENT_TYPES = [
   { value: 'reconstruction', label: 'Реконструкція' },
 ]
 
+const assetMapOption = (a: Asset) => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` })
+
 const ImprovementsPage: React.FC = () => {
   const [improvements, setImprovements] = useState<AssetImprovement[]>([])
-  const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -41,9 +43,6 @@ const ImprovementsPage: React.FC = () => {
 
   useEffect(() => {
     loadImprovements()
-    api.get('/assets/items/', { params: { status: 'active', page_size: 1000 } }).then((res) => {
-      setAssets(res.data.results || res.data)
-    })
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -94,27 +93,30 @@ const ImprovementsPage: React.FC = () => {
       title: 'Дата',
       dataIndex: 'date',
       key: 'date',
+      sorter: (a: AssetImprovement, b: AssetImprovement) => (a.date || '').localeCompare(b.date || ''),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true },
-    { title: 'Інв.номер', dataIndex: 'asset_inventory_number', key: 'inv' },
-    { title: 'Тип', dataIndex: 'improvement_type_display', key: 'type' },
+    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true, sorter: (a: AssetImprovement, b: AssetImprovement) => (a.asset_name || '').localeCompare(b.asset_name || '') },
+    { title: 'Інв.номер', dataIndex: 'asset_inventory_number', key: 'inv', sorter: (a: AssetImprovement, b: AssetImprovement) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
+    { title: 'Тип', dataIndex: 'improvement_type_display', key: 'type', sorter: (a: AssetImprovement, b: AssetImprovement) => (a.improvement_type_display || '').localeCompare(b.improvement_type_display || '') },
     {
       title: 'Сума, грн',
       dataIndex: 'amount',
       key: 'amount',
+      sorter: (a: AssetImprovement, b: AssetImprovement) => Number(a.amount || 0) - Number(b.amount || 0),
       render: fmtMoney,
     },
-    { title: 'Виконавець', dataIndex: 'contractor', key: 'contractor', ellipsis: true },
+    { title: 'Виконавець', dataIndex: 'contractor', key: 'contractor', ellipsis: true, sorter: (a: AssetImprovement, b: AssetImprovement) => (a.contractor || '').localeCompare(b.contractor || '') },
     {
       title: 'Збільшує вартість',
       dataIndex: 'increases_value',
       key: 'increases_value',
+      sorter: (a: AssetImprovement, b: AssetImprovement) => Number(a.increases_value) - Number(b.increases_value),
       render: (v: boolean) => (
         <Tag color={v ? 'green' : 'red'}>{v ? 'Так' : 'Ні'}</Tag>
       ),
     },
-    { title: 'Рах.витрат', dataIndex: 'expense_account', key: 'expense_account' },
+    { title: 'Рах.витрат', dataIndex: 'expense_account', key: 'expense_account', sorter: (a: AssetImprovement, b: AssetImprovement) => (a.expense_account || '').localeCompare(b.expense_account || '') },
     {
       title: 'Дії',
       key: 'actions',
@@ -176,8 +178,11 @@ const ImprovementsPage: React.FC = () => {
           initialValues={{ expense_account: '91' }}
         >
           <Form.Item name="asset" label="Основний засіб" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="label" placeholder="Оберіть ОЗ"
-              options={assets.map(a => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` }))}
+            <AsyncSelect
+              url="/assets/items/"
+              params={{ status: 'active' }}
+              mapOption={assetMapOption}
+              placeholder="Пошук за номером або назвою"
             />
           </Form.Item>
           <Form.Item name="improvement_type" label="Тип поліпшення" rules={[{ required: true }]}>

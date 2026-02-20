@@ -15,11 +15,17 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from rest_framework import generics
+from rest_framework.pagination import PageNumberPagination
+
 from apps.accounts.permissions import IsAdmin
 from apps.assets.models import (
     Asset, AssetGroup, AssetReceipt, AssetDisposal,
     DepreciationRecord, AssetImprovement,
 )
+from .models import BackupRecord
+from .serializers import BackupRecordSerializer
+from . import gdrive
 
 
 class DashboardView(APIView):
@@ -397,3 +403,231 @@ class DatabaseBackupView(APIView):
         )
         response['X-Backup-Filename'] = filename
         return response
+
+
+class GDriveStatusView(APIView):
+    """Статус підключення Google Drive."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        configured = gdrive.is_configured()
+        has_credentials = gdrive.has_credentials_file()
+        has_token = gdrive.has_token()
+        last_backup = BackupRecord.objects.filter(
+            status=BackupRecord.Status.SUCCESS,
+        ).first()
+
+        # Розклад автобекапу
+        schedule_info = {'enabled': False, 'hour': 2, 'minute': 0}
+        try:
+            from django_celery_beat.models import PeriodicTask
+            task = PeriodicTask.objects.filter(name='daily-backup-to-gdrive').first()
+            if task and task.crontab:
+                schedule_info = {
+                    'enabled': task.enabled,
+                    'hour': int(task.crontab.hour),
+                    'minute': int(task.crontab.minute),
+                }
+        except Exception:
+            pass
+
+        return Response({
+            'is_configured': configured,
+            'has_credentials': has_credentials,
+            'has_token': has_token,
+            'folder_id': getattr(settings, 'GDRIVE_FOLDER_ID', ''),
+            'retention_days': getattr(settings, 'GDRIVE_BACKUP_RETENTION_DAYS', 30),
+            'last_backup': BackupRecordSerializer(last_backup).data if last_backup else None,
+            'schedule': schedule_info,
+        })
+
+
+class GDriveAuthView(APIView):
+    """Початок OAuth2 авторизації Google Drive."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        """Повертає URL для авторизації Google."""
+        creds_path = getattr(settings, 'GDRIVE_CREDENTIALS_PATH', '')
+        if not creds_path or not os.path.isfile(creds_path):
+            return Response(
+                {'error': 'Файл OAuth credentials не знайдено. Покладіть його в backend/ та вкажіть GDRIVE_CREDENTIALS_PATH в .env'},
+                status=400,
+            )
+
+        from google_auth_oauthlib.flow import Flow
+
+        callback_url = request.build_absolute_uri('/api/reports/backup/gdrive-callback/')
+
+        flow = Flow.from_client_secrets_file(
+            creds_path,
+            scopes=['https://www.googleapis.com/auth/drive.file'],
+            redirect_uri=callback_url,
+        )
+
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent',
+        )
+
+        # Зберегти state в сесії
+        request.session['gdrive_oauth_state'] = state
+
+        return Response({'auth_url': auth_url})
+
+
+class GDriveCallbackView(APIView):
+    """Callback OAuth2 від Google — зберігає токен."""
+    permission_classes = []  # Google redirects тут без JWT
+
+    def get(self, request):
+        from django.http import HttpResponseRedirect
+        from google_auth_oauthlib.flow import Flow
+
+        code = request.query_params.get('code')
+        if not code:
+            error = request.query_params.get('error', 'Невідома помилка')
+            return HttpResponseRedirect(f'/?gdrive_error={error}')
+
+        creds_path = getattr(settings, 'GDRIVE_CREDENTIALS_PATH', '')
+        callback_url = request.build_absolute_uri('/api/reports/backup/gdrive-callback/')
+
+        try:
+            flow = Flow.from_client_secrets_file(
+                creds_path,
+                scopes=['https://www.googleapis.com/auth/drive.file'],
+                redirect_uri=callback_url,
+            )
+            flow.fetch_token(code=code)
+            creds = flow.credentials
+
+            token_path = gdrive._token_path()
+            with open(token_path, 'w') as f:
+                f.write(creds.to_json())
+
+            # Перенаправити на сторінку бекапу з повідомленням про успіх
+            frontend_url = settings.CORS_ALLOWED_ORIGINS[0] if settings.CORS_ALLOWED_ORIGINS else 'http://localhost:5173'
+            return HttpResponseRedirect(f'{frontend_url}/backup?gdrive_auth=success')
+        except Exception as e:
+            frontend_url = settings.CORS_ALLOWED_ORIGINS[0] if settings.CORS_ALLOWED_ORIGINS else 'http://localhost:5173'
+            return HttpResponseRedirect(f'{frontend_url}/backup?gdrive_auth=error&message={str(e)[:100]}')
+
+
+class CloudBackupView(APIView):
+    """Ручний запуск бекапу на Google Drive."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        if not gdrive.is_configured():
+            return Response(
+                {'error': 'Google Drive не налаштовано. Перевірте GDRIVE_CREDENTIALS_PATH та GDRIVE_FOLDER_ID в .env'},
+                status=400,
+            )
+
+        # Перевірити чи немає бекапу в процесі
+        pending = BackupRecord.objects.filter(status=BackupRecord.Status.PENDING).exists()
+        if pending:
+            return Response(
+                {'error': 'Бекап вже виконується. Зачекайте завершення.'},
+                status=409,
+            )
+
+        from .backup import create_full_backup, upload_and_record
+
+        try:
+            zip_path = create_full_backup()
+            record = upload_and_record(zip_path, is_auto=False)
+
+            if record.status == BackupRecord.Status.FAILED:
+                return Response(
+                    {'error': record.error_message or 'Помилка завантаження на Google Drive'},
+                    status=500,
+                )
+
+            from .serializers import BackupRecordSerializer
+            return Response({
+                'message': 'Бекап успішно створено та завантажено на Google Drive',
+                'record': BackupRecordSerializer(record).data,
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+
+class BackupHistoryPagination(PageNumberPagination):
+    page_size = 20
+
+
+class BackupHistoryView(generics.ListAPIView):
+    """Історія хмарних бекапів."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+    serializer_class = BackupRecordSerializer
+    pagination_class = BackupHistoryPagination
+    queryset = BackupRecord.objects.all()
+
+
+BACKUP_TASK_NAME = 'apps.reports.tasks.auto_backup_to_gdrive'
+
+
+class BackupScheduleView(APIView):
+    """Управління розкладом автоматичного бекапу через django-celery-beat."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def _get_periodic_task(self):
+        from django_celery_beat.models import PeriodicTask, CrontabSchedule
+        try:
+            return PeriodicTask.objects.get(name='daily-backup-to-gdrive')
+        except PeriodicTask.DoesNotExist:
+            return None
+
+    def get(self, request):
+        task = self._get_periodic_task()
+        if task and task.crontab:
+            return Response({
+                'enabled': task.enabled,
+                'hour': int(task.crontab.hour),
+                'minute': int(task.crontab.minute),
+            })
+        return Response({
+            'enabled': False,
+            'hour': 2,
+            'minute': 0,
+        })
+
+    def put(self, request):
+        from django_celery_beat.models import PeriodicTask, CrontabSchedule
+        import json
+
+        enabled = request.data.get('enabled', True)
+        hour = int(request.data.get('hour', 2))
+        minute = int(request.data.get('minute', 0))
+
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            return Response({'error': 'Невірний час'}, status=400)
+
+        schedule, _ = CrontabSchedule.objects.get_or_create(
+            hour=hour,
+            minute=minute,
+            timezone=settings.CELERY_TIMEZONE,
+        )
+
+        task = self._get_periodic_task()
+        if task:
+            task.crontab = schedule
+            task.enabled = enabled
+            task.save()
+        else:
+            PeriodicTask.objects.create(
+                name='daily-backup-to-gdrive',
+                task=BACKUP_TASK_NAME,
+                crontab=schedule,
+                enabled=enabled,
+                kwargs=json.dumps({}),
+            )
+
+        return Response({
+            'enabled': enabled,
+            'hour': hour,
+            'minute': minute,
+            'message': 'Розклад оновлено',
+        })

@@ -92,14 +92,19 @@ const DepreciationPage: React.FC = () => {
     Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   const columns = [
-    { title: 'Субрахунок', dataIndex: 'account_number', key: 'acc', width: 95, align: 'center' as const },
-    { title: 'Інвентарний номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120 },
-    { title: 'Назва об\'єкта', dataIndex: 'asset_name', key: 'name', ellipsis: true, width: 180 },
+    { title: 'Субрахунок', dataIndex: 'account_number', key: 'acc', width: 95, align: 'center' as const, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.account_number || '').localeCompare(b.account_number || '') },
+    { title: 'Інвентарний номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
+    { title: 'Назва об\'єкта', dataIndex: 'asset_name', key: 'name', ellipsis: true, width: 180, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.asset_name || '').localeCompare(b.asset_name || '') },
     {
       title: 'Вартість, яка амортизується',
       key: 'depreciable',
       width: 140,
       align: 'right' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => {
+        const da = Number(a.asset_initial_cost || 0) - Number(a.asset_residual_value || 0) - Number(a.asset_incoming_depreciation || 0)
+        const db = Number(b.asset_initial_cost || 0) - Number(b.asset_residual_value || 0) - Number(b.asset_incoming_depreciation || 0)
+        return da - db
+      },
       render: (_: unknown, r: DepreciationRecord) =>
         fmtNum(Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0) - Number(r.asset_incoming_depreciation || 0)),
     },
@@ -108,6 +113,16 @@ const DepreciationPage: React.FC = () => {
       key: 'annual',
       width: 130,
       align: 'right' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => {
+        const calc = (r: DepreciationRecord) => {
+          if (r.asset_depreciation_rate && Number(r.asset_depreciation_rate) > 0) {
+            const dep = Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0) - Number(r.asset_incoming_depreciation || 0)
+            return dep * Number(r.asset_depreciation_rate) / 100
+          }
+          return Number(r.amount) * 12
+        }
+        return calc(a) - calc(b)
+      },
       render: (_: unknown, r: DepreciationRecord) => {
         if (r.asset_depreciation_rate && Number(r.asset_depreciation_rate) > 0) {
           const depreciable = Number(r.asset_initial_cost || 0) - Number(r.asset_residual_value || 0) - Number(r.asset_incoming_depreciation || 0)
@@ -122,12 +137,14 @@ const DepreciationPage: React.FC = () => {
       key: 'months',
       width: 100,
       align: 'center' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => Number(a.asset_useful_life_months || 0) - Number(b.asset_useful_life_months || 0),
     },
     {
       title: 'Сума зносу на початок періоду',
       key: 'wear_start',
       width: 140,
       align: 'right' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => Number(a.wear_before || 0) - Number(b.wear_before || 0),
       render: (_: unknown, r: DepreciationRecord) =>
         fmtNum(Number(r.wear_before || 0)),
     },
@@ -137,6 +154,7 @@ const DepreciationPage: React.FC = () => {
       key: 'amount',
       width: 140,
       align: 'right' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => Number(a.amount || 0) - Number(b.amount || 0),
       render: (v: string) => <Tag color="blue">{fmtNum(v)}</Tag>,
     },
     {
@@ -144,6 +162,7 @@ const DepreciationPage: React.FC = () => {
       key: 'wear_end',
       width: 150,
       align: 'right' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => Number(a.wear_after || 0) - Number(b.wear_after || 0),
       render: (_: unknown, r: DepreciationRecord) =>
         fmtNum(Number(r.wear_after || 0)),
     },
@@ -153,6 +172,7 @@ const DepreciationPage: React.FC = () => {
       key: 'expense',
       width: 100,
       align: 'center' as const,
+      sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.expense_account || '').localeCompare(b.expense_account || ''),
     },
     {
       title: 'Примітка',

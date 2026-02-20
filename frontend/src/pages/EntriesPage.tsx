@@ -77,6 +77,7 @@ const EntriesPage: React.FC = () => {
       dataIndex: 'date',
       key: 'date',
       width: 110,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.date || '').localeCompare(b.date || ''),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
     {
@@ -85,6 +86,7 @@ const EntriesPage: React.FC = () => {
       key: 'type',
       width: 200,
       ellipsis: true,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.entry_type_display || '').localeCompare(b.entry_type_display || ''),
       render: (text: string, record: AccountEntry) => (
         <Tag color={ENTRY_TYPE_COLORS[record.entry_type] || 'default'}>{text}</Tag>
       ),
@@ -94,18 +96,21 @@ const EntriesPage: React.FC = () => {
       dataIndex: 'debit_account',
       key: 'debit',
       width: 100,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.debit_account || '').localeCompare(b.debit_account || ''),
     },
     {
       title: 'Кредит',
       dataIndex: 'credit_account',
       key: 'credit',
       width: 100,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.credit_account || '').localeCompare(b.credit_account || ''),
     },
     {
       title: 'Сума, грн',
       dataIndex: 'amount',
       key: 'amount',
       width: 130,
+      sorter: (a: AccountEntry, b: AccountEntry) => Number(a.amount || 0) - Number(b.amount || 0),
       render: (v: string) => Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }),
     },
     {
@@ -113,18 +118,21 @@ const EntriesPage: React.FC = () => {
       dataIndex: 'asset_name',
       key: 'asset',
       ellipsis: true,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.asset_name || '').localeCompare(b.asset_name || ''),
     },
     {
       title: 'Опис',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
+      sorter: (a: AccountEntry, b: AccountEntry) => (a.description || '').localeCompare(b.description || ''),
     },
     {
       title: 'Статус',
       dataIndex: 'is_posted',
       key: 'status',
       width: 110,
+      sorter: (a: AccountEntry, b: AccountEntry) => Number(a.is_posted) - Number(b.is_posted),
       render: (posted: boolean) => (
         <Tag color={posted ? 'green' : 'red'}>
           {posted ? 'Проведено' : 'Не проведено'}

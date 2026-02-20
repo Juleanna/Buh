@@ -6,7 +6,8 @@ export interface User {
   last_name: string
   patronymic: string
   role: 'admin' | 'accountant' | 'inventory_manager'
-  position: string
+  position: number | null
+  position_name: string
   phone: string
   full_name: string
   is_active: boolean
@@ -186,6 +187,8 @@ export interface Inventory {
   location: number | null
   location_name: string
   notes: string
+  responsible_person: number | null
+  responsible_person_name: string
   commission_head: number | null
   commission_head_name: string
   commission_members: number[]

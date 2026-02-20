@@ -241,6 +241,9 @@ class InventoryListSerializer(serializers.ModelSerializer):
     commission_head_name = serializers.CharField(
         source='commission_head.full_name', read_only=True, default=''
     )
+    responsible_person_name = serializers.CharField(
+        source='responsible_person.full_name', read_only=True, default=''
+    )
     location_name = serializers.CharField(
         source='location.name', read_only=True, default=''
     )
@@ -251,6 +254,7 @@ class InventoryListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'number', 'date', 'order_number', 'order_date',
             'status', 'status_display', 'location', 'location_name',
+            'responsible_person', 'responsible_person_name',
             'commission_head', 'commission_head_name', 'items_count',
         ]
 
@@ -260,6 +264,9 @@ class InventoryDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     commission_head_name = serializers.CharField(
         source='commission_head.full_name', read_only=True, default=''
+    )
+    responsible_person_name = serializers.CharField(
+        source='responsible_person.full_name', read_only=True, default=''
     )
     location_name = serializers.CharField(
         source='location.name', read_only=True, default=''

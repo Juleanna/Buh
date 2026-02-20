@@ -18,7 +18,8 @@
       "Bash(wc -l:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(source:*)"
     ]
   }
 }

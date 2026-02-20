@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Button, Typography, Statistic, Space, Alert, Spin } from 'antd'
+import React, { useEffect, useState, useCallback } from 'react'
+import {
+  Card, Row, Col, Button, Typography, Statistic, Space, Alert, Spin,
+  Table, Tag, Divider, Collapse, TimePicker, Switch,
+} from 'antd'
 import { message } from '../utils/globalMessage'
 import {
   DatabaseOutlined,
@@ -9,7 +12,15 @@ import {
   HddOutlined,
   FileTextOutlined,
   CodeOutlined,
+  CloudUploadOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SyncOutlined,
+  LinkOutlined,
+  ClockCircleOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import api from '../api/client'
 
 const { Title, Text, Paragraph } = Typography
@@ -20,6 +31,36 @@ interface DbInfo {
   database_size: string
   tables_count: number
   assets_count: number
+}
+
+interface BackupSchedule {
+  enabled: boolean
+  hour: number
+  minute: number
+}
+
+interface GDriveStatus {
+  is_configured: boolean
+  has_credentials: boolean
+  has_token: boolean
+  folder_id: string
+  retention_days: number
+  last_backup: BackupRecord | null
+  schedule: BackupSchedule
+}
+
+interface BackupRecord {
+  id: number
+  filename: string
+  file_size: number
+  file_size_display: string
+  status: string
+  status_display: string
+  gdrive_file_id: string
+  gdrive_link: string
+  error_message: string
+  is_auto: boolean
+  created_at: string
 }
 
 interface BackupHistoryItem {
@@ -35,6 +76,30 @@ const BackupPage: React.FC = () => {
   const [downloadingJson, setDownloadingJson] = useState(false)
   const [history, setHistory] = useState<BackupHistoryItem[]>([])
 
+  // Google Drive state
+  const [gdriveStatus, setGdriveStatus] = useState<GDriveStatus | null>(null)
+  const [gdriveLoading, setGdriveLoading] = useState(true)
+  const [cloudBackupLoading, setCloudBackupLoading] = useState(false)
+  const [backupRecords, setBackupRecords] = useState<BackupRecord[]>([])
+  const [backupRecordsTotal, setBackupRecordsTotal] = useState(0)
+  const [backupPage, setBackupPage] = useState(1)
+  const [backupRecordsLoading, setBackupRecordsLoading] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
+
+  // Перевірити query параметри після OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authResult = params.get('gdrive_auth')
+    if (authResult === 'success') {
+      message.success('Google Drive успішно авторизовано!')
+      window.history.replaceState({}, '', '/backup')
+    } else if (authResult === 'error') {
+      message.error('Помилка авторизації Google Drive: ' + (params.get('message') || ''))
+      window.history.replaceState({}, '', '/backup')
+    }
+  }, [])
+
   useEffect(() => {
     api.get('/reports/backup/')
       .then((res) => {
@@ -46,6 +111,36 @@ const BackupPage: React.FC = () => {
         setLoading(false)
       })
   }, [])
+
+  const loadGdriveStatus = useCallback(() => {
+    setGdriveLoading(true)
+    api.get('/reports/backup/gdrive-status/')
+      .then((res) => {
+        setGdriveStatus(res.data)
+        setGdriveLoading(false)
+      })
+      .catch(() => {
+        setGdriveLoading(false)
+      })
+  }, [])
+
+  const loadBackupRecords = useCallback((page = 1) => {
+    setBackupRecordsLoading(true)
+    api.get('/reports/backup/history/', { params: { page } })
+      .then((res) => {
+        setBackupRecords(res.data.results)
+        setBackupRecordsTotal(res.data.count)
+        setBackupRecordsLoading(false)
+      })
+      .catch(() => {
+        setBackupRecordsLoading(false)
+      })
+  }, [])
+
+  useEffect(() => {
+    loadGdriveStatus()
+    loadBackupRecords()
+  }, [loadGdriveStatus, loadBackupRecords])
 
   const handleDownload = async (format: 'sql' | 'json') => {
     const isSql = format === 'sql'
@@ -95,21 +190,352 @@ const BackupPage: React.FC = () => {
     }
   }
 
+  const handleGdriveAuth = async () => {
+    setAuthLoading(true)
+    try {
+      const res = await api.get('/reports/backup/gdrive-auth/')
+      window.location.href = res.data.auth_url
+    } catch (err: any) {
+      message.error(err.response?.data?.error || 'Помилка авторизації')
+      setAuthLoading(false)
+    }
+  }
+
+  const handleCloudBackup = async () => {
+    setCloudBackupLoading(true)
+    try {
+      const res = await api.post('/reports/backup/cloud/')
+      message.success(res.data.message || 'Бекап успішно створено!')
+      loadBackupRecords(1)
+      loadGdriveStatus()
+    } catch (err: any) {
+      message.error(err.response?.data?.error || 'Помилка створення бекапу')
+    } finally {
+      setCloudBackupLoading(false)
+    }
+  }
+
+  const handleScheduleChange = async (enabled: boolean, hour?: number, minute?: number) => {
+    const schedule = gdriveStatus?.schedule
+    const newHour = hour ?? schedule?.hour ?? 2
+    const newMinute = minute ?? schedule?.minute ?? 0
+    setScheduleLoading(true)
+    try {
+      const res = await api.put('/reports/backup/schedule/', {
+        enabled,
+        hour: newHour,
+        minute: newMinute,
+      })
+      message.success(res.data.message || 'Розклад оновлено')
+      loadGdriveStatus()
+    } catch (err: any) {
+      message.error(err.response?.data?.error || 'Помилка оновлення розкладу')
+    } finally {
+      setScheduleLoading(false)
+    }
+  }
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case 'success': return 'green'
+      case 'failed': return 'red'
+      case 'pending': return 'blue'
+      default: return 'default'
+    }
+  }
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case 'success': return <CheckCircleOutlined />
+      case 'failed': return <CloseCircleOutlined />
+      case 'pending': return <SyncOutlined spin />
+      default: return null
+    }
+  }
+
+  const cloudColumns = [
+    {
+      title: 'Дата',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (v: string) => dayjs(v).format('DD.MM.YYYY HH:mm'),
+      sorter: (a: BackupRecord, b: BackupRecord) => a.created_at.localeCompare(b.created_at),
+    },
+    {
+      title: 'Файл',
+      dataIndex: 'filename',
+      key: 'filename',
+      ellipsis: true,
+      sorter: (a: BackupRecord, b: BackupRecord) => a.filename.localeCompare(b.filename),
+    },
+    {
+      title: 'Розмір',
+      dataIndex: 'file_size_display',
+      key: 'file_size_display',
+      width: 100,
+      sorter: (a: BackupRecord, b: BackupRecord) => a.file_size - b.file_size,
+    },
+    {
+      title: 'Тип',
+      dataIndex: 'is_auto',
+      key: 'is_auto',
+      width: 100,
+      sorter: (a: BackupRecord, b: BackupRecord) => Number(a.is_auto) - Number(b.is_auto),
+      render: (v: boolean) => (
+        <Tag color={v ? 'purple' : 'cyan'} icon={v ? <ClockCircleOutlined /> : undefined}>
+          {v ? 'Авто' : 'Ручний'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      sorter: (a: BackupRecord, b: BackupRecord) => a.status.localeCompare(b.status),
+      render: (status: string, record: BackupRecord) => (
+        <Tag color={statusColor(status)} icon={statusIcon(status)}>
+          {record.status_display}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Посилання',
+      key: 'link',
+      width: 100,
+      render: (_: unknown, record: BackupRecord) => record.gdrive_link ? (
+        <a href={record.gdrive_link} target="_blank" rel="noopener noreferrer">
+          <LinkOutlined /> Відкрити
+        </a>
+      ) : record.error_message ? (
+        <Text type="danger" style={{ fontSize: 12 }}>{record.error_message.slice(0, 50)}</Text>
+      ) : '—',
+    },
+  ]
+
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>Резервне копіювання бази даних</Title>
+      <Title level={4} style={{ marginBottom: 16 }}>Резервне копіювання</Title>
+
+      {/* Google Drive Section */}
+      <Card
+        title={
+          <Space>
+            <CloudUploadOutlined />
+            <span>Google Drive — хмарний бекап</span>
+            {gdriveStatus && (
+              <Tag
+                color={gdriveStatus.is_configured ? 'green' : 'orange'}
+                icon={gdriveStatus.is_configured ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              >
+                {gdriveStatus.is_configured ? 'Підключено' : 'Не налаштовано'}
+              </Tag>
+            )}
+          </Space>
+        }
+        style={{ marginBottom: 24 }}
+        loading={gdriveLoading}
+      >
+        {gdriveStatus?.is_configured ? (
+          <>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col xs={24} sm={8}>
+                <Statistic
+                  title="Останній бекап"
+                  value={gdriveStatus.last_backup
+                    ? dayjs(gdriveStatus.last_backup.created_at).format('DD.MM.YYYY HH:mm')
+                    : 'Немає'
+                  }
+                  prefix={<ClockCircleOutlined />}
+                  valueStyle={{ fontSize: 16 }}
+                />
+              </Col>
+              <Col xs={24} sm={8}>
+                <Statistic
+                  title="Розмір останнього"
+                  value={gdriveStatus.last_backup?.file_size_display || '—'}
+                  prefix={<HddOutlined />}
+                  valueStyle={{ fontSize: 16 }}
+                />
+              </Col>
+              <Col xs={24} sm={8}>
+                <Statistic
+                  title="Зберігання"
+                  value={`${gdriveStatus.retention_days} днів`}
+                  prefix={<DatabaseOutlined />}
+                  valueStyle={{ fontSize: 16 }}
+                />
+              </Col>
+            </Row>
+
+            <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+              <Row align="middle" gutter={[16, 12]}>
+                <Col>
+                  <Space>
+                    <Text strong>Автобекап:</Text>
+                    <Switch
+                      checked={gdriveStatus.schedule?.enabled ?? false}
+                      onChange={(checked) => handleScheduleChange(checked)}
+                      loading={scheduleLoading}
+                    />
+                    <Text type={gdriveStatus.schedule?.enabled ? 'success' : 'secondary'}>
+                      {gdriveStatus.schedule?.enabled ? 'Увімкнено' : 'Вимкнено'}
+                    </Text>
+                  </Space>
+                </Col>
+                <Col>
+                  <Space>
+                    <Text>Час:</Text>
+                    <TimePicker
+                      value={dayjs().hour(gdriveStatus.schedule?.hour ?? 2).minute(gdriveStatus.schedule?.minute ?? 0)}
+                      format="HH:mm"
+                      onChange={(time) => {
+                        if (time) {
+                          handleScheduleChange(
+                            gdriveStatus.schedule?.enabled ?? false,
+                            time.hour(),
+                            time.minute(),
+                          )
+                        }
+                      }}
+                      disabled={scheduleLoading}
+                      allowClear={false}
+                      style={{ width: 90 }}
+                    />
+                    <Text type="secondary">щодня</Text>
+                  </Space>
+                </Col>
+              </Row>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+                Бекап включає: базу даних (pg_dump), медіафайли та .env конфігурацію.
+              </Text>
+            </Card>
+
+            <Button
+              type="primary"
+              icon={<CloudUploadOutlined />}
+              onClick={handleCloudBackup}
+              loading={cloudBackupLoading}
+              size="large"
+            >
+              Створити бекап зараз
+            </Button>
+          </>
+        ) : (
+          <>
+            {gdriveStatus?.has_credentials && !gdriveStatus?.has_token ? (
+              <Alert
+                message="Потрібна авторизація Google Drive"
+                description="Credentials файл знайдено. Натисніть кнопку нижче, щоб увійти в Google акаунт і дозволити доступ до Drive."
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : (
+              <Alert
+                message="Google Drive не налаштовано"
+                description="Для увімкнення хмарних бекапів потрібно налаштувати OAuth2 авторизацію Google. Дивіться інструкцію нижче."
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            {gdriveStatus?.has_credentials && !gdriveStatus?.has_token && (
+              <Button
+                type="primary"
+                icon={<CloudUploadOutlined />}
+                onClick={handleGdriveAuth}
+                loading={authLoading}
+                size="large"
+                style={{ marginBottom: 16 }}
+              >
+                Авторизувати Google Drive
+              </Button>
+            )}
+
+            <Collapse
+              items={[{
+                key: '1',
+                label: <><InfoCircleOutlined /> Інструкція з налаштування Google Drive</>,
+                children: (
+                  <ol style={{ paddingLeft: 20, lineHeight: 2 }}>
+                    <li>Відкрийте <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a></li>
+                    <li>Створіть новий проект або оберіть існуючий</li>
+                    <li>Увімкніть <strong>Google Drive API</strong>:
+                      <br /><Text type="secondary">APIs & Services → Library → шукайте "Google Drive API" → Enable</Text>
+                    </li>
+                    <li>Налаштуйте <strong>OAuth consent screen</strong>:
+                      <br /><Text type="secondary">APIs & Services → OAuth consent screen → User type: External → заповніть назву додатку та email</Text>
+                    </li>
+                    <li>Додайте себе як <strong>тестового користувача</strong>:
+                      <br /><Text type="secondary">На сторінці OAuth consent screen → секція Test users → + Add users → введіть свій Gmail → Save</Text>
+                      <br /><Text type="secondary" italic>Це потрібно, бо додаток у режимі Testing і без цього Google заблокує вхід</Text>
+                    </li>
+                    <li>Створіть <strong>OAuth Client ID</strong>:
+                      <br /><Text type="secondary">APIs & Services → Credentials → + Create Credentials → OAuth client ID</Text>
+                    </li>
+                    <li>Application type: <strong>Web application</strong></li>
+                    <li>В <strong>Authorized redirect URIs</strong> додайте:
+                      <br /><Text code copyable>http://localhost:8000/api/reports/backup/gdrive-callback/</Text>
+                    </li>
+                    <li>Натисніть <strong>Create</strong>, потім <strong>Download JSON</strong> (стрілка завантаження)</li>
+                    <li>Збережіть завантажений JSON файл у папку <Text code>backend/</Text> вашого проекту</li>
+                    <li>Створіть папку в Google Drive для бекапів:
+                      <br /><Text type="secondary">Відкрийте Google Drive → Створити папку → Відкрийте її → Скопіюйте ID з URL (після folders/)</Text>
+                    </li>
+                    <li>Додайте в файл <Text code>.env</Text>:
+                      <br /><Text code>GDRIVE_CREDENTIALS_PATH=назва_завантаженого_файлу.json</Text>
+                      <br /><Text code>GDRIVE_FOLDER_ID=id_папки_з_url</Text>
+                    </li>
+                    <li>Перезапустіть сервер та натисніть кнопку <strong>"Авторизувати Google Drive"</strong> вище</li>
+                  </ol>
+                ),
+              }]}
+            />
+          </>
+        )}
+      </Card>
+
+      {/* Cloud Backup History */}
+      {backupRecords.length > 0 && (
+        <Card
+          title={<><CloudServerOutlined /> Історія хмарних бекапів</>}
+          style={{ marginBottom: 24 }}
+        >
+          <Table
+            dataSource={backupRecords}
+            columns={cloudColumns}
+            rowKey="id"
+            loading={backupRecordsLoading}
+            size="small"
+            pagination={{
+              current: backupPage,
+              total: backupRecordsTotal,
+              pageSize: 20,
+              onChange: (p) => { setBackupPage(p); loadBackupRecords(p) },
+              showTotal: (t) => `Всього: ${t}`,
+            }}
+          />
+        </Card>
+      )}
+
+      <Divider />
+
+      {/* DB info */}
+      <Title level={5} style={{ marginBottom: 16 }}>Локальний бекап бази даних</Title>
 
       <Alert
         message="Рекомендація"
-        description="Регулярно створюйте резервні копії бази даних та зберігайте їх у безпечному місці. SQL формат рекомендується для повного відновлення бази, JSON — для міграції даних між системами."
+        description="SQL формат рекомендується для повного відновлення бази, JSON — для міграції даних між системами."
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
       />
 
-      {/* DB info */}
       {dbInfo && (
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} lg={6}>

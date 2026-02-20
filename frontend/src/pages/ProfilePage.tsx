@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Form, Input, Button, Typography, Descriptions, Tag, Space,
+  Card, Form, Input, Button, Typography, Descriptions, Tag, Select, Space,
   Divider, Row, Col,
 } from 'antd'
 import { message } from '../utils/globalMessage'
@@ -9,7 +9,8 @@ import {
 } from '@ant-design/icons'
 import api from '../api/client'
 import { useAuthStore } from '../store/authStore'
-import type { User } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { User, Position, PaginatedResponse } from '../types'
 
 const { Title, Text } = Typography
 
@@ -24,6 +25,8 @@ const ROLE_COLORS: Record<string, string> = {
   accountant: 'blue',
   inventory_manager: 'green',
 }
+
+const posMapOption = (p: Position) => ({ value: p.id, label: p.name })
 
 const ProfilePage: React.FC = () => {
   const { user, loadProfile } = useAuthStore()
@@ -114,7 +117,7 @@ const ProfilePage: React.FC = () => {
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Логін">{user.username}</Descriptions.Item>
               <Descriptions.Item label="Email">{user.email || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Посада">{user.position || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Посада">{user.position_name || '—'}</Descriptions.Item>
               <Descriptions.Item label="Телефон">{user.phone || '—'}</Descriptions.Item>
             </Descriptions>
           </Card>
@@ -157,7 +160,8 @@ const ProfilePage: React.FC = () => {
                 </Col>
               </Row>
               <Form.Item name="position" label="Посада">
-                <Input placeholder="Напр. Головний бухгалтер" />
+                <AsyncSelect url="/assets/positions/" params={{ is_active: true }}
+                  mapOption={posMapOption} allowClear placeholder="Пошук посади" />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>

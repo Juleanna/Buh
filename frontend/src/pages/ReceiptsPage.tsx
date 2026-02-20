@@ -8,7 +8,10 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
-import type { AssetReceipt, Asset, Organization, PaginatedResponse } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { Asset, AssetReceipt, Organization, PaginatedResponse } from '../types'
+
+const orgMapOption = (o: Organization) => ({ value: o.id, label: `${o.name} (${o.edrpou})` })
 
 const { Title } = Typography
 
@@ -21,10 +24,10 @@ const RECEIPT_TYPES = [
   { value: 'other', label: 'Інше' },
 ]
 
+const assetMapOption = (a: Asset) => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` })
+
 const ReceiptsPage: React.FC = () => {
   const [receipts, setReceipts] = useState<AssetReceipt[]>([])
-  const [assets, setAssets] = useState<Asset[]>([])
-  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -43,18 +46,8 @@ const ReceiptsPage: React.FC = () => {
     setLoading(false)
   }
 
-  const loadAvailableAssets = () => {
-    api.get('/assets/items/', { params: { status: 'active', no_receipt: 1, page_size: 1000 } }).then((res) => {
-      setAssets(res.data.results || res.data)
-    })
-  }
-
   useEffect(() => {
     loadReceipts()
-    loadAvailableAssets()
-    api.get('/assets/organizations/counterparties/').then((res) => {
-      setOrganizations(res.data)
-    })
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -74,7 +67,6 @@ const ReceiptsPage: React.FC = () => {
       form.resetFields()
       setEditingId(null)
       loadReceipts()
-      loadAvailableAssets()
     } catch (err: any) {
       message.error(err.response?.data?.asset?.[0] || err.response?.data?.detail || 'Помилка')
     }
@@ -94,33 +86,35 @@ const ReceiptsPage: React.FC = () => {
       await api.delete(`/assets/receipts/${id}/`)
       message.success('Прихід видалено')
       loadReceipts()
-      loadAvailableAssets()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
   const columns = [
-    { title: 'Номер документа', dataIndex: 'document_number', key: 'doc' },
+    { title: 'Номер документа', dataIndex: 'document_number', key: 'doc', sorter: (a: AssetReceipt, b: AssetReceipt) => (a.document_number || '').localeCompare(b.document_number || '') },
     {
       title: 'Дата',
       dataIndex: 'document_date',
       key: 'date',
+      sorter: (a: AssetReceipt, b: AssetReceipt) => (a.document_date || '').localeCompare(b.document_date || ''),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true },
-    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv' },
-    { title: 'Тип', dataIndex: 'receipt_type_display', key: 'type' },
+    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true, sorter: (a: AssetReceipt, b: AssetReceipt) => (a.asset_name || '').localeCompare(b.asset_name || '') },
+    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', sorter: (a: AssetReceipt, b: AssetReceipt) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
+    { title: 'Тип', dataIndex: 'receipt_type_display', key: 'type', sorter: (a: AssetReceipt, b: AssetReceipt) => (a.receipt_type_display || '').localeCompare(b.receipt_type_display || '') },
     {
       title: 'Сума, грн',
       dataIndex: 'amount',
       key: 'amount',
+      sorter: (a: AssetReceipt, b: AssetReceipt) => Number(a.amount || 0) - Number(b.amount || 0),
       render: (v: string) => Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }),
     },
     {
       title: 'Постачальник',
       key: 'supplier',
       ellipsis: true,
+      sorter: (a: AssetReceipt, b: AssetReceipt) => (a.supplier_organization_name || a.supplier || '').localeCompare(b.supplier_organization_name || b.supplier || ''),
       render: (_: unknown, r: AssetReceipt) =>
         r.supplier_organization_name || r.supplier || '\u2014',
     },
@@ -188,8 +182,11 @@ const ReceiptsPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="asset" label="Основний засіб" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="label" placeholder="Оберіть ОЗ"
-              options={assets.map(a => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` }))}
+            <AsyncSelect
+              url="/assets/items/"
+              params={{ status: 'active', no_receipt: 1 }}
+              mapOption={assetMapOption}
+              placeholder="Пошук за номером або назвою"
             />
           </Form.Item>
           <Form.Item name="receipt_type" label="Тип надходження" rules={[{ required: true }]}>
@@ -207,16 +204,9 @@ const ReceiptsPage: React.FC = () => {
             <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="supplier_organization" label="Постачальник / джерело">
-            <Select
-              showSearch
-              allowClear
-              optionFilterProp="label"
-              placeholder="Оберіть контрагента"
-              options={organizations.map(o => ({
-                value: o.id,
-                label: `${o.name} (${o.edrpou})`,
-              }))}
-            />
+            <AsyncSelect url="/assets/organizations/"
+              params={{ is_active: true, is_own: false }}
+              mapOption={orgMapOption} allowClear placeholder="Пошук контрагента" />
           </Form.Item>
           <Form.Item name="notes" label="Примітки">
             <Input.TextArea rows={2} />

@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
+import AsyncSelect from '../components/AsyncSelect'
 import type { Asset, AssetGroup, PaginatedResponse, ResponsiblePerson, Location } from '../types'
 
 const { Title } = Typography
@@ -23,12 +24,13 @@ const STATUS_COLORS: Record<string, string> = {
   conserved: 'orange',
 }
 
+const groupMapOption = (g: AssetGroup) => ({ value: g.id, label: `${g.code} — ${g.name}` })
+const rpMapOption = (rp: ResponsiblePerson) => ({ value: rp.id, label: rp.full_name })
+const locMapOption = (loc: Location) => ({ value: loc.id, label: loc.name })
+
 const AssetsPage: React.FC = () => {
   const navigate = useNavigate()
   const [assets, setAssets] = useState<Asset[]>([])
-  const [groups, setGroups] = useState<AssetGroup[]>([])
-  const [responsiblePersons, setResponsiblePersons] = useState<ResponsiblePerson[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -48,30 +50,8 @@ const AssetsPage: React.FC = () => {
     setLoading(false)
   }
 
-  const loadGroups = async () => {
-    const { data } = await api.get('/assets/groups/')
-    setGroups(data.results || data)
-  }
-
-  const loadResponsiblePersons = async () => {
-    try {
-      const { data } = await api.get('/assets/responsible-persons/', { params: { is_active: true, is_employee: true } })
-      setResponsiblePersons(data.results || data)
-    } catch { /* */ }
-  }
-
-  const loadLocations = async () => {
-    try {
-      const { data } = await api.get('/assets/locations/', { params: { is_active: true } })
-      setLocations(data.results || data)
-    } catch { /* */ }
-  }
-
   useEffect(() => {
     loadAssets()
-    loadGroups()
-    loadResponsiblePersons()
-    loadLocations()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -160,8 +140,47 @@ const AssetsPage: React.FC = () => {
     URL.revokeObjectURL(link.href)
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    try {
+      const { data } = await api.get('/assets/items/', {
+        params: { page_size: 5000, ...(search ? { search } : {}) },
+      })
+      const allAssets: Asset[] = data.results || data
+      const rows = allAssets.map((a, i) =>
+        `<tr>
+          <td>${i + 1}</td>
+          <td>${a.inventory_number}</td>
+          <td>${a.name}</td>
+          <td>${a.quantity}</td>
+          <td style="text-align:right">${fmtMoney(a.initial_cost)}</td>
+          <td style="text-align:right">${fmtMoney(a.accumulated_depreciation)}</td>
+          <td>${a.responsible_person_name || ''}</td>
+          <td>${a.status_display || a.status}</td>
+        </tr>`
+      ).join('')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>Реєстр основних засобів</title>
+        <style>
+          body{font-family:Arial,sans-serif;font-size:12px;margin:20px}
+          h2{text-align:center;margin-bottom:10px}
+          table{width:100%;border-collapse:collapse}
+          th,td{border:1px solid #333;padding:4px 6px}
+          th{background:#f0f0f0;text-align:center}
+          @media print{body{margin:0}}
+        </style></head><body>
+        <h2>Реєстр основних засобів</h2>
+        <table>
+          <thead><tr>
+            <th>№</th><th>Інв. номер</th><th>Назва ОЗ</th><th>К-ть</th>
+            <th>Сума</th><th>Знос</th><th>МВО</th><th>Статус</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></body></html>`
+      const w = window.open('', '_blank')
+      if (w) { w.document.write(html); w.document.close(); w.print() }
+    } catch {
+      message.error('Помилка завантаження даних для друку')
+    }
   }
 
   const fmtMoney = (v: string) =>
@@ -173,16 +192,17 @@ const AssetsPage: React.FC = () => {
       dataIndex: 'inventory_number',
       key: 'inv',
       width: 120,
-      sorter: true,
+      sorter: (a: Asset, b: Asset) => (a.inventory_number || '').localeCompare(b.inventory_number || ''),
     },
-    { title: 'Назва ОЗ', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: 'К-ть', dataIndex: 'quantity', key: 'qty', width: 70 },
+    { title: 'Назва ОЗ', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Asset, b: Asset) => a.name.localeCompare(b.name) },
+    { title: 'К-ть', dataIndex: 'quantity', key: 'qty', width: 70, sorter: (a: Asset, b: Asset) => a.quantity - b.quantity },
     {
       title: 'Сума',
       dataIndex: 'initial_cost',
       key: 'cost',
       width: 150,
       render: (v: string) => fmtMoney(v),
+      sorter: (a: Asset, b: Asset) => Number(a.initial_cost) - Number(b.initial_cost),
     },
     {
       title: 'Знос',
@@ -190,6 +210,7 @@ const AssetsPage: React.FC = () => {
       key: 'depr',
       width: 150,
       render: (v: string) => fmtMoney(v),
+      sorter: (a: Asset, b: Asset) => Number(a.accumulated_depreciation) - Number(b.accumulated_depreciation),
     },
     {
       title: 'МВО',
@@ -197,13 +218,14 @@ const AssetsPage: React.FC = () => {
       key: 'mvo',
       width: 180,
       ellipsis: true,
-      sorter: true,
+      sorter: (a: Asset, b: Asset) => (a.responsible_person_name || '').localeCompare(b.responsible_person_name || ''),
     },
     {
       title: 'Статус',
       dataIndex: 'status_display',
       key: 'status',
       width: 110,
+      sorter: (a: Asset, b: Asset) => (a.status_display || '').localeCompare(b.status_display || ''),
       render: (text: string, record: Asset) => (
         <Tag color={STATUS_COLORS[record.status]}>{text}</Tag>
       ),
@@ -314,9 +336,8 @@ const AssetsPage: React.FC = () => {
             <Input />
           </Form.Item>
           <Form.Item name="group" label="Група ОЗ" rules={[{ required: true }]}>
-            <Select placeholder="Оберіть групу" showSearch optionFilterProp="label"
-              options={groups.map(g => ({ value: g.id, label: `${g.code} — ${g.name}` }))}
-            />
+            <AsyncSelect url="/assets/groups/" mapOption={groupMapOption}
+              placeholder="Пошук групи" pageSize={200} />
           </Form.Item>
           <Space size="large">
             <Form.Item name="initial_cost" label="Первісна вартість, грн" rules={[{ required: true }]}>
@@ -395,14 +416,13 @@ const AssetsPage: React.FC = () => {
             </Form.Item>
           </Space>
           <Form.Item name="responsible_person" label="МВО">
-            <Select allowClear placeholder="Оберіть відповідальну особу" showSearch optionFilterProp="label"
-              options={responsiblePersons.map(rp => ({ value: rp.id, label: rp.full_name }))}
-            />
+            <AsyncSelect url="/assets/responsible-persons/"
+              params={{ is_active: true, is_employee: true }}
+              mapOption={rpMapOption} allowClear placeholder="Пошук МВО" />
           </Form.Item>
           <Form.Item name="location" label="Місцезнаходження">
-            <Select allowClear placeholder="Оберіть місцезнаходження" showSearch optionFilterProp="label"
-              options={locations.map(loc => ({ value: loc.id, label: loc.name }))}
-            />
+            <AsyncSelect url="/assets/locations/" params={{ is_active: true }}
+              mapOption={locMapOption} allowClear placeholder="Пошук місцезнаходження" />
           </Form.Item>
           <Form.Item name="description" label="Опис / характеристики">
             <Input.TextArea rows={3} />

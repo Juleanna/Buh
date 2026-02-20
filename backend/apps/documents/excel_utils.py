@@ -269,16 +269,20 @@ def write_signatures_block(ws, row_num, signatures, num_cols=2):
     return row_num
 
 
-def write_commission_signatures(ws, row_num, head_name='', member_names=None, num_cols=6):
+def write_commission_signatures(ws, row_num, head_name='', member_names=None,
+                                head_position='', member_positions=None,
+                                num_cols=6):
     """
     Write commission signatures block.
     Returns next row.
     """
     member_names = member_names or []
+    member_positions = member_positions or []
     row_num += 1
 
+    head_pos_str = f'{head_position}   ' if head_position else ''
     cell = ws.cell(row=row_num, column=1,
-                   value=f'Голова комісії   _______________   {head_name}')
+                   value=f'Голова комісії   {head_pos_str}_______________   {head_name}')
     cell.font = SIGN_FONT
     ws.merge_cells(start_row=row_num, start_column=1,
                    end_row=row_num, end_column=min(num_cols, 6))
@@ -286,19 +290,19 @@ def write_commission_signatures(ws, row_num, head_name='', member_names=None, nu
 
     for i, name in enumerate(member_names):
         label = 'Члени комісії' if i == 0 else '             '
+        m_pos = member_positions[i] if i < len(member_positions) else ''
+        m_pos_str = f'{m_pos}   ' if m_pos else ''
         cell = ws.cell(row=row_num, column=1,
-                       value=f'{label}   _______________   {name}')
+                       value=f'{label}   {m_pos_str}_______________   {name}')
         cell.font = SIGN_FONT
         ws.merge_cells(start_row=row_num, start_column=1,
                        end_row=row_num, end_column=min(num_cols, 6))
         row_num += 1
 
-    # Blank members slots if less than 3
-    remaining = max(3 - len(member_names), 0)
-    for i in range(remaining):
-        label = 'Члени комісії' if (i == 0 and not member_names) else '             '
+    # One blank member row if no members
+    if not member_names:
         cell = ws.cell(row=row_num, column=1,
-                       value=f'{label}   _______________   ')
+                       value='Члени комісії   _______________   ')
         cell.font = SIGN_FONT
         ws.merge_cells(start_row=row_num, start_column=1,
                        end_row=row_num, end_column=min(num_cols, 6))

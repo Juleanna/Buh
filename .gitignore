@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+backend/venv/
+
+# Environment variables
+backend/.env
+
+# Google Drive credentials & tokens
+backend/gdrive_token.json
+backend/ordinal-nucleus-488010-i1-1728cb137344.json
+backend/client_secret_*.json
+
+# Node
+frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+frontend/dist/
+
+# Logs
+*.log
+
+# Compiled TypeScript
+frontend/tsconfig.tsbuildinfo

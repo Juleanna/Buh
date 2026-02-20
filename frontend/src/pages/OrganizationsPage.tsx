@@ -70,16 +70,17 @@ const OrganizationsPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: 'Коротка назва', dataIndex: 'short_name', key: 'short_name', ellipsis: true },
-    { title: 'ЄДРПОУ', dataIndex: 'edrpou', key: 'edrpou', width: 120 },
-    { title: 'Директор', dataIndex: 'director', key: 'director', ellipsis: true },
-    { title: 'Гол. бухгалтер', dataIndex: 'accountant', key: 'accountant', ellipsis: true },
+    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.name || '').localeCompare(b.name || '') },
+    { title: 'Коротка назва', dataIndex: 'short_name', key: 'short_name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.short_name || '').localeCompare(b.short_name || '') },
+    { title: 'ЄДРПОУ', dataIndex: 'edrpou', key: 'edrpou', width: 120, sorter: (a: Organization, b: Organization) => (a.edrpou || '').localeCompare(b.edrpou || '') },
+    { title: 'Директор', dataIndex: 'director', key: 'director', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.director || '').localeCompare(b.director || '') },
+    { title: 'Гол. бухгалтер', dataIndex: 'accountant', key: 'accountant', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.accountant || '').localeCompare(b.accountant || '') },
     {
       title: 'Власна',
       dataIndex: 'is_own',
       key: 'is_own',
       width: 100,
+      sorter: (a: Organization, b: Organization) => Number(a.is_own) - Number(b.is_own),
       render: (v: boolean) => v ? <Tag color="blue">Власна</Tag> : null,
     },
     {
@@ -87,6 +88,7 @@ const OrganizationsPage: React.FC = () => {
       dataIndex: 'is_active',
       key: 'status',
       width: 120,
+      sorter: (a: Organization, b: Organization) => Number(a.is_active) - Number(b.is_active),
       render: (v: boolean) => (
         <Tag color={v ? 'green' : 'red'}>{v ? 'Активна' : 'Неактивна'}</Tag>
       ),

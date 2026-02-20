@@ -70,13 +70,14 @@ const LocationsPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: 'К-ть ОЗ', dataIndex: 'assets_count', key: 'assets_count', width: 100 },
+    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Location, b: Location) => (a.name || '').localeCompare(b.name || '') },
+    { title: 'К-ть ОЗ', dataIndex: 'assets_count', key: 'assets_count', width: 100, sorter: (a: Location, b: Location) => Number(a.assets_count || 0) - Number(b.assets_count || 0) },
     {
       title: 'Статус',
       dataIndex: 'is_active',
       key: 'status',
       width: 120,
+      sorter: (a: Location, b: Location) => Number(a.is_active) - Number(b.is_active),
       render: (v: boolean) => (
         <Tag color={v ? 'green' : 'red'}>{v ? 'Активна' : 'Неактивна'}</Tag>
       ),

@@ -5,7 +5,8 @@ import {
 import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
-import type { User } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { User, Position, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -14,6 +15,8 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   accountant: { label: 'Бухгалтер', color: 'blue' },
   inventory_manager: { label: 'Інвентаризатор', color: 'green' },
 }
+
+const posMapOption = (p: Position) => ({ value: p.id, label: p.name })
 
 const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
@@ -70,14 +73,15 @@ const UsersPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Логін', dataIndex: 'username', key: 'username' },
-    { title: 'ПІБ', dataIndex: 'full_name', key: 'name' },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Посада', dataIndex: 'position', key: 'position' },
+    { title: 'Логін', dataIndex: 'username', key: 'username', sorter: (a: User, b: User) => (a.username || '').localeCompare(b.username || '') },
+    { title: 'ПІБ', dataIndex: 'full_name', key: 'name', sorter: (a: User, b: User) => (a.full_name || '').localeCompare(b.full_name || '') },
+    { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a: User, b: User) => (a.email || '').localeCompare(b.email || '') },
+    { title: 'Посада', dataIndex: 'position_name', key: 'position', sorter: (a: User, b: User) => (a.position_name || '').localeCompare(b.position_name || '') },
     {
       title: 'Роль',
       dataIndex: 'role',
       key: 'role',
+      sorter: (a: User, b: User) => (a.role || '').localeCompare(b.role || ''),
       render: (role: string) => {
         const r = ROLE_LABELS[role]
         return r ? <Tag color={r.color}>{r.label}</Tag> : role
@@ -87,6 +91,7 @@ const UsersPage: React.FC = () => {
       title: 'Статус',
       dataIndex: 'is_active',
       key: 'active',
+      sorter: (a: User, b: User) => Number(a.is_active) - Number(b.is_active),
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Активний' : 'Неактивний'}</Tag>,
     },
     {
@@ -165,7 +170,8 @@ const UsersPage: React.FC = () => {
             ]} />
           </Form.Item>
           <Form.Item name="position" label="Посада">
-            <Input />
+            <AsyncSelect url="/assets/positions/" params={{ is_active: true }}
+              mapOption={posMapOption} allowClear placeholder="Пошук посади" />
           </Form.Item>
           <Form.Item name="phone" label="Телефон">
             <Input />

@@ -70,12 +70,13 @@ const PositionsPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true },
+    { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Position, b: Position) => (a.name || '').localeCompare(b.name || '') },
     {
       title: 'Статус',
       dataIndex: 'is_active',
       key: 'status',
       width: 120,
+      sorter: (a: Position, b: Position) => Number(a.is_active) - Number(b.is_active),
       render: (v: boolean) => (
         <Tag color={v ? 'green' : 'red'}>{v ? 'Активна' : 'Неактивна'}</Tag>
       ),

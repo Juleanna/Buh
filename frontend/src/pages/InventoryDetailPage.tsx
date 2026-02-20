@@ -2,12 +2,13 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Table, Typography, Card, Descriptions, Tag, Button, Space, Switch,
   InputNumber, Select, Spin, Modal, Input, Row, Col, Alert,
-  Badge, Statistic,
+  Badge, Statistic, Popconfirm,
 } from 'antd'
 import { message } from '../utils/globalMessage'
 import {
   ArrowLeftOutlined, ScanOutlined,
   CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -61,6 +62,16 @@ const InventoryDetailPage: React.FC = () => {
       loadData()
     } catch {
       message.error('Помилка збереження')
+    }
+  }
+
+  const deleteItem = async (itemId: number) => {
+    try {
+      await api.delete(`/assets/inventory-items/${itemId}/`)
+      message.success('Запис видалено')
+      loadData()
+    } catch {
+      message.error('Помилка видалення')
     }
   }
 
@@ -171,15 +182,17 @@ const InventoryDetailPage: React.FC = () => {
   const totalItems = items.length
 
   const columns = [
-    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120 },
-    { title: 'Назва ОЗ', dataIndex: 'asset_name', key: 'name', ellipsis: true },
+    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120, sorter: (a: InventoryItem, b: InventoryItem) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
+    { title: 'Назва ОЗ', dataIndex: 'asset_name', key: 'name', ellipsis: true, sorter: (a: InventoryItem, b: InventoryItem) => (a.asset_name || '').localeCompare(b.asset_name || '') },
     {
       title: 'Облікова вартість', dataIndex: 'book_value', key: 'book', width: 150,
+      sorter: (a: InventoryItem, b: InventoryItem) => Number(a.book_value) - Number(b.book_value),
       render: (v: string) => `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`,
       responsive: ['md' as const],
     },
     {
       title: 'Наявність', dataIndex: 'is_found', key: 'found', width: 100,
+      sorter: (a: InventoryItem, b: InventoryItem) => Number(a.is_found) - Number(b.is_found),
       render: (val: boolean, record: InventoryItem) => isEditable ? (
         <Switch checked={val} onChange={(v) => updateItem(record.id, 'is_found', v)} />
       ) : (
@@ -188,6 +201,7 @@ const InventoryDetailPage: React.FC = () => {
     },
     {
       title: 'Стан', dataIndex: 'condition', key: 'condition', width: 170,
+      sorter: (a: InventoryItem, b: InventoryItem) => (a.condition || '').localeCompare(b.condition || ''),
       responsive: ['lg' as const],
       render: (val: string, record: InventoryItem) => isEditable ? (
         <Select value={val} onChange={(v) => updateItem(record.id, 'condition', v)}
@@ -196,6 +210,7 @@ const InventoryDetailPage: React.FC = () => {
     },
     {
       title: 'Факт. вартість', dataIndex: 'actual_value', key: 'actual', width: 150,
+      sorter: (a: InventoryItem, b: InventoryItem) => Number(a.actual_value || 0) - Number(b.actual_value || 0),
       responsive: ['lg' as const],
       render: (val: string | null, record: InventoryItem) => isEditable ? (
         <InputNumber value={val ? Number(val) : undefined}
@@ -205,6 +220,7 @@ const InventoryDetailPage: React.FC = () => {
     },
     {
       title: 'Різниця', dataIndex: 'difference', key: 'diff', width: 120,
+      sorter: (a: InventoryItem, b: InventoryItem) => Number(a.difference) - Number(b.difference),
       responsive: ['md' as const],
       render: (v: string) => {
         const num = Number(v)
@@ -212,6 +228,14 @@ const InventoryDetailPage: React.FC = () => {
         return <span style={{ color }}>{num.toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн</span>
       },
     },
+    ...(isEditable ? [{
+      title: '', key: 'actions', width: 50,
+      render: (_: unknown, record: InventoryItem) => (
+        <Popconfirm title="Видалити цей запис?" onConfirm={() => deleteItem(record.id)}>
+          <Button size="small" icon={<DeleteOutlined />} danger type="text" />
+        </Popconfirm>
+      ),
+    }] : []),
   ]
 
   return (
@@ -270,6 +294,7 @@ const InventoryDetailPage: React.FC = () => {
           <Descriptions.Item label="Наказ">
             №{inventory.order_number} від {dayjs(inventory.order_date).format('DD.MM.YYYY')}
           </Descriptions.Item>
+          <Descriptions.Item label="МВО">{inventory.responsible_person_name || '—'}</Descriptions.Item>
           <Descriptions.Item label="Голова комісії">{inventory.commission_head_name || '—'}</Descriptions.Item>
           <Descriptions.Item label="Місце">{inventory.location || '—'}</Descriptions.Item>
         </Descriptions>

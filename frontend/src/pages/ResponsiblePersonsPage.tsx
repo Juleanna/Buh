@@ -6,9 +6,13 @@ import {
 import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import api from '../api/client'
+import AsyncSelect from '../components/AsyncSelect'
 import type { ResponsiblePerson, Location, Position, PaginatedResponse } from '../types'
 
 const { Title } = Typography
+
+const posMapOption = (p: Position) => ({ value: p.id, label: p.name })
+const locMapOption = (loc: Location) => ({ value: loc.id, label: loc.name })
 
 const ResponsiblePersonsPage: React.FC = () => {
   const [persons, setPersons] = useState<ResponsiblePerson[]>([])
@@ -19,8 +23,6 @@ const ResponsiblePersonsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
-  const [locations, setLocations] = useState<Location[]>([])
-  const [positions, setPositions] = useState<Position[]>([])
 
   const loadPersons = async (p = page, s = search) => {
     setLoading(true)
@@ -32,28 +34,8 @@ const ResponsiblePersonsPage: React.FC = () => {
     setLoading(false)
   }
 
-  const loadLocations = async () => {
-    try {
-      const { data } = await api.get<PaginatedResponse<Location>>('/assets/locations/', { params: { page_size: 1000 } })
-      setLocations(data.results)
-    } catch {
-      setLocations([])
-    }
-  }
-
-  const loadPositions = async () => {
-    try {
-      const { data } = await api.get<PaginatedResponse<Position>>('/assets/positions/', { params: { page_size: 1000, is_active: true } })
-      setPositions(data.results)
-    } catch {
-      setPositions([])
-    }
-  }
-
   useEffect(() => {
     loadPersons()
-    loadLocations()
-    loadPositions()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -95,16 +77,17 @@ const ResponsiblePersonsPage: React.FC = () => {
   }
 
   const columns = [
-    { title: 'ПІП', dataIndex: 'full_name', key: 'full_name', ellipsis: true },
-    { title: 'ІПН', dataIndex: 'ipn', key: 'ipn', width: 120 },
-    { title: 'Посада', dataIndex: 'position_name', key: 'position_name', ellipsis: true },
-    { title: 'Місцезнаходження', dataIndex: 'location_name', key: 'location_name', ellipsis: true },
-    { title: 'К-ть ОЗ', dataIndex: 'assets_count', key: 'assets_count', width: 100 },
+    { title: 'ПІП', dataIndex: 'full_name', key: 'full_name', ellipsis: true, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => a.full_name.localeCompare(b.full_name) },
+    { title: 'ІПН', dataIndex: 'ipn', key: 'ipn', width: 120, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => a.ipn.localeCompare(b.ipn) },
+    { title: 'Посада', dataIndex: 'position_name', key: 'position_name', ellipsis: true, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => (a.position_name || '').localeCompare(b.position_name || '') },
+    { title: 'Місцезнаходження', dataIndex: 'location_name', key: 'location_name', ellipsis: true, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => (a.location_name || '').localeCompare(b.location_name || '') },
+    { title: 'К-ть ОЗ', dataIndex: 'assets_count', key: 'assets_count', width: 100, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => (a.assets_count || 0) - (b.assets_count || 0) },
     {
       title: 'Співробітник',
       dataIndex: 'is_employee',
       key: 'is_employee',
       width: 120,
+      sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => Number(a.is_employee) - Number(b.is_employee),
       render: (v: boolean) => (
         <Tag color={v ? 'blue' : 'default'}>{v ? 'Так' : 'Ні'}</Tag>
       ),
@@ -114,6 +97,7 @@ const ResponsiblePersonsPage: React.FC = () => {
       dataIndex: 'is_active',
       key: 'status',
       width: 120,
+      sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => Number(a.is_active) - Number(b.is_active),
       render: (v: boolean) => (
         <Tag color={v ? 'green' : 'red'}>{v ? 'Активна' : 'Неактивна'}</Tag>
       ),
@@ -190,18 +174,12 @@ const ResponsiblePersonsPage: React.FC = () => {
             <Input maxLength={10} />
           </Form.Item>
           <Form.Item name="position" label="Посада">
-            <Select allowClear placeholder="Оберіть посаду" showSearch optionFilterProp="label">
-              {positions.map((pos) => (
-                <Select.Option key={pos.id} value={pos.id}>{pos.name}</Select.Option>
-              ))}
-            </Select>
+            <AsyncSelect url="/assets/positions/" params={{ is_active: true }}
+              mapOption={posMapOption} allowClear placeholder="Пошук посади" />
           </Form.Item>
           <Form.Item name="location" label="Місцезнаходження">
-            <Select allowClear placeholder="Оберіть місцезнаходження">
-              {locations.map((loc) => (
-                <Select.Option key={loc.id} value={loc.id}>{loc.name}</Select.Option>
-              ))}
-            </Select>
+            <AsyncSelect url="/assets/locations/"
+              mapOption={locMapOption} allowClear placeholder="Пошук місцезнаходження" />
           </Form.Item>
           <Form.Item name="is_employee" label="Співробітник" valuePropName="checked">
             <Switch />

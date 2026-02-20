@@ -8,7 +8,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, CarOutlined, SearchOutlined
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
-import type { AssetDisposal, Asset, PaginatedResponse } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { Asset, AssetDisposal, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -20,9 +21,13 @@ const DISPOSAL_TYPES = [
   { value: 'other', label: 'Інше' },
 ]
 
+const disposalAssetMapOption = (a: Asset) => ({
+  value: a.id,
+  label: `${a.inventory_number} — ${a.name} (${Number(a.current_book_value).toLocaleString('uk-UA')} грн)`,
+})
+
 const DisposalsPage: React.FC = () => {
   const [disposals, setDisposals] = useState<AssetDisposal[]>([])
-  const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -41,15 +46,8 @@ const DisposalsPage: React.FC = () => {
     setLoading(false)
   }
 
-  const loadAvailableAssets = () => {
-    api.get('/assets/items/', { params: { status: 'active', no_disposal: 1, page_size: 1000 } }).then((res) => {
-      setAssets(res.data.results || res.data)
-    })
-  }
-
   useEffect(() => {
     loadDisposals()
-    loadAvailableAssets()
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -69,7 +67,6 @@ const DisposalsPage: React.FC = () => {
       form.resetFields()
       setEditingId(null)
       loadDisposals()
-      loadAvailableAssets()
     } catch (err: any) {
       message.error(err.response?.data?.asset?.[0] || err.response?.data?.detail || 'Помилка')
     }
@@ -89,38 +86,41 @@ const DisposalsPage: React.FC = () => {
       await api.delete(`/assets/disposals/${id}/`)
       message.success('Вибуття видалено')
       loadDisposals()
-      loadAvailableAssets()
     } catch (err: any) {
       message.error(err.response?.data?.detail || 'Помилка видалення')
     }
   }
 
   const columns = [
-    { title: 'Номер документа', dataIndex: 'document_number', key: 'doc' },
+    { title: 'Номер документа', dataIndex: 'document_number', key: 'doc', sorter: (a: AssetDisposal, b: AssetDisposal) => (a.document_number || '').localeCompare(b.document_number || '') },
     {
       title: 'Дата',
       dataIndex: 'document_date',
       key: 'date',
+      sorter: (a: AssetDisposal, b: AssetDisposal) => (a.document_date || '').localeCompare(b.document_date || ''),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true },
-    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv' },
+    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true, sorter: (a: AssetDisposal, b: AssetDisposal) => (a.asset_name || '').localeCompare(b.asset_name || '') },
+    { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', sorter: (a: AssetDisposal, b: AssetDisposal) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
     {
       title: 'Тип вибуття',
       dataIndex: 'disposal_type_display',
       key: 'type',
+      sorter: (a: AssetDisposal, b: AssetDisposal) => (a.disposal_type_display || '').localeCompare(b.disposal_type_display || ''),
       render: (text: string) => <Tag>{text}</Tag>,
     },
     {
       title: 'Залишкова вартість',
       dataIndex: 'book_value_at_disposal',
       key: 'book',
+      sorter: (a: AssetDisposal, b: AssetDisposal) => Number(a.book_value_at_disposal || 0) - Number(b.book_value_at_disposal || 0),
       render: (v: string) => `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`,
     },
     {
       title: 'Сума продажу',
       dataIndex: 'sale_amount',
       key: 'sale',
+      sorter: (a: AssetDisposal, b: AssetDisposal) => Number(a.sale_amount || 0) - Number(b.sale_amount || 0),
       render: (v: string) => Number(v) > 0
         ? `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`
         : '—',
@@ -195,11 +195,11 @@ const DisposalsPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="asset" label="Основний засіб" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="label" placeholder="Оберіть ОЗ"
-              options={assets.map(a => ({
-                value: a.id,
-                label: `${a.inventory_number} — ${a.name} (${Number(a.current_book_value).toLocaleString('uk-UA')} грн)`,
-              }))}
+            <AsyncSelect
+              url="/assets/items/"
+              params={{ status: 'active', no_disposal: 1 }}
+              mapOption={disposalAssetMapOption}
+              placeholder="Пошук за номером або назвою"
             />
           </Form.Item>
           <Form.Item name="disposal_type" label="Тип вибуття" rules={[{ required: true }]}>

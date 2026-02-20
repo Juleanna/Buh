@@ -7,13 +7,15 @@ import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
-import type { AssetRevaluation, Asset, PaginatedResponse } from '../types'
+import AsyncSelect from '../components/AsyncSelect'
+import type { Asset, AssetRevaluation, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
+const assetMapOption = (a: Asset) => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` })
+
 const RevaluationsPage: React.FC = () => {
   const [revaluations, setRevaluations] = useState<AssetRevaluation[]>([])
-  const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -34,9 +36,6 @@ const RevaluationsPage: React.FC = () => {
 
   useEffect(() => {
     loadRevaluations()
-    api.get('/assets/items/', { params: { status: 'active', page_size: 1000 } }).then((res) => {
-      setAssets(res.data.results || res.data)
-    })
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -87,14 +86,16 @@ const RevaluationsPage: React.FC = () => {
       title: 'Дата',
       dataIndex: 'date',
       key: 'date',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => (a.date || '').localeCompare(b.date || ''),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true },
-    { title: 'Інв.номер', dataIndex: 'asset_inventory_number', key: 'inv' },
+    { title: 'ОЗ', dataIndex: 'asset_name', key: 'asset', ellipsis: true, sorter: (a: AssetRevaluation, b: AssetRevaluation) => (a.asset_name || '').localeCompare(b.asset_name || '') },
+    { title: 'Інв.номер', dataIndex: 'asset_inventory_number', key: 'inv', sorter: (a: AssetRevaluation, b: AssetRevaluation) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
     {
       title: 'Тип',
       dataIndex: 'revaluation_type_display',
       key: 'type',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => (a.revaluation_type_display || '').localeCompare(b.revaluation_type_display || ''),
       render: (text: string, record: AssetRevaluation) => (
         <Tag color={record.revaluation_type === 'upward' ? 'green' : 'red'}>{text}</Tag>
       ),
@@ -103,24 +104,28 @@ const RevaluationsPage: React.FC = () => {
       title: 'Справедлива вартість',
       dataIndex: 'fair_value',
       key: 'fair_value',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => Number(a.fair_value || 0) - Number(b.fair_value || 0),
       render: fmtMoney,
     },
     {
       title: 'Сума переоцінки',
       dataIndex: 'revaluation_amount',
       key: 'revaluation_amount',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => Number(a.revaluation_amount || 0) - Number(b.revaluation_amount || 0),
       render: fmtMoney,
     },
     {
       title: 'Зал.вартість до',
       dataIndex: 'old_book_value',
       key: 'old_book_value',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => Number(a.old_book_value || 0) - Number(b.old_book_value || 0),
       render: fmtMoney,
     },
     {
       title: 'Зал.вартість після',
       dataIndex: 'new_book_value',
       key: 'new_book_value',
+      sorter: (a: AssetRevaluation, b: AssetRevaluation) => Number(a.new_book_value || 0) - Number(b.new_book_value || 0),
       render: fmtMoney,
     },
     {
@@ -182,8 +187,11 @@ const RevaluationsPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="asset" label="Основний засіб" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="label" placeholder="Оберіть ОЗ"
-              options={assets.map(a => ({ value: a.id, label: `${a.inventory_number} — ${a.name}` }))}
+            <AsyncSelect
+              url="/assets/items/"
+              params={{ status: 'active' }}
+              mapOption={assetMapOption}
+              placeholder="Пошук за номером або назвою"
             />
           </Form.Item>
           <Space size="large">

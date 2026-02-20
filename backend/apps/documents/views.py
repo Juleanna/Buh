@@ -1303,6 +1303,17 @@ class InventoryReportPDFView(APIView):
             'оприбуткованi, а тi, що вибули, списанi.',
             num_cols,
         )
+
+        # -- МВО info --
+        rp = inventory.responsible_person
+        rp_name = rp.full_name if rp else '________________________'
+        rp_position = ''
+        if rp and rp.position:
+            rp_position = rp.position.name
+        rp_position = rp_position or '________________________'
+        row = write_signatures_block(ws, row, [
+            ('Матерiально вiдповiдальна особа', f'{rp_position}          ____________          {rp_name}'),
+        ], num_cols=num_cols)
         row += 1
 
         # -- Інвентаризація dates --
@@ -1443,7 +1454,7 @@ class InventoryReportPDFView(APIView):
         row += 1
 
         # -- "Разом за описом" summary block --
-        row = write_text_row(ws, row, 'Разом за описом:    а) кiлькiсть порядкових номерiв ______ ', num_cols)
+        row = write_text_row(ws, row, f'Разом за описом:    а) кiлькiсть порядкових номерiв {total_items} ', num_cols)
         row = write_text_row(ws, row, f'б) загальна кiлькiсть одиниць,  фактично - {total_fact_qty} ', num_cols)
         row = write_text_row(ws, row, f'в) вартiсть фактична - {float(total_fact_value):.2f}', num_cols)
         row = write_text_row(ws, row, f'г) загальна кiлькiсть одиниць,  за даними бухгалтерського облiку - {total_book_qty}', num_cols)
@@ -1452,16 +1463,24 @@ class InventoryReportPDFView(APIView):
 
         # -- Commission signatures --
         head_name = ''
+        head_position = ''
         if inventory.commission_head:
             head_name = inventory.commission_head.full_name
+            if inventory.commission_head.position:
+                head_position = inventory.commission_head.position.name
 
         members = list(inventory.commission_members.all())
         member_names = [m.full_name for m in members]
+        member_positions = [
+            m.position.name if m.position else '' for m in members
+        ]
 
         row = write_commission_signatures(
             ws, row,
             head_name=head_name,
             member_names=member_names,
+            head_position=head_position,
+            member_positions=member_positions,
             num_cols=num_cols,
         )
         row += 1
@@ -1478,7 +1497,7 @@ class InventoryReportPDFView(APIView):
             num_cols,
         )
         row = write_signatures_block(ws, row, [
-            ('Матерiально вiдповiдальна особа', ''),
+            ('Матерiально вiдповiдальна особа', f'{rp_position}          ____________          {rp_name}'),
         ], num_cols=num_cols)
 
         if inventory.date:
@@ -1512,8 +1531,11 @@ class InventoryReportPDFView(APIView):
 
     def get(self, request, pk):
         inventory = Inventory.objects.prefetch_related(
-            'items__asset__group', 'commission_members',
-        ).select_related('commission_head', 'location').get(pk=pk)
+            'items__asset__group', 'commission_members__position',
+        ).select_related(
+            'commission_head', 'commission_head__position',
+            'responsible_person', 'responsible_person__position', 'location',
+        ).get(pk=pk)
 
         items = inventory.items.select_related(
             'asset', 'asset__group', 'asset__organization',
@@ -1574,10 +1596,20 @@ class InventoryReportPDFView(APIView):
         elements.append(Spacer(1, 1 * mm))
 
         # -- Date line --
-        elements.append(Paragraph(
-            f'\u00ab____\u00bb ______________ {inventory.date.year if inventory.date else "____"} р.',
-            styles['UkrCenter'],
-        ))
+        _ua_months_gen = [
+            '', 'сiчня', 'лютого', 'березня', 'квiтня', 'травня',
+            'червня', 'липня', 'серпня', 'вересня', 'жовтня',
+            'листопада', 'грудня',
+        ]
+        if inventory.date:
+            _d = inventory.date
+            _date_str = (
+                f'\u00ab{_d.day:02d}\u00bb '
+                f'{_ua_months_gen[_d.month]} {_d.year} р.'
+            )
+        else:
+            _date_str = '\u00ab____\u00bb ______________ ____ р.'
+        elements.append(Paragraph(_date_str, styles['UkrCenter']))
         elements.append(Spacer(1, 2 * mm))
 
         # -- Descriptive text block --
@@ -1597,22 +1629,45 @@ class InventoryReportPDFView(APIView):
             styles['UkrNormal'],
         ))
         elements.append(Spacer(1, 1 * mm))
-        elements.append(Paragraph(
-            '_____________________________________________________________',
-            styles['UkrNormal'],
-        ))
-        elements.append(Paragraph(
-            '(номер та назва)',
-            styles['UkrSmallCenter'],
-        ))
-        elements.append(Paragraph(
-            f'та зберiгаються {inv_location}',
-            styles['UkrNormal'],
-        ))
-        elements.append(Paragraph(
-            '(мiсцезнаходження)',
-            styles['UkrSmallCenter'],
-        ))
+        # Use tables so the labels center under their content, not the full page
+        _field_pad = TableStyle([
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (0, 0), (0, 0), 0.5, colors.black),
+        ])
+        _fw = page_w * 0.45
+        _t_sub = Table([
+            [Paragraph('&nbsp;', styles['UkrNormal'])],
+            [Paragraph('(номер та назва)', styles['UkrSmallCenter'])],
+        ], colWidths=[_fw])
+        _t_sub.hAlign = 'LEFT'
+        _t_sub.setStyle(_field_pad)
+        elements.append(_t_sub)
+        # "та зберігаються" as prefix text + location value underlined + label
+        _loc_prefix_w = 32 * mm
+        _loc_val_w = _fw - _loc_prefix_w
+        _t_loc = Table([
+            [
+                Paragraph('та зберiгаються', styles['UkrNormal']),
+                Paragraph(inv_location, styles['UkrNormal']),
+            ],
+            [
+                '',
+                Paragraph('(мiсцезнаходження)', styles['UkrSmallCenter']),
+            ],
+        ], colWidths=[_loc_prefix_w, _loc_val_w])
+        _t_loc.hAlign = 'LEFT'
+        _t_loc.setStyle(TableStyle([
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+        ]))
+        elements.append(_t_loc)
         elements.append(Paragraph(
             f'станом на \u00ab{inventory.date.strftime("%d")}\u00bb '
             f'{inventory.date.strftime("%m")} '
@@ -1634,10 +1689,18 @@ class InventoryReportPDFView(APIView):
         elements.append(Spacer(1, 2 * mm))
 
         # -- МВО signature in Розписка (LINEBELOW) --
+        rp = inventory.responsible_person
+        rp_name = rp.full_name if rp else ''
+        rp_position = ''
+        if rp and rp.position:
+            rp_position = rp.position.name
+
         mvo_col_w = [55 * mm, 35 * mm, 30 * mm, 50 * mm]
         mvo_rozp = [[
             _p('Матерiально вiдповiдальна особа:', styles['UkrSignature']),
-            '', '', '',
+            _p(rp_position, styles['UkrSignature']),
+            '',
+            _p(rp_name, styles['UkrSignature']),
         ]]
         mvo_rozp_table = Table(mvo_rozp, colWidths=mvo_col_w)
         mvo_rozp_table.setStyle(TableStyle([
@@ -1673,14 +1736,19 @@ class InventoryReportPDFView(APIView):
         elements.append(Spacer(1, 2 * mm))
 
         # -- Інвентаризація dates --
+        if inventory.date:
+            _d = inventory.date
+            _inv_date_fmt = (
+                f'\u00ab{_d.day:02d}\u00bb {_ua_months_gen[_d.month]} {_d.year}'
+            )
+        else:
+            _inv_date_fmt = '\u00ab______\u00bb _________ ____'
         elements.append(Paragraph(
-            f'Iнвентаризацiя:    розпочата \u00ab______\u00bb _________ '
-            f'{inventory.date.year if inventory.date else "____"} р.',
+            f'Iнвентаризацiя:    розпочата {_inv_date_fmt} р.',
             styles['UkrNormal'],
         ))
         elements.append(Paragraph(
-            f'                        закiнчена \u00ab____\u00bb ____________ '
-            f'{inventory.date.year if inventory.date else "____"} р.',
+            f'                        закiнчена {_inv_date_fmt} р.',
             styles['UkrNormal'],
         ))
         elements.append(Spacer(1, 2 * mm))
@@ -1927,7 +1995,7 @@ class InventoryReportPDFView(APIView):
         # -- "Разом за описом" summary block --
         summary_style = styles['UkrNormal']
         elements.append(Paragraph(
-            'Разом за описом:    а) кiлькiсть порядкових номерiв ______ ',
+            f'Разом за описом:    а) кiлькiсть порядкових номерiв {total_items} ',
             summary_style,
         ))
         elements.append(Paragraph(
@@ -1949,47 +2017,35 @@ class InventoryReportPDFView(APIView):
         elements.append(Spacer(1, 3 * mm))
 
         # -- Commission signatures (LINEBELOW) --
-        head_name = ''
-        if inventory.commission_head:
-            head_name = inventory.commission_head.full_name
+        head = inventory.commission_head
+        head_name = head.full_name if head else ''
+        head_pos = head.position.name if head and head.position else ''
 
         members = list(inventory.commission_members.all())
-        sig_rows = [('Голова комiсiї:', head_name)]
-        for idx in range(max(len(members), 3)):
+        # (role_label, position, name)
+        sig_rows = [('Голова комiсiї:', head_pos, head_name)]
+        for idx, m in enumerate(members):
             label = 'Члени комiсiї:' if idx == 0 else ''
-            name = members[idx].full_name if idx < len(members) else ''
-            sig_rows.append((label, name))
+            m_pos = m.position.name if m.position else ''
+            sig_rows.append((label, m_pos, m.full_name))
+        # At least 1 empty member row if no members
+        if not members:
+            sig_rows.append(('Члени комiсiї:', '', ''))
 
         sig_col_w = [40 * mm, 40 * mm, 30 * mm, 60 * mm]
-        sig_elements = []
-        for role, name in sig_rows:
-            row_data = [[
-                _p(role, styles['UkrSignature']),
-                '', '',
-                _p(name, styles['UkrSignature']),
-            ]]
-            row_table = Table(row_data, colWidths=sig_col_w)
-            row_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
-                ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
-                ('LINEBELOW', (3, 0), (3, 0), 0.5, colors.black),
-            ]))
-            sig_elements.append(row_table)
-
-        # Labels after last row
-        label_data = [['',
-                       _p('(посада)', styles['UkrSmallCenter']),
-                       _p('(пiдпис)', styles['UkrSmallCenter']),
-                       _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter'])]]
-        label_table = Table(label_data, colWidths=sig_col_w)
-        label_table.setStyle(TableStyle([
+        _sig_val_style = TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+            ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+            ('LINEBELOW', (3, 0), (3, 0), 0.5, colors.black),
+        ])
+        _sig_lbl_style = TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
             ('FONTSIZE', (0, 0), (-1, -1), 6),
             ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
@@ -1997,8 +2053,25 @@ class InventoryReportPDFView(APIView):
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        sig_elements.append(label_table)
+        ])
+        sig_elements = []
+        for role, pos, name in sig_rows:
+            row_table = Table([[
+                _p(role, styles['UkrSignature']),
+                _p(pos, styles['UkrSignature']) if pos else '',
+                '',
+                _p(name, styles['UkrSignature']) if name else '',
+            ]], colWidths=sig_col_w)
+            row_table.setStyle(_sig_val_style)
+            sig_elements.append(row_table)
+            # Labels under each signature row
+            lbl_table = Table([['',
+                _p('(посада)', styles['UkrSmallCenter']),
+                _p('(пiдпис)', styles['UkrSmallCenter']),
+                _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
+            ]], colWidths=sig_col_w)
+            lbl_table.setStyle(_sig_lbl_style)
+            sig_elements.append(lbl_table)
         elements.append(KeepTogether(sig_elements))
         elements.append(Spacer(1, 3 * mm))
 
@@ -2055,11 +2128,44 @@ class InventoryReportPDFView(APIView):
             'Матерiально вiдповiдальна особа:', styles['UkrNormal'],
         ))
         elements.append(Paragraph(
-            f'\u00ab___\u00bb _________________ '
-            f'{inventory.date.year if inventory.date else "____"} р.',
+            f'{_inv_date_fmt} р.',
             styles['UkrNormal'],
         ))
-        _three_col_sig_block()
+        # МВО signature with data
+        _mvo_cw = [50 * mm, 40 * mm, 60 * mm]
+        _mvo_sig = [[
+            _p(rp_position, styles['UkrSignature']) if rp_position else '',
+            '',
+            _p(rp_name, styles['UkrSignature']) if rp_name else '',
+        ]]
+        _mvo_t = Table(_mvo_sig, colWidths=_mvo_cw)
+        _mvo_t.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 4 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LINEBELOW', (0, 0), (0, 0), 0.5, colors.black),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+            ('LINEBELOW', (2, 0), (2, 0), 0.5, colors.black),
+        ]))
+        elements.append(_mvo_t)
+        _mvo_lbl = [[
+            _p('(посада)', styles['UkrSmallCenter']),
+            _p('(пiдпис)', styles['UkrSmallCenter']),
+            _p('(iнiцiали, прiзвище)', styles['UkrSmallCenter']),
+        ]]
+        _mvo_lbl_t = Table(_mvo_lbl, colWidths=_mvo_cw)
+        _mvo_lbl_t.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0.5 * mm),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(_mvo_lbl_t)
         elements.append(Spacer(1, 3 * mm))
 
         # -- "Інформацію за даними бухобліку вніс:" --
@@ -2071,8 +2177,7 @@ class InventoryReportPDFView(APIView):
             'Вказанi у цьому описi данi перевiрив:', styles['UkrNormal'],
         ))
         elements.append(Paragraph(
-            f'\u00ab____\u00bb _________________ '
-            f'{inventory.date.year if inventory.date else "____"} р.',
+            f'{_inv_date_fmt} р.',
             styles['UkrNormal'],
         ))
         _three_col_sig_block()

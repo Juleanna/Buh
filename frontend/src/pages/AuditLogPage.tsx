@@ -107,6 +107,7 @@ const AuditLogPage: React.FC = () => {
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 170,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.timestamp || '').localeCompare(b.timestamp || ''),
       render: (value: string) => dayjs(value).format('DD.MM.YYYY HH:mm:ss'),
     },
     {
@@ -114,12 +115,14 @@ const AuditLogPage: React.FC = () => {
       dataIndex: 'user_name',
       key: 'user_name',
       width: 160,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.user_name || '').localeCompare(b.user_name || ''),
     },
     {
       title: 'Дія',
       dataIndex: 'action_display',
       key: 'action',
       width: 150,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.action_display || '').localeCompare(b.action_display || ''),
       render: (text: string, record: AuditLogEntry) => (
         <Tag color={ACTION_COLORS[record.action] || 'default'}>{text}</Tag>
       ),
@@ -129,12 +132,14 @@ const AuditLogPage: React.FC = () => {
       dataIndex: 'object_repr',
       key: 'object_repr',
       ellipsis: true,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.object_repr || '').localeCompare(b.object_repr || ''),
     },
     {
       title: 'Тип',
       dataIndex: 'content_type_name',
       key: 'content_type_name',
       width: 160,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.content_type_name || '').localeCompare(b.content_type_name || ''),
       render: (name: string) => CONTENT_TYPE_LABELS[name] || name,
     },
     {
@@ -142,6 +147,7 @@ const AuditLogPage: React.FC = () => {
       dataIndex: 'ip_address',
       key: 'ip_address',
       width: 140,
+      sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.ip_address || '').localeCompare(b.ip_address || ''),
     },
   ]
 

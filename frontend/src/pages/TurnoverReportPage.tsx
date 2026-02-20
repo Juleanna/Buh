@@ -46,29 +46,34 @@ const TurnoverReportPage: React.FC = () => {
   const formatAmount = (v: string) =>
     Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })
 
+  const _s = (field: keyof TurnoverRow) => (a: TurnoverRow, b: TurnoverRow) => (String(a[field] ?? '')).localeCompare(String(b[field] ?? ''))
+  const _n = (field: keyof TurnoverRow) => (a: TurnoverRow, b: TurnoverRow) => Number(a[field] || 0) - Number(b[field] || 0)
+
   const columns = [
-    { title: '№ з/п', dataIndex: 'index', key: 'index', width: 60 },
-    { title: 'МВО', dataIndex: 'responsible_person_name', key: 'responsible_person_name', ellipsis: true, width: 160 },
-    { title: 'Рахунок', dataIndex: 'account_number', key: 'account_number', width: 100 },
-    { title: 'Найменування', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: 'Інв. номер', dataIndex: 'inventory_number', key: 'inventory_number', width: 120 },
-    { title: 'Од. виміру', dataIndex: 'unit_of_measure', key: 'unit_of_measure', width: 90 },
+    { title: '№ з/п', dataIndex: 'index', key: 'index', width: 60, sorter: _n('index') },
+    { title: 'МВО', dataIndex: 'responsible_person_name', key: 'responsible_person_name', ellipsis: true, width: 160, sorter: _s('responsible_person_name') },
+    { title: 'Рахунок', dataIndex: 'account_number', key: 'account_number', width: 100, sorter: _s('account_number') },
+    { title: 'Найменування', dataIndex: 'name', key: 'name', ellipsis: true, sorter: _s('name') },
+    { title: 'Інв. номер', dataIndex: 'inventory_number', key: 'inventory_number', width: 120, sorter: _s('inventory_number') },
+    { title: 'Од. виміру', dataIndex: 'unit_of_measure', key: 'unit_of_measure', width: 90, sorter: _s('unit_of_measure') },
     {
       title: 'Вартість',
       dataIndex: 'cost',
       key: 'cost',
       width: 120,
+      sorter: _n('cost'),
       render: (v: string) => formatAmount(v),
     },
     {
       title: 'Залишок на початок',
       children: [
-        { title: 'к-ть', dataIndex: 'opening_qty', key: 'opening_qty', width: 60 },
+        { title: 'к-ть', dataIndex: 'opening_qty', key: 'opening_qty', width: 60, sorter: _n('opening_qty') },
         {
           title: 'сума',
           dataIndex: 'opening_amount',
           key: 'opening_amount',
           width: 120,
+          sorter: _n('opening_amount'),
           render: (v: string) => formatAmount(v),
         },
       ],
@@ -76,12 +81,13 @@ const TurnoverReportPage: React.FC = () => {
     {
       title: 'Оборот дебет',
       children: [
-        { title: 'к-ть', dataIndex: 'debit_qty', key: 'debit_qty', width: 60 },
+        { title: 'к-ть', dataIndex: 'debit_qty', key: 'debit_qty', width: 60, sorter: _n('debit_qty') },
         {
           title: 'сума',
           dataIndex: 'debit_amount',
           key: 'debit_amount',
           width: 120,
+          sorter: _n('debit_amount'),
           render: (v: string) => formatAmount(v),
         },
       ],
@@ -89,12 +95,13 @@ const TurnoverReportPage: React.FC = () => {
     {
       title: 'Оборот кредит',
       children: [
-        { title: 'к-ть', dataIndex: 'credit_qty', key: 'credit_qty', width: 60 },
+        { title: 'к-ть', dataIndex: 'credit_qty', key: 'credit_qty', width: 60, sorter: _n('credit_qty') },
         {
           title: 'сума',
           dataIndex: 'credit_amount',
           key: 'credit_amount',
           width: 120,
+          sorter: _n('credit_amount'),
           render: (v: string) => formatAmount(v),
         },
       ],
@@ -102,12 +109,13 @@ const TurnoverReportPage: React.FC = () => {
     {
       title: 'Залишок на кінець',
       children: [
-        { title: 'к-ть', dataIndex: 'closing_qty', key: 'closing_qty', width: 60 },
+        { title: 'к-ть', dataIndex: 'closing_qty', key: 'closing_qty', width: 60, sorter: _n('closing_qty') },
         {
           title: 'сума',
           dataIndex: 'closing_amount',
           key: 'closing_amount',
           width: 120,
+          sorter: _n('closing_amount'),
           render: (v: string) => formatAmount(v),
         },
       ],

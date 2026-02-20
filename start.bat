@@ -33,6 +33,14 @@ echo Ochikuvannya zapusku backend...
 timeout /t 3 /nobreak >nul
 
 :: -------------------------------------------------
+:: Zapusk Celery (avtobekap ta inshi zadachi)
+:: -------------------------------------------------
+echo Zapusk Celery (Worker + Beat)...
+start "Oblik OZ - Celery" cmd /k ""%~dp0start-celery.bat""
+
+timeout /t 2 /nobreak >nul
+
+:: -------------------------------------------------
 :: Zapusk Frontend
 :: -------------------------------------------------
 echo Zapusk Frontend (React)...

@@ -11,6 +11,12 @@ echo Zupynka Backend...
 taskkill /f /fi "WINDOWTITLE eq Oblik OZ*" 2>nul
 
 :: -------------------------------------------------
+:: Zakryttya Celery procesiv
+:: -------------------------------------------------
+echo Zupynka Celery procesiv...
+taskkill /f /im celery.exe 2>nul
+
+:: -------------------------------------------------
 :: Zakryttya procesiv na portakh
 :: -------------------------------------------------
 echo Zupynka procesiv na portu 8000 (Django)...

@@ -120,7 +120,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'config.pagination.StandardPagination',
     'PAGE_SIZE': 25,
     'DATE_FORMAT': 'iso-8601',
     'DATE_INPUT_FORMATS': ['iso-8601', '%d.%m.%Y', '%Y-%m-%d'],
@@ -155,3 +155,8 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=8, minute=30, day_of_week=1),
     },
 }
+
+# Google Drive Backup
+GDRIVE_CREDENTIALS_PATH = config('GDRIVE_CREDENTIALS_PATH', default='')
+GDRIVE_FOLDER_ID = config('GDRIVE_FOLDER_ID', default='')
+GDRIVE_BACKUP_RETENTION_DAYS = 30

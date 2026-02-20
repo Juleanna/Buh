@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
+import AsyncSelect from '../components/AsyncSelect'
 import type { Inventory, ResponsiblePerson, PaginatedResponse, Location } from '../types'
 
 const { Title } = Typography
@@ -23,11 +24,12 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'success',
 }
 
+const rpMapOption = (rp: ResponsiblePerson) => ({ value: rp.id, label: rp.full_name })
+const locMapOption = (loc: Location) => ({ value: loc.id, label: loc.name })
+
 const InventoriesPage: React.FC = () => {
   const navigate = useNavigate()
   const [inventories, setInventories] = useState<Inventory[]>([])
-  const [responsiblePersons, setResponsiblePersons] = useState<ResponsiblePerson[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -48,12 +50,6 @@ const InventoriesPage: React.FC = () => {
 
   useEffect(() => {
     loadInventories()
-    api.get('/assets/responsible-persons/', { params: { is_active: true, is_employee: true, page_size: 1000 } }).then((res) => {
-      setResponsiblePersons(res.data.results || res.data)
-    }).catch(() => {})
-    api.get('/assets/locations/', { params: { is_active: true } }).then((res) => {
-      setLocations(res.data.results || res.data)
-    }).catch(() => {})
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -135,27 +131,30 @@ const InventoriesPage: React.FC = () => {
   }
 
   const columns = [
-    { title: '№', dataIndex: 'number', key: 'number', width: 100 },
+    { title: '№', dataIndex: 'number', key: 'number', width: 100, sorter: (a: Inventory, b: Inventory) => a.number.localeCompare(b.number) },
     {
       title: 'Дата',
       dataIndex: 'date',
       key: 'date',
       width: 120,
+      sorter: (a: Inventory, b: Inventory) => a.date.localeCompare(b.date),
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
     },
-    { title: '№ наказу', dataIndex: 'order_number', key: 'order', width: 120 },
+    { title: '№ наказу', dataIndex: 'order_number', key: 'order', width: 120, sorter: (a: Inventory, b: Inventory) => a.order_number.localeCompare(b.order_number) },
     {
       title: 'Статус',
       dataIndex: 'status_display',
       key: 'status',
       width: 120,
+      sorter: (a: Inventory, b: Inventory) => (a.status_display || '').localeCompare(b.status_display || ''),
       render: (text: string, record: Inventory) => (
         <Tag color={STATUS_COLORS[record.status]}>{text}</Tag>
       ),
     },
-    { title: 'Голова комісії', dataIndex: 'commission_head_name', key: 'head', ellipsis: true },
-    { title: 'Місце', dataIndex: 'location_name', key: 'location', ellipsis: true },
-    { title: 'Позицій', dataIndex: 'items_count', key: 'items', width: 90 },
+    { title: 'МВО', dataIndex: 'responsible_person_name', key: 'responsible_person', ellipsis: true, sorter: (a: Inventory, b: Inventory) => (a.responsible_person_name || '').localeCompare(b.responsible_person_name || '') },
+    { title: 'Голова комісії', dataIndex: 'commission_head_name', key: 'head', ellipsis: true, sorter: (a: Inventory, b: Inventory) => (a.commission_head_name || '').localeCompare(b.commission_head_name || '') },
+    { title: 'Місце', dataIndex: 'location_name', key: 'location', ellipsis: true, sorter: (a: Inventory, b: Inventory) => (a.location_name || '').localeCompare(b.location_name || '') },
+    { title: 'Позицій', dataIndex: 'items_count', key: 'items', width: 90, sorter: (a: Inventory, b: Inventory) => (a.items_count || 0) - (b.items_count || 0) },
     {
       title: 'Дії',
       key: 'actions',
@@ -258,20 +257,23 @@ const InventoriesPage: React.FC = () => {
           <Form.Item name="order_number" label="Номер наказу" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
+          <Form.Item name="responsible_person" label="Матеріально відповідальна особа">
+            <AsyncSelect url="/assets/responsible-persons/" params={{ is_active: true }}
+              mapOption={rpMapOption} allowClear placeholder="Пошук МВО" />
+          </Form.Item>
           <Form.Item name="commission_head" label="Голова комісії">
-            <Select allowClear placeholder="Оберіть голову комісії" showSearch optionFilterProp="label"
-              options={responsiblePersons.map(p => ({ value: p.id, label: p.full_name }))}
-            />
+            <AsyncSelect url="/assets/responsible-persons/"
+              params={{ is_active: true, is_employee: true }}
+              mapOption={rpMapOption} allowClear placeholder="Пошук голови комісії" />
           </Form.Item>
           <Form.Item name="commission_members" label="Члени комісії">
-            <Select mode="multiple" placeholder="Оберіть членів комісії" showSearch optionFilterProp="label"
-              options={responsiblePersons.map(p => ({ value: p.id, label: p.full_name }))}
-            />
+            <AsyncSelect url="/assets/responsible-persons/"
+              params={{ is_active: true, is_employee: true }}
+              mapOption={rpMapOption} mode="multiple" placeholder="Пошук членів комісії" />
           </Form.Item>
           <Form.Item name="location" label="Місце проведення">
-            <Select allowClear placeholder="Оберіть місцезнаходження" showSearch optionFilterProp="label"
-              options={locations.map(loc => ({ value: loc.id, label: loc.name }))}
-            />
+            <AsyncSelect url="/assets/locations/" params={{ is_active: true }}
+              mapOption={locMapOption} allowClear placeholder="Пошук місцезнаходження" />
           </Form.Item>
           <Form.Item name="notes" label="Примітки">
             <Input.TextArea rows={2} />

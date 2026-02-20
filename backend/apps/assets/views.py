@@ -433,7 +433,9 @@ class DepreciationRecordViewSet(viewsets.ModelViewSet):
 
 class InventoryViewSet(viewsets.ModelViewSet):
     """CRUD для інвентаризацій."""
-    queryset = Inventory.objects.annotate(items_count=Count('items')).order_by('-date')
+    queryset = Inventory.objects.select_related(
+        'commission_head', 'responsible_person', 'location',
+    ).annotate(items_count=Count('items')).order_by('-date')
     permission_classes = [IsInventoryManager]
     filterset_fields = ['status']
     search_fields = ['number', 'order_number']
@@ -457,10 +459,15 @@ class InventoryViewSet(viewsets.ModelViewSet):
             )
 
         assets = Asset.objects.filter(status=Asset.Status.ACTIVE)
-        if inventory.location:
+        if inventory.responsible_person and inventory.location:
             assets = assets.filter(
-                Q(location=inventory.location) | Q(location__isnull=True)
+                responsible_person=inventory.responsible_person,
+                location=inventory.location,
             )
+        elif inventory.responsible_person:
+            assets = assets.filter(responsible_person=inventory.responsible_person)
+        elif inventory.location:
+            assets = assets.filter(location=inventory.location)
 
         created = 0
         for asset in assets:
