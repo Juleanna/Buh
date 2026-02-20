@@ -279,6 +279,13 @@ class InventoryDetailSerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    director_name = serializers.CharField(
+        source='director.full_name', read_only=True, default=''
+    )
+    accountant_name = serializers.CharField(
+        source='accountant.full_name', read_only=True, default=''
+    )
+
     class Meta:
         model = Organization
         fields = '__all__'

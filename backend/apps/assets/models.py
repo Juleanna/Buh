@@ -608,8 +608,22 @@ class Organization(models.Model):
     short_name = models.CharField('Коротка назва', max_length=255, blank=True)
     edrpou = models.CharField('Код ЄДРПОУ', max_length=10, unique=True)
     address = models.TextField('Юридична адреса', blank=True)
-    director = models.CharField('Директор', max_length=255, blank=True)
-    accountant = models.CharField('Головний бухгалтер', max_length=255, blank=True)
+    director = models.ForeignKey(
+        ResponsiblePerson,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='director_of_organizations',
+        verbose_name='Директор',
+    )
+    accountant = models.ForeignKey(
+        ResponsiblePerson,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accountant_of_organizations',
+        verbose_name='Головний бухгалтер',
+    )
     is_active = models.BooleanField('Активна', default=True)
     is_own = models.BooleanField(
         'Власна організація',

@@ -219,8 +219,10 @@ export interface Organization {
   short_name: string
   edrpou: string
   address: string
-  director: string
-  accountant: string
+  director: number | null
+  director_name: string
+  accountant: number | null
+  accountant_name: string
   is_active: boolean
   is_own: boolean
 }

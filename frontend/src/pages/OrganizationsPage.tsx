@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Switch,
-  Space, Tag, Popconfirm,
+  Space, Tag, Popconfirm, Select,
 } from 'antd'
 import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
-import type { Organization, PaginatedResponse } from '../types'
+import type { Organization, ResponsiblePerson, PaginatedResponse } from '../types'
 
 const { Title } = Typography
 
@@ -18,6 +18,7 @@ const OrganizationsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form] = Form.useForm()
+  const [persons, setPersons] = useState<ResponsiblePerson[]>([])
 
   const loadOrganizations = async (p = page) => {
     setLoading(true)
@@ -29,6 +30,8 @@ const OrganizationsPage: React.FC = () => {
 
   useEffect(() => {
     loadOrganizations()
+    api.get<PaginatedResponse<ResponsiblePerson>>('/assets/responsible-persons/', { params: { page_size: 1000 } })
+      .then(res => setPersons(res.data.results))
   }, [])
 
   const handleSubmit = async (values: Record<string, unknown>) => {
@@ -73,8 +76,8 @@ const OrganizationsPage: React.FC = () => {
     { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.name || '').localeCompare(b.name || '') },
     { title: 'Коротка назва', dataIndex: 'short_name', key: 'short_name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.short_name || '').localeCompare(b.short_name || '') },
     { title: 'ЄДРПОУ', dataIndex: 'edrpou', key: 'edrpou', width: 120, sorter: (a: Organization, b: Organization) => (a.edrpou || '').localeCompare(b.edrpou || '') },
-    { title: 'Директор', dataIndex: 'director', key: 'director', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.director || '').localeCompare(b.director || '') },
-    { title: 'Гол. бухгалтер', dataIndex: 'accountant', key: 'accountant', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.accountant || '').localeCompare(b.accountant || '') },
+    { title: 'Директор', dataIndex: 'director_name', key: 'director_name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.director_name || '').localeCompare(b.director_name || '') },
+    { title: 'Гол. бухгалтер', dataIndex: 'accountant_name', key: 'accountant_name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.accountant_name || '').localeCompare(b.accountant_name || '') },
     {
       title: 'Власна',
       dataIndex: 'is_own',
@@ -107,6 +110,11 @@ const OrganizationsPage: React.FC = () => {
       ),
     },
   ]
+
+  const personOptions = persons.map(p => ({
+    value: p.id,
+    label: p.full_name + (p.position_name ? ` (${p.position_name})` : ''),
+  }))
 
   return (
     <div>
@@ -163,10 +171,26 @@ const OrganizationsPage: React.FC = () => {
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="director" label="Директор">
-            <Input />
+            <Select
+              options={personOptions}
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              placeholder="Оберіть директора"
+            />
           </Form.Item>
           <Form.Item name="accountant" label="Головний бухгалтер">
-            <Input />
+            <Select
+              options={personOptions}
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              placeholder="Оберіть головного бухгалтера"
+            />
           </Form.Item>
           <Form.Item name="is_active" label="Активна" valuePropName="checked">
             <Switch />
