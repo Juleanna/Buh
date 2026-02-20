@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Typography, Tag, Button, Space, Modal, Form, Input,
   InputNumber, Popconfirm, Tooltip,
@@ -7,6 +7,7 @@ import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { AssetGroup } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -73,7 +74,7 @@ const GroupsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Код', dataIndex: 'code', key: 'code', width: 80, sorter: (a: AssetGroup, b: AssetGroup) => (a.code || '').localeCompare(b.code || '') },
     { title: 'Назва групи', dataIndex: 'name', key: 'name', sorter: (a: AssetGroup, b: AssetGroup) => (a.name || '').localeCompare(b.name || '') },
     {
@@ -108,7 +109,8 @@ const GroupsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -126,6 +128,7 @@ const GroupsPage: React.FC = () => {
       <Table
         dataSource={groups}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={false}

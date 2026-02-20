@@ -1,0 +1,14 @@
+/* react-resizable: drag handle for column resizing */
+.react-resizable {
+  position: relative;
+}
+
+.react-resizable-handle {
+  box-sizing: border-box;
+}
+
+.resizable-handle:hover,
+.resizable-handle:active {
+  background-color: rgba(22, 119, 255, 0.25);
+  border-radius: 2px;
+}

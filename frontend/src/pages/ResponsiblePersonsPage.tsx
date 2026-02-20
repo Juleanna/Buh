@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Switch, Select,
   Space, Tag, Popconfirm,
@@ -8,6 +8,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant
 import api from '../api/client'
 import AsyncSelect from '../components/AsyncSelect'
 import type { ResponsiblePerson, Location, Position, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -76,7 +77,7 @@ const ResponsiblePersonsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'ПІП', dataIndex: 'full_name', key: 'full_name', ellipsis: true, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => a.full_name.localeCompare(b.full_name) },
     { title: 'ІПН', dataIndex: 'ipn', key: 'ipn', width: 120, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => a.ipn.localeCompare(b.ipn) },
     { title: 'Посада', dataIndex: 'position_name', key: 'position_name', ellipsis: true, sorter: (a: ResponsiblePerson, b: ResponsiblePerson) => (a.position_name || '').localeCompare(b.position_name || '') },
@@ -115,7 +116,8 @@ const ResponsiblePersonsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -141,6 +143,7 @@ const ResponsiblePersonsPage: React.FC = () => {
       <Table
         dataSource={persons}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

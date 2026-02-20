@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Card, Row, Col, DatePicker,
   Space,
@@ -9,6 +9,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import api from '../api/client'
 import { ExportDropdownButton } from '../components/ExportButton'
 import type { TurnoverRow } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
@@ -49,11 +50,11 @@ const TurnoverReportPage: React.FC = () => {
   const _s = (field: keyof TurnoverRow) => (a: TurnoverRow, b: TurnoverRow) => (String(a[field] ?? '')).localeCompare(String(b[field] ?? ''))
   const _n = (field: keyof TurnoverRow) => (a: TurnoverRow, b: TurnoverRow) => Number(a[field] || 0) - Number(b[field] || 0)
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: '№ з/п', dataIndex: 'index', key: 'index', width: 60, sorter: _n('index') },
     { title: 'МВО', dataIndex: 'responsible_person_name', key: 'responsible_person_name', ellipsis: true, width: 160, sorter: _s('responsible_person_name') },
     { title: 'Рахунок', dataIndex: 'account_number', key: 'account_number', width: 100, sorter: _s('account_number') },
-    { title: 'Найменування', dataIndex: 'name', key: 'name', ellipsis: true, sorter: _s('name') },
+    { title: 'Найменування', dataIndex: 'name', key: 'name', ellipsis: true, width: 180, sorter: _s('name') },
     { title: 'Інв. номер', dataIndex: 'inventory_number', key: 'inventory_number', width: 120, sorter: _s('inventory_number') },
     { title: 'Од. виміру', dataIndex: 'unit_of_measure', key: 'unit_of_measure', width: 90, sorter: _s('unit_of_measure') },
     {
@@ -120,7 +121,9 @@ const TurnoverReportPage: React.FC = () => {
         },
       ],
     },
-  ]
+  ], [])
+
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -161,6 +164,7 @@ const TurnoverReportPage: React.FC = () => {
       <Table
         dataSource={rows}
         columns={columns}
+        components={components}
         rowKey={(record) => `${record.index}_${record.inventory_number || ''}`}
         loading={loading}
         pagination={false}

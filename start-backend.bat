@@ -41,4 +41,3 @@ echo Zapusk Django servera...
 echo Natysnit Ctrl+C dlya zupynky
 echo.
 python manage.py runserver 0.0.0.0:8000
-pause

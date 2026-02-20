@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, DatePicker, Select,
   Space, Tag, Card, Statistic, Row, Col,
@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportDropdownButton } from '../components/ExportButton'
 import type { AccountEntry, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
@@ -71,7 +72,7 @@ const EntriesPage: React.FC = () => {
     loadEntries(1)
   }, [entryType, dateRange])
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     {
       title: 'Дата',
       dataIndex: 'date',
@@ -139,7 +140,8 @@ const EntriesPage: React.FC = () => {
         </Tag>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -201,6 +203,7 @@ const EntriesPage: React.FC = () => {
       <Table
         dataSource={entries}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

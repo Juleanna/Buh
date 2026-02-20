@@ -24,7 +24,7 @@ call venv\Scripts\activate.bat
 :: Zapusk Celery Beat (planuvalnik) u fonovomu vikni
 :: -------------------------------------------------
 echo Zapusk Celery Beat (planuvalnik)...
-start "Oblik OZ - Celery Beat" cmd /k "cd /d "%~dp0backend" && call venv\Scripts\activate.bat && celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+start "Oblik OZ - Celery Beat" cmd /c "cd /d "%~dp0backend" && call venv\Scripts\activate.bat && celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
 
 timeout /t 2 /nobreak >nul
 
@@ -35,4 +35,3 @@ echo Zapusk Celery Worker...
 echo Natysnit Ctrl+C dlya zupynky
 echo.
 celery -A config worker --loglevel=info --pool=solo
-pause

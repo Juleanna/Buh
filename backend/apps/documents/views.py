@@ -356,7 +356,7 @@ def _approval_block(org, styles):
 
     Returns a list of flowables.
     """
-    director = org.director if org and org.director else '________________'
+    director = org.director.full_name if org and org.director else '________________'
 
     approval_data = [[
         '',
@@ -639,7 +639,7 @@ class AssetCardPDFView(APIView):
             row += 1
 
         # -- Accountant signature --
-        accountant = org.accountant if org and org.accountant else '________________'
+        accountant = org.accountant.full_name if org and org.accountant else '________________'
         row = write_signatures_block(ws, row, [
             ('Картку заповнив', accountant),
         ], num_cols=num_cols)
@@ -866,7 +866,7 @@ class AssetCardPDFView(APIView):
             elements.append(rt)
 
         # -- Accountant signature --
-        accountant = org.accountant if org and org.accountant else '________________'
+        accountant = org.accountant.full_name if org and org.accountant else '________________'
         elements.extend(_official_signatures([
             ('Картку заповнив', accountant),
         ], styles))
@@ -1014,7 +1014,7 @@ class DepreciationReportPDFView(APIView):
         )
 
         # -- Signatures --
-        accountant = org.accountant if org and org.accountant else ''
+        accountant = org.accountant.full_name if org and org.accountant else ''
         row = write_signatures_block(ws, row, [
             ('Головний бухгалтер', accountant),
             ('Виконавець', ''),
@@ -1206,7 +1206,7 @@ class DepreciationReportPDFView(APIView):
         # -- Signatures --
         elements.extend(_official_signatures([
             ('Головний бухгалтер',
-             org.accountant if org and org.accountant else ''),
+             org.accountant.full_name if org and org.accountant else ''),
             ('Виконавець', ''),
         ], styles))
 
@@ -2216,7 +2216,7 @@ class AssetReceiptActPDFView(APIView):
         )
 
         # -- Approval block --
-        director = org.director if org and org.director else ''
+        director = org.director.full_name if org and org.director else ''
         row = write_approval_block(ws, row, director_name=director, num_cols=num_cols)
 
         # -- Document info --
@@ -2266,7 +2266,7 @@ class AssetReceiptActPDFView(APIView):
         row = write_signatures_block(ws, row, [
             ('Здав', ''),
             ('Прийняв', _responsible_person_display(asset)),
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
         ], num_cols=num_cols)
 
         auto_width(ws, num_cols)
@@ -2387,7 +2387,7 @@ class AssetReceiptActPDFView(APIView):
         elements.extend(_official_signatures([
             ('Здав', ''),
             ('Прийняв', _responsible_person_display(asset)),
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
         ], styles, compact=True))
 
         # -- Stamp place --
@@ -2438,7 +2438,7 @@ class AssetDisposalActPDFView(APIView):
         )
 
         # -- Approval block --
-        director = org.director if org and org.director else ''
+        director = org.director.full_name if org and org.director else ''
         row = write_approval_block(ws, row, director, num_cols)
 
         # -- Document info --
@@ -2489,8 +2489,8 @@ class AssetDisposalActPDFView(APIView):
 
         # -- Official signatures --
         row = write_signatures_block(ws, row, [
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
-            ('Керiвник', org.director if org and org.director else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
+            ('Керiвник', org.director.full_name if org and org.director else ''),
         ], num_cols=num_cols)
 
         auto_width(ws, num_cols)
@@ -2617,8 +2617,8 @@ class AssetDisposalActPDFView(APIView):
 
         # -- Official signatures --
         elements.extend(_official_signatures([
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
-            ('Керiвник', org.director if org and org.director else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
+            ('Керiвник', org.director.full_name if org and org.director else ''),
         ], styles, compact=True))
 
         # -- Build PDF with compact margins --
@@ -2658,7 +2658,7 @@ class VehicleDisposalActPDFView(APIView):
         )
 
         # -- Approval block --
-        director = org.director if org and org.director else ''
+        director = org.director.full_name if org and org.director else ''
         row = write_approval_block(ws, row, director, num_cols)
 
         # -- Document info --
@@ -2724,8 +2724,8 @@ class VehicleDisposalActPDFView(APIView):
 
         # -- Official signatures --
         row = write_signatures_block(ws, row, [
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
-            ('Керiвник', org.director if org and org.director else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
+            ('Керiвник', org.director.full_name if org and org.director else ''),
         ], num_cols=num_cols)
 
         auto_width(ws, num_cols)
@@ -2875,8 +2875,8 @@ class VehicleDisposalActPDFView(APIView):
 
         # -- Official signatures --
         elements.extend(_official_signatures([
-            ('Гол. бухгалтер', org.accountant if org and org.accountant else ''),
-            ('Керiвник', org.director if org and org.director else ''),
+            ('Гол. бухгалтер', org.accountant.full_name if org and org.accountant else ''),
+            ('Керiвник', org.director.full_name if org and org.director else ''),
         ], styles, compact=True))
 
         # -- Build PDF with compact margins --
@@ -3253,7 +3253,7 @@ class TurnoverStatementPDFView(APIView):
         row = write_text_row(ws, row, f'Всього позицiй: {assets.count()}', num_cols)
 
         # -- Signatures --
-        accountant = org.accountant if org and org.accountant else ''
+        accountant = org.accountant.full_name if org and org.accountant else ''
         row = write_signatures_block(ws, row, [
             ('Головний бухгалтер', accountant),
             ('Виконавець', ''),
@@ -3553,7 +3553,7 @@ class TurnoverStatementPDFView(APIView):
         # -- Signatures --
         elements.extend(_official_signatures([
             ('Головний бухгалтер',
-             org.accountant if org and org.accountant else ''),
+             org.accountant.full_name if org and org.accountant else ''),
             ('Виконавець', ''),
         ], styles))
 

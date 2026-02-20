@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Switch,
   Space, Tag, Popconfirm, Select,
@@ -7,6 +7,7 @@ import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { Organization, ResponsiblePerson, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -72,7 +73,7 @@ const OrganizationsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.name || '').localeCompare(b.name || '') },
     { title: 'Коротка назва', dataIndex: 'short_name', key: 'short_name', ellipsis: true, sorter: (a: Organization, b: Organization) => (a.short_name || '').localeCompare(b.short_name || '') },
     { title: 'ЄДРПОУ', dataIndex: 'edrpou', key: 'edrpou', width: 120, sorter: (a: Organization, b: Organization) => (a.edrpou || '').localeCompare(b.edrpou || '') },
@@ -109,7 +110,8 @@ const OrganizationsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   const personOptions = persons.map(p => ({
     value: p.id,
@@ -132,6 +134,7 @@ const OrganizationsPage: React.FC = () => {
       <Table
         dataSource={organizations}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Descriptions, Card, Typography, Tag, Button, Space, Table, Spin, Tabs,
   Upload, Image, Popconfirm, Progress, Empty, Modal, Form,
@@ -22,6 +22,7 @@ import type {
   AssetRevaluation, AssetImprovement, AccountEntry,
   AssetReceipt, AssetDisposal,
 } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title, Text } = Typography
 
@@ -197,7 +198,7 @@ const AssetDetailPage: React.FC = () => {
     }
   }
 
-  const deprColumns = [
+  const baseDeprColumns = useMemo(() => [
     {
       title: 'Період',
       key: 'period',
@@ -219,9 +220,9 @@ const AssetDetailPage: React.FC = () => {
       render: (v: string) => fmtMoney(v),
     },
     { title: 'Метод', dataIndex: 'method_display' },
-  ]
+  ], [])
 
-  const revalColumns = [
+  const baseRevalColumns = useMemo(() => [
     {
       title: 'Дата', dataIndex: 'date', width: 110,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
@@ -237,9 +238,9 @@ const AssetDetailPage: React.FC = () => {
     { title: 'Зал. до', dataIndex: 'old_book_value', render: (v: string) => fmtMoney(v) },
     { title: 'Зал. після', dataIndex: 'new_book_value', render: (v: string) => fmtMoney(v) },
     { title: 'Сума переоцінки', dataIndex: 'revaluation_amount', render: (v: string) => fmtMoney(v) },
-  ]
+  ], [])
 
-  const imprColumns = [
+  const baseImprColumns = useMemo(() => [
     {
       title: 'Дата', dataIndex: 'date', width: 110,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
@@ -252,9 +253,9 @@ const AssetDetailPage: React.FC = () => {
       title: 'Збільшує вартість', dataIndex: 'increases_value', width: 130,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Так' : 'Ні'}</Tag>,
     },
-  ]
+  ], [])
 
-  const entryColumns = [
+  const baseEntryColumns = useMemo(() => [
     {
       title: 'Дата', dataIndex: 'date', width: 110,
       render: (d: string) => dayjs(d).format('DD.MM.YYYY'),
@@ -264,9 +265,9 @@ const AssetDetailPage: React.FC = () => {
     { title: 'Кт', dataIndex: 'credit_account', width: 80 },
     { title: 'Сума, грн', dataIndex: 'amount', width: 130, render: (v: string) => fmtMoney(v) },
     { title: 'Опис', dataIndex: 'description', ellipsis: true },
-  ]
+  ], [])
 
-  const attachColumns = [
+  const baseAttachColumns = useMemo(() => [
     {
       title: '', dataIndex: 'file', width: 60,
       render: (url: string, record: AssetAttachment) => {
@@ -315,7 +316,13 @@ const AssetDetailPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+
+  const { columns: deprColumns, components: deprComponents } = useResizableColumns(baseDeprColumns)
+  const { columns: revalColumns, components: revalComponents } = useResizableColumns(baseRevalColumns)
+  const { columns: imprColumns, components: imprComponents } = useResizableColumns(baseImprColumns)
+  const { columns: entryColumns, components: entryComponents } = useResizableColumns(baseEntryColumns)
+  const { columns: attachColumns, components: attachComponents } = useResizableColumns(baseAttachColumns)
 
   return (
     <div>
@@ -404,6 +411,7 @@ const AssetDetailPage: React.FC = () => {
             <Table
               dataSource={deprRecords}
               columns={deprColumns}
+              components={deprComponents}
               rowKey="id"
               size="small"
               pagination={{ pageSize: 12 }}
@@ -456,6 +464,7 @@ const AssetDetailPage: React.FC = () => {
                 <Table
                   dataSource={attachments}
                   columns={attachColumns}
+                  components={attachComponents}
                   rowKey="id"
                   size="small"
                   pagination={false}
@@ -534,6 +543,7 @@ const AssetDetailPage: React.FC = () => {
             <Table
               dataSource={revaluations}
               columns={revalColumns}
+              components={revalComponents}
               rowKey="id"
               size="small"
               pagination={false}
@@ -549,6 +559,7 @@ const AssetDetailPage: React.FC = () => {
             <Table
               dataSource={improvements}
               columns={imprColumns}
+              components={imprComponents}
               rowKey="id"
               size="small"
               pagination={false}
@@ -564,6 +575,7 @@ const AssetDetailPage: React.FC = () => {
             <Table
               dataSource={entries}
               columns={entryColumns}
+              components={entryComponents}
               rowKey="id"
               size="small"
               pagination={{ pageSize: 20 }}

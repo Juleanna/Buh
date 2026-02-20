@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Card, Row, Col, InputNumber,
   Space, Statistic, Spin, Tag, Popconfirm,
@@ -8,6 +8,7 @@ import { CalculatorOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import { ExportDropdownButton } from '../components/ExportButton'
 import type { DepreciationRecord, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -91,7 +92,7 @@ const DepreciationPage: React.FC = () => {
   const fmtNum = (v: string | number) =>
     Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Субрахунок', dataIndex: 'account_number', key: 'acc', width: 95, align: 'center' as const, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.account_number || '').localeCompare(b.account_number || '') },
     { title: 'Інвентарний номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
     { title: 'Назва об\'єкта', dataIndex: 'asset_name', key: 'name', ellipsis: true, width: 180, sorter: (a: DepreciationRecord, b: DepreciationRecord) => (a.asset_name || '').localeCompare(b.asset_name || '') },
@@ -189,7 +190,8 @@ const DepreciationPage: React.FC = () => {
         </Popconfirm>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -275,6 +277,7 @@ const DepreciationPage: React.FC = () => {
       <Table
         dataSource={records}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         bordered

@@ -26,7 +26,7 @@ if not exist "%~dp0frontend\node_modules" (
 :: Zapusk Backend
 :: -------------------------------------------------
 echo Zapusk Backend (Django)...
-start "Oblik OZ - Backend" cmd /k ""%~dp0start-backend.bat""
+start "Oblik OZ - Backend" cmd /c ""%~dp0start-backend.bat""
 
 :: Chekayemo poky backend pidnimayetsya
 echo Ochikuvannya zapusku backend...
@@ -36,7 +36,7 @@ timeout /t 3 /nobreak >nul
 :: Zapusk Celery (avtobekap ta inshi zadachi)
 :: -------------------------------------------------
 echo Zapusk Celery (Worker + Beat)...
-start "Oblik OZ - Celery" cmd /k ""%~dp0start-celery.bat""
+start "Oblik OZ - Celery" cmd /c ""%~dp0start-celery.bat""
 
 timeout /t 2 /nobreak >nul
 
@@ -44,7 +44,7 @@ timeout /t 2 /nobreak >nul
 :: Zapusk Frontend
 :: -------------------------------------------------
 echo Zapusk Frontend (React)...
-start "Oblik OZ - Frontend" cmd /k ""%~dp0start-frontend.bat""
+start "Oblik OZ - Frontend" cmd /c ""%~dp0start-frontend.bat""
 
 :: Chekayemo poky frontend pidnimayetsya
 timeout /t 5 /nobreak >nul
@@ -67,4 +67,5 @@ echo.
 :: Vidkryvayemo brauzer
 start http://localhost:5173
 
-pause
+:: Vikno zakryyetsya avtomatychno cherez 5 sekund
+timeout /t 5 >nul

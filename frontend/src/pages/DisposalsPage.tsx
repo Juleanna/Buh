@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
   DatePicker, InputNumber, Space, Tag, Popconfirm,
@@ -10,6 +10,7 @@ import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
 import AsyncSelect from '../components/AsyncSelect'
 import type { Asset, AssetDisposal, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -91,7 +92,7 @@ const DisposalsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Номер документа', dataIndex: 'document_number', key: 'doc', sorter: (a: AssetDisposal, b: AssetDisposal) => (a.document_number || '').localeCompare(b.document_number || '') },
     {
       title: 'Дата',
@@ -149,7 +150,8 @@ const DisposalsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -175,6 +177,7 @@ const DisposalsPage: React.FC = () => {
       <Table
         dataSource={disposals}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import {
   Table, Typography, Card, Descriptions, Tag, Button, Space, Switch,
   InputNumber, Select, Spin, Modal, Input, Row, Col, Alert,
@@ -15,6 +15,7 @@ import dayjs from 'dayjs'
 import api from '../api/client'
 import { ExportDropdownButton } from '../components/ExportButton'
 import type { Inventory, InventoryItem } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title, Text } = Typography
 
@@ -181,7 +182,7 @@ const InventoryDetailPage: React.FC = () => {
   const shortages = items.filter(i => !i.is_found).length
   const totalItems = items.length
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120, sorter: (a: InventoryItem, b: InventoryItem) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
     { title: 'Назва ОЗ', dataIndex: 'asset_name', key: 'name', ellipsis: true, sorter: (a: InventoryItem, b: InventoryItem) => (a.asset_name || '').localeCompare(b.asset_name || '') },
     {
@@ -236,7 +237,8 @@ const InventoryDetailPage: React.FC = () => {
         </Popconfirm>
       ),
     }] : []),
-  ]
+  ], [isEditable])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -303,6 +305,7 @@ const InventoryDetailPage: React.FC = () => {
       <Table
         dataSource={items}
         columns={columns}
+        components={components}
         rowKey="id"
         size="small"
         pagination={false}

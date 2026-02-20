@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
   DatePicker, InputNumber, Space, Tag, Popconfirm,
@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import api from '../api/client'
 import AsyncSelect from '../components/AsyncSelect'
 import type { Asset, AssetRevaluation, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -81,7 +82,7 @@ const RevaluationsPage: React.FC = () => {
 
   const fmtMoney = (v: string) => Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     {
       title: 'Дата',
       dataIndex: 'date',
@@ -141,7 +142,8 @@ const RevaluationsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -167,6 +169,7 @@ const RevaluationsPage: React.FC = () => {
       <Table
         dataSource={revaluations}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

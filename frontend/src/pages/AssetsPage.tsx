@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Space, Typography, Tag, Input, Select, Modal,
   Form, InputNumber, DatePicker, Tooltip, Popconfirm, Checkbox,
@@ -15,6 +15,7 @@ import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
 import AsyncSelect from '../components/AsyncSelect'
 import type { Asset, AssetGroup, PaginatedResponse, ResponsiblePerson, Location } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -186,7 +187,7 @@ const AssetsPage: React.FC = () => {
   const fmtMoney = (v: string) =>
     `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 })} грн`
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     {
       title: 'Інв. номер',
       dataIndex: 'inventory_number',
@@ -256,7 +257,8 @@ const AssetsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -302,6 +304,7 @@ const AssetsPage: React.FC = () => {
       <Table
         dataSource={assets}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         rowSelection={{

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
   DatePicker, Space, Tag, Popconfirm, Tooltip,
@@ -15,6 +15,7 @@ import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
 import AsyncSelect from '../components/AsyncSelect'
 import type { Inventory, ResponsiblePerson, PaginatedResponse, Location } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -130,7 +131,7 @@ const InventoriesPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: '№', dataIndex: 'number', key: 'number', width: 100, sorter: (a: Inventory, b: Inventory) => a.number.localeCompare(b.number) },
     {
       title: 'Дата',
@@ -198,7 +199,8 @@ const InventoriesPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -224,6 +226,7 @@ const InventoriesPage: React.FC = () => {
       <Table
         dataSource={inventories}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

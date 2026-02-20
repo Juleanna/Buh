@@ -31,4 +31,3 @@ echo Zapusk Vite dev-servera...
 echo Natysnit Ctrl+C dlya zupynky
 echo.
 call npm run dev
-pause

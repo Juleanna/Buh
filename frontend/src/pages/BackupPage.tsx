@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Card, Row, Col, Button, Typography, Statistic, Space, Alert, Spin,
   Table, Tag, Divider, Collapse, TimePicker, Switch,
@@ -22,6 +22,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -253,7 +254,7 @@ const BackupPage: React.FC = () => {
     }
   }
 
-  const cloudColumns = [
+  const baseCloudColumns = useMemo(() => [
     {
       title: 'Дата',
       dataIndex: 'created_at',
@@ -312,7 +313,9 @@ const BackupPage: React.FC = () => {
         <Text type="danger" style={{ fontSize: 12 }}>{record.error_message.slice(0, 50)}</Text>
       ) : '—',
     },
-  ]
+  ], [])
+
+  const { columns: cloudColumns, components: cloudComponents } = useResizableColumns(baseCloudColumns)
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
 
@@ -509,6 +512,7 @@ const BackupPage: React.FC = () => {
           <Table
             dataSource={backupRecords}
             columns={cloudColumns}
+            components={cloudComponents}
             rowKey="id"
             loading={backupRecordsLoading}
             size="small"

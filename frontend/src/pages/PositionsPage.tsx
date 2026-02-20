@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Switch,
   Space, Tag, Popconfirm,
@@ -7,6 +7,7 @@ import { message } from '../utils/globalMessage'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import api from '../api/client'
 import type { Position, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -69,7 +70,7 @@ const PositionsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Назва', dataIndex: 'name', key: 'name', ellipsis: true, sorter: (a: Position, b: Position) => (a.name || '').localeCompare(b.name || '') },
     {
       title: 'Статус',
@@ -94,7 +95,8 @@ const PositionsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -112,6 +114,7 @@ const PositionsPage: React.FC = () => {
       <Table
         dataSource={positions}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

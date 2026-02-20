@@ -6,6 +6,7 @@ import ukUA from 'antd/locale/uk_UA'
 import dayjs from 'dayjs'
 import 'dayjs/locale/uk'
 import App from './App'
+import './resizable.css'
 import { AntdStaticProvider } from './utils/globalMessage'
 
 dayjs.locale('uk')

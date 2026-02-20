@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, Button, Typography, Modal, Form, Input, Select,
   DatePicker, InputNumber, Space, Popconfirm,
@@ -10,6 +10,7 @@ import api from '../api/client'
 import { ExportIconButton } from '../components/ExportButton'
 import AsyncSelect from '../components/AsyncSelect'
 import type { Asset, AssetReceipt, Organization, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const orgMapOption = (o: Organization) => ({ value: o.id, label: `${o.name} (${o.edrpou})` })
 
@@ -91,7 +92,7 @@ const ReceiptsPage: React.FC = () => {
     }
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     { title: 'Номер документа', dataIndex: 'document_number', key: 'doc', sorter: (a: AssetReceipt, b: AssetReceipt) => (a.document_number || '').localeCompare(b.document_number || '') },
     {
       title: 'Дата',
@@ -136,7 +137,8 @@ const ReceiptsPage: React.FC = () => {
         </Space>
       ),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -162,6 +164,7 @@ const ReceiptsPage: React.FC = () => {
       <Table
         dataSource={receipts}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         pagination={{

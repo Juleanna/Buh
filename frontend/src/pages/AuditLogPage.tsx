@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Table, Typography, Select, Space, Tag, Descriptions } from 'antd'
 import dayjs from 'dayjs'
 import api from '../api/client'
 import type { AuditLogEntry, PaginatedResponse } from '../types'
+import { useResizableColumns } from '../hooks/useResizableColumns'
 
 const { Title } = Typography
 
@@ -101,7 +102,7 @@ const AuditLogPage: React.FC = () => {
     loadEntries(p)
   }
 
-  const columns = [
+  const baseColumns = useMemo(() => [
     {
       title: 'Час',
       dataIndex: 'timestamp',
@@ -149,7 +150,8 @@ const AuditLogPage: React.FC = () => {
       width: 140,
       sorter: (a: AuditLogEntry, b: AuditLogEntry) => (a.ip_address || '').localeCompare(b.ip_address || ''),
     },
-  ]
+  ], [])
+  const { columns, components } = useResizableColumns(baseColumns)
 
   return (
     <div>
@@ -170,6 +172,7 @@ const AuditLogPage: React.FC = () => {
       <Table
         dataSource={entries}
         columns={columns}
+        components={components}
         rowKey="id"
         loading={loading}
         size="small"
