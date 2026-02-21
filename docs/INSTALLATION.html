@@ -586,7 +586,11 @@
         <span class="env-comment"># 🌐 CORS</span><br>
         <span class="env-key">CORS_ORIGINS</span>=<span class="env-val">http://localhost:5173</span><br><br>
         <span class="env-comment"># 🔴 Redis (опціонально)</span><br>
-        <span class="env-key">CELERY_BROKER_URL</span>=<span class="env-val">redis://localhost:6379/0</span>
+        <span class="env-key">CELERY_BROKER_URL</span>=<span class="env-val">redis://localhost:6379/0</span><br>
+        <span class="env-key">CELERY_RESULT_BACKEND</span>=<span class="env-val">redis://localhost:6379/0</span><br><br>
+        <span class="env-comment"># ☁️ Google Drive Backup (опціонально)</span><br>
+        <span class="env-key">GDRIVE_CREDENTIALS_PATH</span>=<br>
+        <span class="env-key">GDRIVE_FOLDER_ID</span>=
     </div>
     <div class="alert alert-info">
         <span class="alert-icon">💡</span>
@@ -1128,7 +1132,55 @@
         </div>
     </div>
 
-    <h3>2.12 🎉 Перевірка</h3>
+    <h3>2.12 🔴 Запуск Celery (опціонально)</h3>
+    <div class="alert alert-info">
+        <span class="alert-icon">💡</span>
+        <div>Celery потрібен для: автоматичних сповіщень, перевірки зносу ОЗ, резервного копіювання на Google Drive. <strong>Redis повинен бути запущений!</strong></div>
+    </div>
+
+    <p><strong>Використання BAT-скрипта (рекомендовано):</strong></p>
+    <pre><code><span class="comment"># Двічі клікніть на файл start-celery.bat</span>
+<span class="cmd">start-celery.bat</span></code></pre>
+
+    <p><strong>Або вручну (два вікна):</strong></p>
+    <div class="card-grid">
+        <div class="card">
+            <h4>🪟 Вікно 3 — Celery Worker</h4>
+            <pre><code><span class="cmd">cd Buh\backend</span>
+<span class="cmd">venv\Scripts\activate</span>
+<span class="cmd">celery -A config worker --loglevel=info --pool=solo</span></code></pre>
+        </div>
+        <div class="card">
+            <h4>🪟 Вікно 4 — Celery Beat</h4>
+            <pre><code><span class="cmd">cd Buh\backend</span>
+<span class="cmd">venv\Scripts\activate</span>
+<span class="cmd">celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler</span></code></pre>
+        </div>
+    </div>
+
+    <div class="alert alert-warning">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Без Celery</strong> система працює, але не виконуються: сповіщення про амортизацію, перевірка зносу, автоматичне резервне копіювання.</div>
+    </div>
+
+    <h3>2.13 ☁️ Google Drive Backup (опціонально)</h3>
+    <ol>
+        <li>Створіть проект у <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+        <li>Увімкніть <strong>Google Drive API</strong></li>
+        <li>Створіть <strong>OAuth 2.0 Client ID</strong> (тип: Desktop)</li>
+        <li>Завантажте JSON credentials</li>
+        <li>Додайте в <code>backend/.env</code>:
+            <pre><code>GDRIVE_CREDENTIALS_PATH=path/to/credentials.json
+GDRIVE_FOLDER_ID=your-google-drive-folder-id</code></pre>
+        </li>
+        <li>Виконайте аутентифікацію:
+            <pre><code><span class="cmd">cd Buh\backend</span>
+<span class="cmd">venv\Scripts\activate</span>
+<span class="cmd">python manage.py gdrive_auth</span></code></pre>
+        </li>
+    </ol>
+
+    <h3>2.14 🎉 Перевірка</h3>
     <div class="url-table">
         <div class="url-row"><span class="icon">⚛️</span><div><div class="label">Frontend</div><div class="url">http://localhost:5173</div></div></div>
         <div class="url-row"><span class="icon">🐍</span><div><div class="label">Backend API</div><div class="url">http://localhost:8000/api/</div></div></div>

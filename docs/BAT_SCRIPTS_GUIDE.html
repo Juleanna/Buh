@@ -1031,7 +1031,9 @@
             <a href="#start" class="sub">&#128640; start.bat</a>
             <a href="#start-backend" class="sub">&#128994; start-backend.bat</a>
             <a href="#start-frontend" class="sub">&#128309; start-frontend.bat</a>
+            <a href="#start-celery" class="sub">&#9881;&#65039; start-celery.bat</a>
             <a href="#stop" class="sub">&#128721; stop.bat</a>
+            <a href="#fix-superuser" class="sub">&#128295; fix_superuser_role.bat</a>
             <a href="#faq">&#10067; Часті питання</a>
             <a href="#troubleshooting">&#128293; Вирішення проблем</a>
             <a href="#summary-table">&#128202; Зведена таблиця</a>
@@ -1180,9 +1182,21 @@
                         <td>&#10060; Не потрібні</td>
                     </tr>
                     <tr>
+                        <td>&#9881;&#65039; <code>start-celery.bat</code></td>
+                        <td>Запуск Celery Worker + Beat</td>
+                        <td>Для фонових задач</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
                         <td>&#128721; <code>stop.bat</code></td>
                         <td>Зупинка всіх сервісів</td>
                         <td>Коли потрібно зупинити</td>
+                        <td>&#10060; Не потрібні</td>
+                    </tr>
+                    <tr>
+                        <td>&#128295; <code>fix_superuser_role.bat</code></td>
+                        <td>Виправлення ролі суперкористувача</td>
+                        <td>За потреби (одноразово)</td>
                         <td>&#10060; Не потрібні</td>
                     </tr>
                 </tbody>
@@ -1748,6 +1762,103 @@ Starting development server at <span class="code-url">http://0.0.0.0:8000/</span
         <hr>
 
         <!-- ============================== -->
+        <!-- start-celery.bat                -->
+        <!-- ============================== -->
+        <h2 id="start-celery" class="section-anchor">&#9881;&#65039; start-celery.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p>Запускає <strong>Celery Worker</strong> та <strong>Celery Beat</strong> (планувальник задач). Потрібен для фонових задач: автоматичні сповіщення, перевірка зносу ОЗ, резервне копіювання на Google Drive.</p>
+
+        <div class="alert alert-warning">
+            <span class="alert-icon">&#9888;&#65039;</span>
+            <div><strong>Вимоги:</strong> Redis повинен бути запущений!</div>
+        </div>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>start-celery.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+        <pre><code>================================================
+  Celery Worker + Beat
+================================================
+
+Zapusk Celery Beat (planuvalnik)...
+Zapusk Celery Worker...
+Natysnit Ctrl+C dlya zupynky
+
+ -------------- celery@COMPUTER v5.4.0
+--- ***** -----
+[tasks]
+  . apps.assets.tasks.check_full_depreciation
+  . apps.assets.tasks.check_high_wear_assets
+  . apps.assets.tasks.send_depreciation_reminder
+  . apps.reports.tasks.auto_backup_to_gdrive
+  . apps.reports.tasks.manual_backup_to_gdrive</code></pre>
+
+        <h3>&#128295; Що робить скрипт</h3>
+        <ol>
+            <li>&#128194; Переходить у папку <code>backend</code></li>
+            <li>&#128013; Активує Python-середовище (<code>venv</code>)</li>
+            <li>&#9200; Запускає <strong>Celery Beat</strong> (планувальник) у окремому вікні</li>
+            <li>&#9881;&#65039; Запускає <strong>Celery Worker</strong> у поточному вікні</li>
+        </ol>
+
+        <h3>&#128197; Задачі за розкладом</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Задача</th><th>Розклад</th><th>Опис</th></tr></thead>
+                <tbody>
+                    <tr><td>&#128231; Нагадування про амортизацію</td><td>1 число місяця, 09:00</td><td>Сповіщення бухгалтерам</td></tr>
+                    <tr><td>&#9888;&#65039; Перевірка зношеності</td><td>Щопонеділка, 08:00</td><td>Знаходить ОЗ зі зносом &gt;90%</td></tr>
+                    <tr><td>&#128308; Повна амортизація</td><td>Щопонеділка, 08:30</td><td>Повністю замортизовані ОЗ</td></tr>
+                    <tr><td>&#9729;&#65039; Бекап на Google Drive</td><td>За розкладом</td><td>Автоматичний дамп бази</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>&#9209;&#65039; Як зупинити</h3>
+        <p>Натисніть <strong><code>Ctrl+C</code></strong> у вікні Celery Worker. Або використайте <code>stop.bat</code>.</p>
+
+        <div class="alert alert-info">
+            <span class="alert-icon">&#128161;</span>
+            <div><strong>Без Celery</strong> система працює, але не виконуються: сповіщення про амортизацію, перевірка зносу, автоматичне резервне копіювання.</div>
+        </div>
+
+        <hr>
+
+        <!-- ============================== -->
+        <!-- fix_superuser_role.bat          -->
+        <!-- ============================== -->
+        <h2 id="fix-superuser" class="section-anchor">&#128295; fix_superuser_role.bat</h2>
+
+        <h3>&#128221; Опис</h3>
+        <p><strong>Допоміжний скрипт</strong> для виправлення ролі суперкористувача. Якщо суперюзер був створений через <code>createsuperuser</code> без вказання ролі &#8212; його роль може бути порожньою. Скрипт оновлює роль усіх суперкористувачів до <code>admin</code>.</p>
+
+        <h3>&#128640; Як запустити</h3>
+        <p>Двічі клікніть на файл <code>fix_superuser_role.bat</code>.</p>
+
+        <h3>&#128202; Що відбувається</h3>
+        <pre><code>================================================
+  Oblik OZ -- Onovlennya roli superkorystuvachiv
+================================================
+
+  Baza danykh: buh_assets @ localhost:5432
+
+Onovlennya roli superkorystuvachiv na "admin"...
+
+[OK] Rol superkorystuvachiv onovleno do "admin"</code></pre>
+
+        <h3>&#128295; Як це працює</h3>
+        <ol>
+            <li>&#128214; Читає налаштування з <code>backend\.env</code></li>
+            <li>&#128270; Перевіряє наявність <code>psql</code> у PATH</li>
+            <li>&#128452;&#65039; Виконує SQL: <code>UPDATE accounts_user SET role = 'admin' WHERE is_superuser = true AND role != 'admin';</code></li>
+            <li>&#9989; Повідомляє про результат</li>
+        </ol>
+
+        <hr>
+
+        <!-- ============================== -->
         <!-- stop.bat                        -->
         <!-- ============================== -->
         <h2 id="stop" class="section-anchor">&#128721; stop.bat</h2>
@@ -2187,11 +2298,25 @@ taskkill /f /pid &lt;PID&gt;</code></pre>
                         <td>UI працює</td>
                     </tr>
                     <tr>
+                        <td>&#9881;&#65039; <code>start-celery</code></td>
+                        <td>Celery Worker + Beat</td>
+                        <td>За потреби</td>
+                        <td>5 сек</td>
+                        <td>Фонові задачі</td>
+                    </tr>
+                    <tr>
                         <td>&#128721; <code>stop</code></td>
                         <td>Зупинка всього</td>
                         <td>За потреби</td>
                         <td>3 сек</td>
                         <td>Все зупинено</td>
+                    </tr>
+                    <tr>
+                        <td>&#128295; <code>fix_superuser_role</code></td>
+                        <td>Виправлення ролі</td>
+                        <td>Одноразово</td>
+                        <td>2 сек</td>
+                        <td>Роль = admin</td>
                     </tr>
                 </tbody>
             </table>
