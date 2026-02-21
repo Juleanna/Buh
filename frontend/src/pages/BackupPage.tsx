@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Card, Row, Col, Button, Typography, Statistic, Space, Alert, Spin,
-  Table, Tag, Divider, Collapse, TimePicker, Switch,
+  Table, Tag, Divider, Collapse, TimePicker, Switch, Upload,
 } from 'antd'
-import { message } from '../utils/globalMessage'
+import { message, modal } from '../utils/globalMessage'
 import {
   DatabaseOutlined,
   DownloadOutlined,
@@ -19,6 +19,9 @@ import {
   LinkOutlined,
   ClockCircleOutlined,
   InfoCircleOutlined,
+  UndoOutlined,
+  UploadOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../api/client'
@@ -87,6 +90,7 @@ const BackupPage: React.FC = () => {
   const [backupRecordsLoading, setBackupRecordsLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [restoreLoading, setRestoreLoading] = useState(false)
 
   // Перевірити query параметри після OAuth callback
   useEffect(() => {
@@ -236,6 +240,104 @@ const BackupPage: React.FC = () => {
     }
   }
 
+  const handleCloudRestore = (record: BackupRecord) => {
+    modal.confirm({
+      title: 'Відновлення з хмарного бекапу',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <Paragraph type="danger" style={{ marginBottom: 8 }}>
+            <strong>Поточні дані будуть замінені!</strong>
+          </Paragraph>
+          <Paragraph>
+            Бекап: <Text strong>{record.filename}</Text>
+            <br />
+            Дата: <Text strong>{dayjs(record.created_at).format('DD.MM.YYYY HH:mm')}</Text>
+            <br />
+            Розмір: <Text strong>{record.file_size_display}</Text>
+          </Paragraph>
+          <Alert
+            message="Рекомендуємо спочатку створити бекап поточного стану перед відновленням."
+            type="warning"
+            showIcon
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      ),
+      okText: 'Відновити',
+      okType: 'danger',
+      cancelText: 'Скасувати',
+      width: 480,
+      onOk: async () => {
+        setRestoreLoading(true)
+        try {
+          const res = await api.post('/reports/backup/restore-cloud/', { record_id: record.id })
+          message.success(res.data.message || 'Дані успішно відновлено!')
+          // Перезавантажити інформацію про БД
+          api.get('/reports/backup/').then((r) => setDbInfo(r.data))
+        } catch (err: any) {
+          message.error(err.response?.data?.error || 'Помилка відновлення з хмарного бекапу')
+        } finally {
+          setRestoreLoading(false)
+        }
+      },
+    })
+  }
+
+  const handleFileRestore = (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (!['sql', 'json'].includes(ext || '')) {
+      message.error('Підтримуються тільки файли .sql та .json')
+      return
+    }
+
+    modal.confirm({
+      title: 'Відновлення з локального файлу',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <Paragraph type="danger" style={{ marginBottom: 8 }}>
+            <strong>Поточні дані будуть замінені!</strong>
+          </Paragraph>
+          <Paragraph>
+            Файл: <Text strong>{file.name}</Text>
+            <br />
+            Формат: <Text strong>{ext?.toUpperCase()}</Text>
+            <br />
+            Розмір: <Text strong>{(file.size / 1024).toFixed(1)} KB</Text>
+          </Paragraph>
+          <Alert
+            message="Рекомендуємо спочатку створити бекап поточного стану перед відновленням."
+            type="warning"
+            showIcon
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      ),
+      okText: 'Відновити',
+      okType: 'danger',
+      cancelText: 'Скасувати',
+      width: 480,
+      onOk: async () => {
+        setRestoreLoading(true)
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          const res = await api.post('/reports/backup/restore/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 600000,
+          })
+          message.success(res.data.message || 'Дані успішно відновлено!')
+          api.get('/reports/backup/').then((r) => setDbInfo(r.data))
+        } catch (err: any) {
+          message.error(err.response?.data?.error || 'Помилка відновлення з файлу')
+        } finally {
+          setRestoreLoading(false)
+        }
+      },
+    })
+  }
+
   const statusColor = (status: string) => {
     switch (status) {
       case 'success': return 'green'
@@ -313,7 +415,22 @@ const BackupPage: React.FC = () => {
         <Text type="danger" style={{ fontSize: 12 }}>{record.error_message.slice(0, 50)}</Text>
       ) : '—',
     },
-  ], [])
+    {
+      title: 'Дії',
+      key: 'actions',
+      width: 120,
+      render: (_: unknown, record: BackupRecord) => record.status === 'success' ? (
+        <Button
+          size="small"
+          icon={<UndoOutlined />}
+          onClick={() => handleCloudRestore(record)}
+          loading={restoreLoading}
+        >
+          Відновити
+        </Button>
+      ) : null,
+    },
+  ], [restoreLoading])
 
   const { columns: cloudColumns, components: cloudComponents } = useResizableColumns(baseCloudColumns)
 
@@ -637,6 +754,40 @@ const BackupPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Restore from file */}
+      <Card
+        title={<><UndoOutlined style={{ marginRight: 8 }} />Відновлення з файлу</>}
+        style={{ marginBottom: 24 }}
+      >
+        <Alert
+          message="Увага! Відновлення замінить поточні дані."
+          description="Завантажте раніше створений бекап у форматі .sql або .json для відновлення бази даних. Рекомендуємо спочатку створити бекап поточного стану."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Upload.Dragger
+          accept=".sql,.json"
+          multiple={false}
+          showUploadList={false}
+          disabled={restoreLoading}
+          beforeUpload={(file) => {
+            handleFileRestore(file as unknown as File)
+            return false
+          }}
+        >
+          <p className="ant-upload-drag-icon">
+            {restoreLoading ? <SyncOutlined spin style={{ fontSize: 48, color: '#1677ff' }} /> : <UploadOutlined style={{ fontSize: 48, color: '#1677ff' }} />}
+          </p>
+          <p className="ant-upload-text">
+            {restoreLoading ? 'Відновлення...' : 'Натисніть або перетягніть файл .sql / .json сюди'}
+          </p>
+          <p className="ant-upload-hint">
+            Підтримуються формати: SQL (pg_dump) та JSON (Django dumpdata)
+          </p>
+        </Upload.Dragger>
+      </Card>
 
       {/* Download history (session only) */}
       {history.length > 0 && (

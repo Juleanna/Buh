@@ -84,7 +84,7 @@ const AsyncSelect: React.FC<AsyncSelectProps> = ({
       showSearch
       filterOption={false}
       onSearch={handleSearch}
-      onDropdownVisibleChange={handleDropdownOpen}
+      onOpenChange={handleDropdownOpen}
       loading={fetching}
       options={options}
       notFoundContent={fetching ? <Spin size="small" /> : undefined}

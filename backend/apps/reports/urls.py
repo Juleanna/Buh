@@ -12,4 +12,6 @@ urlpatterns = [
     path('backup/gdrive-auth/', views.GDriveAuthView.as_view(), name='gdrive-auth'),
     path('backup/gdrive-callback/', views.GDriveCallbackView.as_view(), name='gdrive-callback'),
     path('backup/schedule/', views.BackupScheduleView.as_view(), name='backup-schedule'),
+    path('backup/restore/', views.DatabaseRestoreView.as_view(), name='backup-restore'),
+    path('backup/restore-cloud/', views.CloudRestoreView.as_view(), name='cloud-restore'),
 ]

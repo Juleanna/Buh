@@ -1,4 +1,4 @@
-"""Логіка створення повного бекапу та вивантаження на Google Drive."""
+"""Логіка створення повного бекапу, вивантаження на Google Drive та відновлення."""
 import logging
 import os
 import shutil
@@ -8,6 +8,7 @@ import zipfile
 from datetime import datetime, timedelta
 
 from django.conf import settings
+from django.core.management import call_command
 from django.utils import timezone
 
 from . import gdrive
@@ -167,3 +168,152 @@ def _cleanup_old_backups():
 
     if old_records.exists():
         logger.info('Видалено %d старих бекапів', old_records.count())
+
+
+# ---------------------------------------------------------------------------
+#  Відновлення з бекапу
+# ---------------------------------------------------------------------------
+
+def _find_psql():
+    """Знайти psql на системі."""
+    psql = shutil.which('psql')
+    if psql:
+        return psql
+    for ver in range(20, 12, -1):
+        candidate = f'C:/Program Files/PostgreSQL/{ver}/bin/psql.exe'
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def restore_from_sql(sql_file_path):
+    """
+    Відновити базу даних з SQL дампу через psql.
+
+    Args:
+        sql_file_path: шлях до .sql файлу.
+
+    Returns:
+        dict: результат з ключами 'success' та 'message'.
+    """
+    psql = _find_psql()
+    if not psql:
+        return {'success': False, 'message': 'psql не знайдено. Встановіть PostgreSQL або додайте psql до PATH.'}
+
+    db_conf = settings.DATABASES['default']
+    env = {**os.environ, 'PGPASSWORD': db_conf['PASSWORD']}
+
+    # Крок 1: Очистити базу — видалити всі таблиці public schema
+    drop_cmd = [
+        psql,
+        '-h', db_conf['HOST'],
+        '-p', str(db_conf['PORT']),
+        '-U', db_conf['USER'],
+        '-d', db_conf['NAME'],
+        '-c', (
+            "DO $$ DECLARE r RECORD; BEGIN "
+            "FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP "
+            "EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE'; "
+            "END LOOP; END $$;"
+        ),
+    ]
+
+    try:
+        result = subprocess.run(drop_cmd, env=env, capture_output=True, timeout=120)
+        if result.returncode != 0:
+            err = result.stderr.decode('utf-8', errors='replace')[:500]
+            logger.warning('Помилка очищення БД: %s', err)
+    except Exception as e:
+        logger.warning('Помилка очищення БД: %s', e)
+
+    # Крок 2: Відновити з SQL файлу
+    restore_cmd = [
+        psql,
+        '-h', db_conf['HOST'],
+        '-p', str(db_conf['PORT']),
+        '-U', db_conf['USER'],
+        '-d', db_conf['NAME'],
+        '-f', sql_file_path,
+    ]
+
+    try:
+        result = subprocess.run(restore_cmd, env=env, capture_output=True, timeout=600)
+        if result.returncode != 0:
+            err = result.stderr.decode('utf-8', errors='replace')[:500]
+            # psql може повернути warnings які не є фатальними
+            if 'ERROR' in err.upper():
+                return {'success': False, 'message': f'Помилка psql: {err}'}
+            logger.warning('psql warnings: %s', err)
+
+        return {'success': True, 'message': 'Базу даних успішно відновлено з SQL бекапу.'}
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'message': 'Відновлення перевищило ліміт часу (10 хв).'}
+    except Exception as e:
+        return {'success': False, 'message': str(e)}
+
+
+def restore_from_json(json_file_path):
+    """
+    Відновити дані з JSON дампу через Django loaddata.
+
+    Args:
+        json_file_path: шлях до .json файлу.
+
+    Returns:
+        dict: результат з ключами 'success' та 'message'.
+    """
+    try:
+        # Очистити БД перед завантаженням
+        call_command('flush', '--no-input')
+        call_command('loaddata', json_file_path)
+        return {'success': True, 'message': 'Дані успішно відновлено з JSON бекапу.'}
+    except Exception as e:
+        return {'success': False, 'message': f'Помилка loaddata: {str(e)[:500]}'}
+
+
+def restore_from_zip(zip_path):
+    """
+    Повне відновлення з ZIP архіву (БД + media).
+
+    Args:
+        zip_path: шлях до .zip файлу.
+
+    Returns:
+        dict: результат з ключами 'success' та 'message'.
+    """
+    tmp_dir = tempfile.mkdtemp(prefix='buh_restore_')
+
+    try:
+        # Розпакувати ZIP
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(tmp_dir)
+
+        messages = []
+
+        # 1. Відновити БД з database.sql
+        sql_path = os.path.join(tmp_dir, 'database.sql')
+        if os.path.isfile(sql_path):
+            db_result = restore_from_sql(sql_path)
+            messages.append(db_result['message'])
+            if not db_result['success']:
+                return {'success': False, 'message': ' | '.join(messages)}
+        else:
+            return {'success': False, 'message': 'Файл database.sql не знайдено в архіві.'}
+
+        # 2. Відновити media файли
+        media_src = os.path.join(tmp_dir, 'media')
+        if os.path.isdir(media_src):
+            media_dst = settings.MEDIA_ROOT
+            # Очистити існуючі media файли
+            if os.path.isdir(media_dst):
+                shutil.rmtree(media_dst)
+            shutil.copytree(media_src, media_dst)
+            messages.append('Медіафайли відновлено.')
+
+        return {'success': True, 'message': ' '.join(messages)}
+    except zipfile.BadZipFile:
+        return {'success': False, 'message': 'Некоректний ZIP архів.'}
+    except Exception as e:
+        return {'success': False, 'message': f'Помилка відновлення: {str(e)[:500]}'}
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)

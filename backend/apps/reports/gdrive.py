@@ -91,6 +91,28 @@ def upload_file(local_path, filename, folder_id=None):
     return file_id, web_link
 
 
+def download_file(file_id, destination_path):
+    """
+    Завантажити файл з Google Drive за його ID.
+
+    Args:
+        file_id: ID файлу на Google Drive.
+        destination_path: шлях для збереження файлу локально.
+    """
+    from googleapiclient.http import MediaIoBaseDownload
+
+    service = get_drive_service()
+    request = service.files().get_media(fileId=file_id)
+
+    with open(destination_path, 'wb') as f:
+        downloader = MediaIoBaseDownload(f, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+
+    logger.info('Файл %s завантажено з GDrive → %s', file_id, destination_path)
+
+
 def delete_file(file_id):
     """Видалити файл з Google Drive."""
     try:

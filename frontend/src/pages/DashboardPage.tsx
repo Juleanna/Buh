@@ -49,13 +49,6 @@ const DashboardPage: React.FC = () => {
     })
   }, [])
 
-  if (loading || !data) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
-
-  const totalInitial = Number(data.financials.total_initial_cost)
-  const totalDepr = Number(data.financials.total_depreciation)
-  const totalBook = Number(data.financials.total_book_value)
-  const wearPercent = totalInitial > 0 ? Math.round((totalDepr / totalInitial) * 100) : 0
-
   const baseGroupColumns = useMemo(() => [
     { title: 'Код', dataIndex: 'group__code', key: 'code', width: 60 },
     { title: 'Група', dataIndex: 'group__name', key: 'name' },
@@ -74,6 +67,13 @@ const DashboardPage: React.FC = () => {
     },
   ], [])
   const { columns: groupColumns, components: groupComponents } = useResizableColumns(baseGroupColumns)
+
+  if (loading || !data) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+
+  const totalInitial = Number(data.financials.total_initial_cost)
+  const totalDepr = Number(data.financials.total_depreciation)
+  const totalBook = Number(data.financials.total_book_value)
+  const wearPercent = totalInitial > 0 ? Math.round((totalDepr / totalInitial) * 100) : 0
 
   const fmtMoney = (v: number) => v.toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + ' грн'
 

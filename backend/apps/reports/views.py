@@ -386,21 +386,27 @@ class DatabaseBackupView(APIView):
                 '--natural-foreign',
                 '--natural-primary',
                 '--indent', '2',
-                exclude=['contenttypes', 'auth.Permission', 'sessions', 'admin.logentry'],
+                exclude=[
+                    'contenttypes', 'auth.Permission', 'sessions',
+                    'admin.logentry', 'django_celery_beat',
+                ],
                 stdout=buf,
             )
         except Exception as e:
             return Response({'error': f'dumpdata помилка: {str(e)}'}, status=500)
 
         content = buf.getvalue().encode('utf-8')
+        if not content or content == b'[]':
+            return Response({'error': 'Дані для бекапу відсутні.'}, status=500)
+
         filename = f'backup_{db_name}_{timestamp}.json'
 
-        response = FileResponse(
-            io.BytesIO(content),
-            content_type='application/json',
-            as_attachment=True,
-            filename=filename,
+        from django.http import HttpResponse
+        response = HttpResponse(
+            content,
+            content_type='application/octet-stream',
         )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         response['X-Backup-Filename'] = filename
         return response
 
@@ -564,6 +570,92 @@ class BackupHistoryView(generics.ListAPIView):
     serializer_class = BackupRecordSerializer
     pagination_class = BackupHistoryPagination
     queryset = BackupRecord.objects.all()
+
+
+class DatabaseRestoreView(APIView):
+    """Відновлення бази даних з завантаженого файлу (.sql / .json)."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        uploaded = request.FILES.get('file')
+        if not uploaded:
+            return Response({'error': 'Файл не надано.'}, status=400)
+
+        filename = uploaded.name.lower()
+        if not filename.endswith(('.sql', '.json')):
+            return Response(
+                {'error': 'Підтримуються тільки формати .sql та .json'},
+                status=400,
+            )
+
+        # Зберегти у тимчасовий файл
+        tmp_dir = tempfile.mkdtemp(prefix='buh_restore_')
+        tmp_path = os.path.join(tmp_dir, uploaded.name)
+
+        try:
+            with open(tmp_path, 'wb') as f:
+                for chunk in uploaded.chunks():
+                    f.write(chunk)
+
+            from .backup import restore_from_sql, restore_from_json
+
+            if filename.endswith('.sql'):
+                result = restore_from_sql(tmp_path)
+            else:
+                result = restore_from_json(tmp_path)
+
+            if result['success']:
+                return Response({'message': result['message']})
+            return Response({'error': result['message']}, status=500)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+class CloudRestoreView(APIView):
+    """Відновлення бази з хмарного бекапу Google Drive."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        record_id = request.data.get('record_id')
+        if not record_id:
+            return Response({'error': 'record_id не вказано.'}, status=400)
+
+        try:
+            record = BackupRecord.objects.get(id=record_id)
+        except BackupRecord.DoesNotExist:
+            return Response({'error': 'Запис бекапу не знайдено.'}, status=404)
+
+        if not record.gdrive_file_id:
+            return Response(
+                {'error': 'У цього бекапу відсутній Google Drive file ID.'},
+                status=400,
+            )
+
+        if record.status != BackupRecord.Status.SUCCESS:
+            return Response(
+                {'error': 'Можна відновити тільки успішний бекап.'},
+                status=400,
+            )
+
+        tmp_dir = tempfile.mkdtemp(prefix='buh_cloud_restore_')
+        zip_path = os.path.join(tmp_dir, record.filename)
+
+        try:
+            # Завантажити ZIP з Google Drive
+            gdrive.download_file(record.gdrive_file_id, zip_path)
+
+            from .backup import restore_from_zip
+            result = restore_from_zip(zip_path)
+
+            if result['success']:
+                return Response({'message': result['message']})
+            return Response({'error': result['message']}, status=500)
+        except Exception as e:
+            return Response({'error': f'Помилка завантаження з GDrive: {str(e)}'}, status=500)
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 BACKUP_TASK_NAME = 'apps.reports.tasks.auto_backup_to_gdrive'

@@ -3,10 +3,10 @@ services:
     image: postgres:16-alpine
     container_name: buh_postgres
     restart: unless-stopped
+    env_file: ./backend/.env.docker
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-buh_assets}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
