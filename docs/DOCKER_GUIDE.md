@@ -404,6 +404,76 @@ docker exec buh_backend python manage.py dumpdata \
   > "backup_$(date +%Y%m%d_%H%M%S).json"
 ```
 
+### 🔄 Відновлення з резервної копії
+
+#### Відновлення з SQL-бекапу
+
+> ⚠️ **Увага:** Ця операція **повністю замінить** всі поточні дані в базі! Спершу зробіть бекап поточного стану.
+
+```bash
+# 1. Зупинити backend (щоб не було активних з'єднань)
+docker compose stop backend celery celery-beat
+
+# 2. Видалити поточну базу та створити порожню
+docker exec buh_postgres psql -U postgres -c "DROP DATABASE IF EXISTS buh_assets;"
+docker exec buh_postgres psql -U postgres -c "CREATE DATABASE buh_assets;"
+
+# 3. Завантажити дамп з файлу
+docker exec -i buh_postgres psql -U postgres -d buh_assets < backup_buh_assets_20260221.sql
+
+# 4. Запустити backend (міграції застосуються автоматично)
+docker compose start backend celery celery-beat
+```
+
+#### Відновлення з JSON-бекапу
+
+```bash
+# 1. Зупинити backend
+docker compose stop backend celery celery-beat
+
+# 2. Скинути БД та застосувати міграції (створить порожні таблиці)
+docker exec buh_backend python manage.py flush --noinput
+docker exec buh_backend python manage.py migrate --noinput
+
+# 3. Скопіювати файл бекапу в контейнер
+docker cp backup_buh_assets_20260221.json buh_backend:/app/backup.json
+
+# 4. Завантажити дані
+docker exec buh_backend python manage.py loaddata /app/backup.json
+
+# 5. Видалити тимчасовий файл та запустити сервіси
+docker exec buh_backend rm /app/backup.json
+docker compose start backend celery celery-beat
+```
+
+#### Відновлення з хмарного бекапу (Google Drive)
+
+Хмарний бекап — це ZIP-архів, що містить `database.sql`, папку `media/` та файл `env_backup`.
+
+```bash
+# 1. Завантажте ZIP з Google Drive (через веб-інтерфейс або вручну)
+
+# 2. Розпакуйте архів
+unzip backup_20260221_020000.zip -d restore_temp/
+
+# 3. Відновіть базу з SQL-дампу
+docker compose stop backend celery celery-beat
+docker exec buh_postgres psql -U postgres -c "DROP DATABASE IF EXISTS buh_assets;"
+docker exec buh_postgres psql -U postgres -c "CREATE DATABASE buh_assets;"
+docker exec -i buh_postgres psql -U postgres -d buh_assets < restore_temp/database.sql
+
+# 4. Відновіть медіа-файли (якщо потрібно)
+docker cp restore_temp/media/. buh_backend:/app/media/
+
+# 5. Запустити сервіси
+docker compose start backend celery celery-beat
+
+# 6. Прибрати тимчасові файли
+rm -rf restore_temp/
+```
+
+> 💡 **Порада:** Після відновлення завжди перевіряйте, чи працює система — увійдіть у веб-інтерфейс та перевірте наявність даних.
+
 ### ⏰ Автоматичне регулярне копіювання
 
 Через веб-інтерфейс (потрібна інтеграція з Google Drive):

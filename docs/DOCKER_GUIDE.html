@@ -1072,6 +1072,75 @@ Operations to perform:
   <span class="flag">--exclude</span> sessions <span class="flag">--exclude</span> admin.logentry \
   > <span class="string">"backup_$(date +%Y%m%d_%H%M%S).json"</span></pre>
 
+            <h3>🔄 Відновлення з резервної копії</h3>
+
+            <div class="alert alert-danger">
+                <span class="alert-icon">⚠️</span>
+                <div><strong>Увага!</strong> Відновлення <strong>повністю замінить</strong> всі поточні дані в базі. Спершу зробіть бекап поточного стану!</div>
+            </div>
+
+            <h4>📄 Відновлення з SQL-бекапу</h4>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 1. Зупинити backend (щоб не було активних з'єднань)</span>
+<span class="cmd">docker</span> compose stop backend celery celery-beat
+
+<span class="comment"># 2. Видалити поточну базу та створити порожню</span>
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"DROP DATABASE IF EXISTS buh_assets;"</span>
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"CREATE DATABASE buh_assets;"</span>
+
+<span class="comment"># 3. Завантажити дамп з файлу</span>
+<span class="cmd">docker</span> exec <span class="flag">-i</span> buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-d</span> buh_assets < <span class="string">backup_buh_assets_20260221.sql</span>
+
+<span class="comment"># 4. Запустити backend (міграції застосуються автоматично)</span>
+<span class="cmd">docker</span> compose start backend celery celery-beat</pre>
+
+            <h4>📋 Відновлення з JSON-бекапу</h4>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 1. Зупинити backend</span>
+<span class="cmd">docker</span> compose stop backend celery celery-beat
+
+<span class="comment"># 2. Скинути БД та застосувати міграції (порожні таблиці)</span>
+<span class="cmd">docker</span> exec buh_backend python manage.py flush <span class="flag">--noinput</span>
+<span class="cmd">docker</span> exec buh_backend python manage.py migrate <span class="flag">--noinput</span>
+
+<span class="comment"># 3. Скопіювати файл бекапу в контейнер</span>
+<span class="cmd">docker</span> cp <span class="string">backup_buh_assets_20260221.json</span> buh_backend:/app/backup.json
+
+<span class="comment"># 4. Завантажити дані</span>
+<span class="cmd">docker</span> exec buh_backend python manage.py loaddata /app/backup.json
+
+<span class="comment"># 5. Видалити тимчасовий файл та запустити сервіси</span>
+<span class="cmd">docker</span> exec buh_backend rm /app/backup.json
+<span class="cmd">docker</span> compose start backend celery celery-beat</pre>
+
+            <h4>☁️ Відновлення з хмарного бекапу (Google Drive ZIP)</h4>
+            <p>Хмарний бекап — це ZIP-архів, що містить <span class="inline-code">database.sql</span>, папку <span class="inline-code">media/</span> та файл <span class="inline-code">env_backup</span>.</p>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 1. Завантажте ZIP з Google Drive (через веб або вручну)</span>
+
+<span class="comment"># 2. Розпакуйте архів</span>
+<span class="cmd">unzip</span> <span class="string">backup_20260221_020000.zip</span> <span class="flag">-d</span> restore_temp/
+
+<span class="comment"># 3. Відновіть базу з SQL-дампу</span>
+<span class="cmd">docker</span> compose stop backend celery celery-beat
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"DROP DATABASE IF EXISTS buh_assets;"</span>
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"CREATE DATABASE buh_assets;"</span>
+<span class="cmd">docker</span> exec <span class="flag">-i</span> buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-d</span> buh_assets < restore_temp/database.sql
+
+<span class="comment"># 4. Відновіть медіа-файли (якщо потрібно)</span>
+<span class="cmd">docker</span> cp restore_temp/media/. buh_backend:/app/media/
+
+<span class="comment"># 5. Запустити сервіси</span>
+<span class="cmd">docker</span> compose start backend celery celery-beat
+
+<span class="comment"># 6. Прибрати тимчасові файли</span>
+<span class="cmd">rm</span> <span class="flag">-rf</span> restore_temp/</pre>
+
+            <div class="alert alert-success">
+                <span class="alert-icon">💡</span>
+                <div><strong>Порада:</strong> Після відновлення завжди перевіряйте, чи працює система — увійдіть у веб-інтерфейс та перевірте наявність даних.</div>
+            </div>
+
             <h3>⏰ Автоматичне копіювання</h3>
             <p>Через веб-інтерфейс (потрібна інтеграція з Google Drive):</p>
             <ol>
