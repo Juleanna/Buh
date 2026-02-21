@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐳 Docker Guide — Облік ОЗ</title>
+    <style>
+        :root {
+            --primary: #1677ff;
+            --primary-light: #e6f4ff;
+            --success: #52c41a;
+            --success-light: #f6ffed;
+            --warning: #faad14;
+            --warning-light: #fffbe6;
+            --danger: #ff4d4f;
+            --danger-light: #fff2f0;
+            --info: #1677ff;
+            --info-light: #e6f4ff;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #1f1f1f;
+            --text-secondary: #595959;
+            --border: #d9d9d9;
+            --code-bg: #1e1e2e;
+            --code-text: #cdd6f4;
+            --sidebar-bg: #001529;
+            --sidebar-text: #ffffffd9;
+            --sidebar-active: #1677ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 300px;
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #ffffff1a;
+            text-align: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: #ffffff80;
+        }
+
+        .sidebar-nav {
+            padding: 12px 0;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-nav a:hover {
+            background: #ffffff0d;
+            color: #fff;
+        }
+
+        .sidebar-nav a.active {
+            background: #1677ff1a;
+            border-left-color: var(--sidebar-active);
+            color: #fff;
+        }
+
+        .sidebar-nav a .nav-icon {
+            font-size: 16px;
+            width: 22px;
+            text-align: center;
+        }
+
+        .sidebar-nav .nav-divider {
+            height: 1px;
+            background: #ffffff1a;
+            margin: 8px 20px;
+        }
+
+        /* ===== MAIN ===== */
+        .main {
+            margin-left: 300px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .top-bar {
+            background: #fff;
+            padding: 16px 40px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .top-bar h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .top-bar .badge {
+            background: var(--primary);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .content {
+            padding: 32px 40px;
+            max-width: 960px;
+        }
+
+        /* ===== SECTIONS ===== */
+        .section {
+            margin-bottom: 48px;
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .icon {
+            font-size: 28px;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 20px 0 8px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== ALERTS ===== */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .alert-info {
+            background: var(--info-light);
+            border: 1px solid #91caff;
+            color: #0958d9;
+        }
+
+        .alert-success {
+            background: var(--success-light);
+            border: 1px solid #b7eb8f;
+            color: #389e0d;
+        }
+
+        .alert-warning {
+            background: var(--warning-light);
+            border: 1px solid #ffe58f;
+            color: #d48806;
+        }
+
+        .alert-danger {
+            background: var(--danger-light);
+            border: 1px solid #ffccc7;
+            color: #cf1322;
+        }
+
+        /* ===== CODE ===== */
+        pre {
+            background: var(--code-bg);
+            color: var(--code-text);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            position: relative;
+        }
+
+        pre .lang-label {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: #6c7086;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        code {
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+        }
+
+        .inline-code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #d4380d;
+            border: 1px solid #e8e8e8;
+        }
+
+        .comment { color: #6c7086; }
+        .cmd { color: #89b4fa; }
+        .flag { color: #a6e3a1; }
+        .string { color: #f9e2af; }
+        .output { color: #6c7086; font-style: italic; }
+
+        /* ===== TABLES ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 14px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        thead {
+            background: #fafafa;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        /* ===== STEPS ===== */
+        .steps {
+            counter-reset: step;
+        }
+
+        .step {
+            position: relative;
+            padding-left: 48px;
+            padding-bottom: 24px;
+            border-left: 2px solid #e8e8e8;
+            margin-left: 16px;
+        }
+
+        .step:last-child {
+            border-left-color: transparent;
+        }
+
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: -15px;
+            top: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+
+        .step p {
+            font-size: 14px;
+        }
+
+        /* ===== TAGS ===== */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .tag-blue { background: #e6f4ff; color: #0958d9; }
+        .tag-green { background: #f6ffed; color: #389e0d; }
+        .tag-orange { background: #fff7e6; color: #d46b08; }
+        .tag-red { background: #fff2f0; color: #cf1322; }
+        .tag-purple { background: #f9f0ff; color: #531dab; }
+
+        /* ===== ARCHITECTURE DIAGRAM ===== */
+        .arch-diagram {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 20px;
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .arch-node {
+            background: #f9f9f9;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .arch-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .arch-node .node-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .arch-node .node-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .arch-node .node-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .arch-node .node-port {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .arch-node-frontend { border-color: #52c41a; background: #f6ffed; }
+        .arch-node-backend { border-color: #1677ff; background: #e6f4ff; }
+        .arch-node-db { border-color: #faad14; background: #fffbe6; }
+        .arch-node-redis { border-color: #ff4d4f; background: #fff2f0; }
+        .arch-node-celery { border-color: #722ed1; background: #f9f0ff; }
+        .arch-node-beat { border-color: #13c2c2; background: #e6fffb; }
+
+        .arch-arrows {
+            text-align: center;
+            font-size: 24px;
+            color: var(--text-secondary);
+            margin: 8px 0;
+            letter-spacing: 20px;
+        }
+
+        /* ===== ACCORDION ===== */
+        .accordion {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            background: var(--card-bg);
+        }
+
+        .accordion-header {
+            padding: 14px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .accordion-header:hover {
+            background: #fafafa;
+        }
+
+        .accordion-header .arrow {
+            transition: transform 0.2s;
+            font-size: 12px;
+            margin-left: auto;
+        }
+
+        .accordion.open .accordion-header .arrow {
+            transform: rotate(90deg);
+        }
+
+        .accordion-body {
+            display: none;
+            padding: 0 20px 16px;
+            font-size: 14px;
+        }
+
+        .accordion.open .accordion-body {
+            display: block;
+        }
+
+        /* ===== QUICK REF ===== */
+        .quick-ref {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .quick-ref-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .quick-ref-item .ref-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quick-ref-item .ref-cmd {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 13px;
+            color: var(--primary);
+            background: var(--primary-light);
+            padding: 6px 10px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+
+        /* ===== FILE TREE ===== */
+        .file-tree {
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .file-tree .dir { color: #1677ff; font-weight: 600; }
+        .file-tree .file { color: var(--text-secondary); }
+        .file-tree .desc { color: #8c8c8c; font-style: italic; }
+
+        /* ===== MOBILE ===== */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 200;
+            background: var(--sidebar-bg);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main {
+                margin-left: 0;
+            }
+            .content {
+                padding: 24px 20px;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .top-bar {
+                padding-left: 56px;
+            }
+            .arch-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .quick-ref {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===== SCROLL ===== */
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #ffffff33;
+            border-radius: 4px;
+        }
+
+        /* ===== PRINT ===== */
+        @media print {
+            .sidebar, .menu-toggle, .top-bar { display: none; }
+            .main { margin-left: 0; }
+            .content { max-width: 100%; padding: 0; }
+            pre { white-space: pre-wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>🐳 Docker Guide</h2>
+        <p>Облік основних засобів</p>
+    </div>
+    <div class="sidebar-nav">
+        <a href="#requirements"><span class="nav-icon">🔧</span> Вимоги</a>
+        <a href="#structure"><span class="nav-icon">📁</span> Структура проекту</a>
+        <a href="#config"><span class="nav-icon">⚙️</span> Налаштування</a>
+        <div class="nav-divider"></div>
+        <a href="#first-run"><span class="nav-icon">🚀</span> Перший запуск</a>
+        <a href="#access"><span class="nav-icon">🖥️</span> Доступ до системи</a>
+        <div class="nav-divider"></div>
+        <a href="#commands"><span class="nav-icon">📋</span> Корисні команди</a>
+        <a href="#database"><span class="nav-icon">🗄️</span> Робота з БД</a>
+        <a href="#backup"><span class="nav-icon">💾</span> Резервне копіювання</a>
+        <a href="#gdrive"><span class="nav-icon">☁️</span> Google Drive</a>
+        <div class="nav-divider"></div>
+        <a href="#update"><span class="nav-icon">🔄</span> Оновлення проекту</a>
+        <a href="#stop"><span class="nav-icon">🛑</span> Зупинка та видалення</a>
+        <a href="#troubleshoot"><span class="nav-icon">🐛</span> Вирішення проблем</a>
+        <div class="nav-divider"></div>
+        <a href="#architecture"><span class="nav-icon">🏗️</span> Архітектура</a>
+        <a href="#quickref"><span class="nav-icon">📞</span> Швидка довідка</a>
+    </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+    <div class="top-bar">
+        <h1>🐳 Інструкція з розгортання у Docker</h1>
+        <span class="badge">v1.0 — Лютий 2026</span>
+    </div>
+
+    <div class="content">
+
+        <!-- INTRO -->
+        <div class="alert alert-info" style="margin-bottom: 32px;">
+            <span class="alert-icon">💡</span>
+            <div>
+                <strong>Система обліку основних засобів</strong> — Django REST + React/Ant Design
+                з підтримкою Celery, Redis, PostgreSQL та Google Drive бекапів.
+                Ця інструкція допоможе розгорнути проект у Docker-контейнерах.
+            </div>
+        </div>
+
+        <!-- ===== 1. REQUIREMENTS ===== -->
+        <section class="section" id="requirements">
+            <h2 class="section-title"><span class="icon">🔧</span> Вимоги</h2>
+
+            <table>
+                <thead>
+                    <tr><th>Компонент</th><th>Мінімальна версія</th><th>Перевірка</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>🐳 Docker</td><td>20.10+</td><td><span class="inline-code">docker --version</span></td></tr>
+                    <tr><td>🐙 Docker Compose</td><td>2.0+ (V2)</td><td><span class="inline-code">docker compose version</span></td></tr>
+                    <tr><td>💻 ОЗУ</td><td>2 ГБ вільних</td><td>—</td></tr>
+                    <tr><td>💽 Диск</td><td>3 ГБ вільних</td><td>—</td></tr>
+                    <tr><td>🌐 Порти</td><td>80, 5432, 6379, 8000</td><td>—</td></tr>
+                </tbody>
+            </table>
+
+            <h3>📥 Встановлення Docker</h3>
+
+            <div class="accordion open" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>🪟</span> Windows
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+                    <ol>
+                        <li>Завантажте <a href="https://www.docker.com/products/docker-desktop/" target="_blank">Docker Desktop для Windows</a></li>
+                        <li>Запустіть інсталятор та дотримуйтесь інструкцій</li>
+                        <li>Після встановлення перезавантажте комп'ютер</li>
+                        <li>Запустіть Docker Desktop з меню «Пуск»</li>
+                        <li>Дочекайтесь повідомлення <strong>«Docker Desktop is running»</strong></li>
+                    </ol>
+                    <div class="alert alert-warning" style="margin-top: 12px;">
+                        <span class="alert-icon">⚠️</span>
+                        <div>Для Windows потрібен увімкнений <strong>WSL 2</strong> або <strong>Hyper-V</strong>. Docker Desktop запропонує встановити WSL 2 автоматично.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>🐧</span> Linux (Ubuntu / Debian)
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Встановлення Docker</span>
+<span class="cmd">curl</span> <span class="flag">-fsSL</span> https://get.docker.com <span class="flag">-o</span> get-docker.sh
+<span class="cmd">sudo</span> sh get-docker.sh
+
+<span class="comment"># Додати поточного користувача до групи docker</span>
+<span class="cmd">sudo</span> usermod <span class="flag">-aG</span> docker $USER
+
+<span class="comment"># Перезайти в сесію</span>
+<span class="cmd">newgrp</span> docker
+
+<span class="comment"># Перевірка</span>
+<span class="cmd">docker</span> <span class="flag">--version</span>
+<span class="cmd">docker</span> compose <span class="flag">version</span></pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>🍎</span> macOS
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+                    <ol>
+                        <li>Завантажте <a href="https://www.docker.com/products/docker-desktop/" target="_blank">Docker Desktop для Mac</a></li>
+                        <li>Перетягніть у папку Applications</li>
+                        <li>Запустіть Docker Desktop</li>
+                        <li>Дочекайтесь іконки 🐳 у меню-барі</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== 2. STRUCTURE ===== -->
+        <section class="section" id="structure">
+            <h2 class="section-title"><span class="icon">📁</span> Структура проекту</h2>
+
+            <div class="file-tree">
+<span class="dir">📦 Buh/</span>
+├── <span class="file">🐳 docker-compose.yml</span>        <span class="desc">← Головний файл Docker оркестрації</span>
+├── <span class="file">📄 DOCKER_GUIDE.md</span>            <span class="desc">← Інструкція (Markdown)</span>
+├── <span class="file">📄 DOCKER_GUIDE.html</span>          <span class="desc">← Інструкція (HTML — ця сторінка)</span>
+│
+├── <span class="dir">📂 backend/</span>                    <span class="desc">← Django REST API</span>
+│   ├── <span class="file">🐳 Dockerfile</span>             <span class="desc">← Образ backend</span>
+│   ├── <span class="file">🚪 entrypoint.sh</span>          <span class="desc">← Скрипт ініціалізації (міграції, суперюзер)</span>
+│   ├── <span class="file">📄 requirements.txt</span>       <span class="desc">← Python-залежності</span>
+│   ├── <span class="file">🔒 .env.docker</span>            <span class="desc">← Змінні оточення для Docker</span>
+│   ├── <span class="file">📄 .env.example</span>           <span class="desc">← Шаблон змінних (локальна розробка)</span>
+│   ├── <span class="dir">📂 config/</span>                <span class="desc">← Налаштування Django (settings, urls, wsgi)</span>
+│   └── <span class="dir">📂 apps/</span>
+│       ├── <span class="dir">📂 accounts/</span>          <span class="desc">← 👤 Користувачі та авторизація (JWT)</span>
+│       ├── <span class="dir">📂 assets/</span>            <span class="desc">← 🏢 Основні засоби, амортизація</span>
+│       ├── <span class="dir">📂 documents/</span>         <span class="desc">← 📝 Генерація актів та документів</span>
+│       └── <span class="dir">📂 reports/</span>           <span class="desc">← 📊 Звіти, дашборд, бекапи, Google Drive</span>
+│
+└── <span class="dir">📂 frontend/</span>                   <span class="desc">← React SPA (TypeScript + Ant Design)</span>
+    ├── <span class="file">🐳 Dockerfile</span>             <span class="desc">← Multi-stage: Node → Nginx</span>
+    ├── <span class="file">🌐 nginx.conf</span>             <span class="desc">← Nginx: SPA + API proxy</span>
+    ├── <span class="file">📄 package.json</span>           <span class="desc">← Node.js залежності</span>
+    └── <span class="dir">📂 src/</span>                   <span class="desc">← Вихідний код React</span>
+            </div>
+        </section>
+
+        <!-- ===== 3. CONFIG ===== -->
+        <section class="section" id="config">
+            <h2 class="section-title"><span class="icon">⚙️</span> Налаштування перед запуском</h2>
+
+            <h3>1️⃣ Змінні оточення</h3>
+            <p>Файл <span class="inline-code">backend/.env.docker</span> вже містить готові значення для Docker. Якщо потрібно — відредагуйте:</p>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># Windows</span>
+<span class="cmd">notepad</span> backend/.env.docker
+
+<span class="comment"># Linux / macOS</span>
+<span class="cmd">nano</span> backend/.env.docker</pre>
+
+            <table>
+                <thead>
+                    <tr><th>Змінна</th><th>За замовчуванням</th><th>Опис</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><span class="inline-code">DJANGO_SECRET_KEY</span></td><td><span class="inline-code">django-insecure-...</span></td><td>🔑 Секретний ключ Django. <strong>Змініть у продакшні!</strong></td></tr>
+                    <tr><td><span class="inline-code">DEBUG</span></td><td><span class="inline-code">False</span></td><td>🐛 Режим налагодження</td></tr>
+                    <tr><td><span class="inline-code">POSTGRES_DB</span></td><td><span class="inline-code">buh_assets</span></td><td>🗄️ Назва бази даних</td></tr>
+                    <tr><td><span class="inline-code">POSTGRES_USER</span></td><td><span class="inline-code">postgres</span></td><td>👤 Користувач БД</td></tr>
+                    <tr><td><span class="inline-code">POSTGRES_PASSWORD</span></td><td><span class="inline-code">postgres</span></td><td>🔒 Пароль БД. <strong>Змініть у продакшні!</strong></td></tr>
+                </tbody>
+            </table>
+
+            <h3>2️⃣ Суперюзер (адміністратор)</h3>
+            <p>При першому запуску автоматично створюється суперюзер:</p>
+            <div class="card">
+                <div style="display: flex; gap: 40px;">
+                    <div>👤 <strong>Логін:</strong> <span class="inline-code">admin</span></div>
+                    <div>🔑 <strong>Пароль:</strong> <span class="inline-code">admin123</span></div>
+                </div>
+            </div>
+            <p>Щоб змінити — задайте змінні оточення при запуску:</p>
+<pre><span class="lang-label">bash</span>
+<span class="cmd">DJANGO_SUPERUSER_USERNAME</span>=boss <span class="cmd">DJANGO_SUPERUSER_PASSWORD</span>=secure123 <span class="cmd">docker</span> compose up <span class="flag">-d</span></pre>
+
+            <h3>3️⃣ Перевірка вільних портів</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># Windows (PowerShell)</span>
+<span class="cmd">netstat</span> <span class="flag">-ano</span> | findstr <span class="string">":80 :5432 :6379 :8000"</span>
+
+<span class="comment"># Linux / macOS</span>
+<span class="cmd">ss</span> <span class="flag">-tlnp</span> | grep <span class="flag">-E</span> <span class="string">':(80|5432|6379|8000)'</span></pre>
+
+            <table>
+                <thead>
+                    <tr><th>Порт</th><th>Сервіс</th><th>Примітка</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><span class="inline-code">80</span></td><td>🌐 Frontend (Nginx)</td><td>Основний вхід у систему</td></tr>
+                    <tr><td><span class="inline-code">8000</span></td><td>⚙️ Backend (Django)</td><td>API (також проксюється через Nginx)</td></tr>
+                    <tr><td><span class="inline-code">5432</span></td><td>🗄️ PostgreSQL</td><td>База даних</td></tr>
+                    <tr><td><span class="inline-code">6379</span></td><td>📮 Redis</td><td>Брокер черг Celery</td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div>Якщо порт 80 зайнятий — змініть у <span class="inline-code">docker-compose.yml</span>:<br>
+                <span class="inline-code">ports: - "3000:80"</span> → тоді доступ через <span class="inline-code">http://localhost:3000</span></div>
+            </div>
+        </section>
+
+        <!-- ===== 4. FIRST RUN ===== -->
+        <section class="section" id="first-run">
+            <h2 class="section-title"><span class="icon">🚀</span> Перший запуск</h2>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Збирання образів</div>
+                    <p>Перейдіть у кореневу папку проекту та запустіть збирання:</p>
+<pre><span class="cmd">cd</span> Buh
+<span class="cmd">docker</span> compose build</pre>
+                    <div class="alert alert-info">
+                        <span class="alert-icon">⏳</span>
+                        <div>Перша збірка займає <strong>5-10 хвилин</strong> (завантаження базових образів, встановлення залежностей). Наступні збірки будуть значно швидшими завдяки кешуванню.</div>
+                    </div>
+                    <p>Що відбувається:</p>
+                    <ul>
+                        <li>📦 <strong>backend</strong> — Python 3.12, залежності, PostgreSQL клієнт</li>
+                        <li>📦 <strong>frontend</strong> — Node.js 20, npm залежності, React збірка → Nginx</li>
+                    </ul>
+                </div>
+
+                <div class="step">
+                    <div class="step-title">Запуск усіх сервісів</div>
+<pre><span class="cmd">docker</span> compose up <span class="flag">-d</span></pre>
+                    <p>Прапорець <span class="inline-code">-d</span> запускає контейнери у фоновому режимі (detached).</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-title">Перевірка статусу</div>
+<pre><span class="cmd">docker</span> compose ps</pre>
+                    <p>✅ Очікуваний результат — всі 6 сервісів у стані <strong>Up</strong>:</p>
+<pre><span class="output">NAME              STATUS
+buh_postgres      Up (healthy)
+buh_redis         Up (healthy)
+buh_backend       Up
+buh_celery        Up
+buh_celery_beat   Up
+buh_frontend      Up</span></pre>
+                </div>
+
+                <div class="step">
+                    <div class="step-title">Перегляд логів запуску</div>
+<pre><span class="comment"># Всі сервіси</span>
+<span class="cmd">docker</span> compose logs
+
+<span class="comment"># Тільки backend (міграції, суперюзер)</span>
+<span class="cmd">docker</span> compose logs backend</pre>
+                    <p>✅ В логах backend ви побачите:</p>
+<pre><span class="output">=== Очікування на PostgreSQL ===
+PostgreSQL доступний!
+=== Застосування міграцій ===
+Operations to perform:
+  Apply all migrations: ...
+=== Збирання статичних файлів ===
+=== Створення суперюзера (якщо не існує) ===
+Суперюзер створено
+=== Запуск: gunicorn ... ===</span></pre>
+                </div>
+            </div>
+
+            <div class="alert alert-success">
+                <span class="alert-icon">🎉</span>
+                <div><strong>Готово!</strong> Система запущена та доступна за адресою <a href="http://localhost" target="_blank">http://localhost</a></div>
+            </div>
+        </section>
+
+        <!-- ===== 5. ACCESS ===== -->
+        <section class="section" id="access">
+            <h2 class="section-title"><span class="icon">🖥️</span> Доступ до системи</h2>
+
+            <table>
+                <thead>
+                    <tr><th>Сервіс</th><th>URL</th><th>Опис</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>🌐 <strong>Веб-додаток</strong></td><td><a href="http://localhost" target="_blank">http://localhost</a></td><td>Основний інтерфейс системи</td></tr>
+                    <tr><td>⚙️ <strong>Django Admin</strong></td><td><a href="http://localhost/admin/" target="_blank">http://localhost/admin/</a></td><td>Панель адміністратора Django</td></tr>
+                    <tr><td>📡 <strong>API (проксі)</strong></td><td><a href="http://localhost/api/" target="_blank">http://localhost/api/</a></td><td>REST API через Nginx</td></tr>
+                    <tr><td>📡 <strong>API (прямий)</strong></td><td><a href="http://localhost:8000/api/" target="_blank">http://localhost:8000/api/</a></td><td>REST API напряму</td></tr>
+                </tbody>
+            </table>
+
+            <h3>🔐 Вхід у систему</h3>
+            <div class="steps">
+                <div class="step"><div class="step-title">Відкрийте <a href="http://localhost" target="_blank">http://localhost</a> у браузері</div></div>
+                <div class="step"><div class="step-title">Введіть облікові дані: 👤 <span class="inline-code">admin</span> / 🔑 <span class="inline-code">admin123</span></div></div>
+                <div class="step"><div class="step-title">Натисніть «Увійти»</div></div>
+            </div>
+
+            <h3>👥 Ролі користувачів</h3>
+            <table>
+                <thead>
+                    <tr><th>Роль</th><th>Опис</th><th>Доступ</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="tag tag-red">🛡️ Адміністратор</span></td>
+                        <td>Повний доступ</td>
+                        <td>Все + бекапи + управління користувачами</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">📊 Бухгалтер</span></td>
+                        <td>Робота з ОЗ</td>
+                        <td>ОЗ, прихід, вибуття, амортизація, звіти</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">📋 Інвентаризатор</span></td>
+                        <td>Інвентаризація</td>
+                        <td>Перегляд ОЗ, інвентаризація</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ===== 6. COMMANDS ===== -->
+        <section class="section" id="commands">
+            <h2 class="section-title"><span class="icon">📋</span> Корисні команди Docker</h2>
+
+            <h3>🔄 Управління сервісами</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 🟢 Запустити всі сервіси</span>
+<span class="cmd">docker</span> compose up <span class="flag">-d</span>
+
+<span class="comment"># 🔴 Зупинити всі сервіси</span>
+<span class="cmd">docker</span> compose down
+
+<span class="comment"># 🔄 Перезапустити конкретний сервіс</span>
+<span class="cmd">docker</span> compose restart backend
+<span class="cmd">docker</span> compose restart celery
+<span class="cmd">docker</span> compose restart frontend
+
+<span class="comment"># 📊 Статус сервісів</span>
+<span class="cmd">docker</span> compose ps
+
+<span class="comment"># 📋 Логи в реальному часі</span>
+<span class="cmd">docker</span> compose logs <span class="flag">-f</span>
+
+<span class="comment"># 📋 Логи конкретного сервісу (останні 100 рядків)</span>
+<span class="cmd">docker</span> compose logs <span class="flag">--tail=100</span> backend</pre>
+
+            <h3>🔍 Інспекція контейнерів</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 🖥️ Відкрити термінал у контейнері backend</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> buh_backend bash
+
+<span class="comment"># 🐍 Відкрити Django shell</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> buh_backend python manage.py shell
+
+<span class="comment"># 🗄️ Підключитися до PostgreSQL</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-d</span> buh_assets
+
+<span class="comment"># 📮 Підключитися до Redis</span>
+<span class="cmd">docker</span> exec <span class="flag">-it</span> buh_redis redis-cli</pre>
+
+            <h3>📊 Моніторинг ресурсів</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 💻 Використання CPU / RAM / Мережі</span>
+<span class="cmd">docker</span> stats
+
+<span class="comment"># 💽 Розмір volumes</span>
+<span class="cmd">docker</span> system df <span class="flag">-v</span></pre>
+        </section>
+
+        <!-- ===== 7. DATABASE ===== -->
+        <section class="section" id="database">
+            <h2 class="section-title"><span class="icon">🗄️</span> Робота з базою даних</h2>
+
+            <h3>📤 Створення дампу бази</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># SQL дамп</span>
+<span class="cmd">docker</span> exec buh_postgres pg_dump <span class="flag">-U</span> postgres buh_assets > backup.sql
+
+<span class="comment"># Стиснений дамп</span>
+<span class="cmd">docker</span> exec buh_postgres pg_dump <span class="flag">-U</span> postgres buh_assets | gzip > backup.sql.gz</pre>
+
+            <h3>📥 Відновлення бази з дампу</h3>
+            <div class="alert alert-danger">
+                <span class="alert-icon">⚠️</span>
+                <div><strong>Увага!</strong> Ця операція перезапише всі поточні дані в базі. Спершу зробіть бекап!</div>
+            </div>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 1. Видалити та створити базу заново</span>
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"DROP DATABASE IF EXISTS buh_assets;"</span>
+<span class="cmd">docker</span> exec buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-c</span> <span class="string">"CREATE DATABASE buh_assets;"</span>
+
+<span class="comment"># 2. Завантажити дамп</span>
+<span class="cmd">docker</span> exec <span class="flag">-i</span> buh_postgres psql <span class="flag">-U</span> postgres <span class="flag">-d</span> buh_assets < backup.sql
+
+<span class="comment"># 3. Перезапустити backend</span>
+<span class="cmd">docker</span> compose restart backend</pre>
+
+            <h3>🔄 Застосування нових міграцій</h3>
+<pre><span class="cmd">docker</span> exec buh_backend python manage.py migrate</pre>
+
+            <h3>👤 Створення додаткового суперюзера</h3>
+<pre><span class="cmd">docker</span> exec <span class="flag">-it</span> buh_backend python manage.py createsuperuser</pre>
+        </section>
+
+        <!-- ===== 8. BACKUP ===== -->
+        <section class="section" id="backup">
+            <h2 class="section-title"><span class="icon">💾</span> Резервне копіювання</h2>
+
+            <h3>🌐 Через веб-інтерфейс (рекомендовано)</h3>
+            <div class="steps">
+                <div class="step"><div class="step-title">Увійдіть як <span class="tag tag-red">Адміністратор</span></div></div>
+                <div class="step">
+                    <div class="step-title">Перейдіть у меню «💾 Резервна копія»</div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Оберіть формат</div>
+                    <ul>
+                        <li>📄 <strong>SQL</strong> — повний дамп PostgreSQL (рекомендовано для відновлення)</li>
+                        <li>📋 <strong>JSON</strong> — дамп через Django dumpdata (портативний формат)</li>
+                    </ul>
+                </div>
+                <div class="step"><div class="step-title">Натисніть «Завантажити» — файл збережеться на комп'ютер</div></div>
+            </div>
+
+            <h3>🖥️ Через командний рядок</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 📄 SQL бекап з позначкою часу</span>
+<span class="cmd">docker</span> exec buh_postgres pg_dump <span class="flag">-U</span> postgres buh_assets > <span class="string">"backup_$(date +%Y%m%d_%H%M%S).sql"</span>
+
+<span class="comment"># 📋 JSON бекап через Django</span>
+<span class="cmd">docker</span> exec buh_backend python manage.py dumpdata \
+  <span class="flag">--natural-foreign</span> <span class="flag">--natural-primary</span> <span class="flag">--indent</span> 2 \
+  <span class="flag">--exclude</span> contenttypes <span class="flag">--exclude</span> auth.Permission \
+  <span class="flag">--exclude</span> sessions <span class="flag">--exclude</span> admin.logentry \
+  > <span class="string">"backup_$(date +%Y%m%d_%H%M%S).json"</span></pre>
+
+            <h3>⏰ Автоматичне копіювання</h3>
+            <p>Через веб-інтерфейс (потрібна інтеграція з Google Drive):</p>
+            <ol>
+                <li>«💾 Резервна копія» → секція Google Drive</li>
+                <li>Увімкніть <strong>автобекап</strong></li>
+                <li>Задайте час (наприклад, щоденно о 02:00)</li>
+            </ol>
+            <p>Celery Beat автоматично створюватиме бекапи за розкладом.</p>
+        </section>
+
+        <!-- ===== 9. GDRIVE ===== -->
+        <section class="section" id="gdrive">
+            <h2 class="section-title"><span class="icon">☁️</span> Google Drive бекап (опціонально)</h2>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">ℹ️</span>
+                <div>Google Drive інтеграція дозволяє автоматично зберігати бекапи у хмарі. Це <strong>необов'язковий</strong> функціонал.</div>
+            </div>
+
+            <h3>Крок 1 — OAuth2 credentials у Google Cloud</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Перейдіть на <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Створіть новий проект або оберіть існуючий</div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Увімкніть Google Drive API</div>
+                    <p>Меню → APIs & Services → Library → «Google Drive API» → Enable</p>
+                </div>
+                <div class="step">
+                    <div class="step-title">Створіть OAuth2 credentials</div>
+                    <ul>
+                        <li>APIs & Services → Credentials → Create Credentials → OAuth Client ID</li>
+                        <li>Application type: <strong>Web application</strong></li>
+                        <li>Authorized redirect URIs: <span class="inline-code">http://localhost/api/reports/backup/gdrive-callback/</span></li>
+                        <li>Завантажте JSON файл</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Крок 2 — Налаштування проекту</h3>
+            <ol>
+                <li>Покладіть завантажений JSON файл у папку <span class="inline-code">backend/</span> з назвою <span class="inline-code">gdrive_credentials.json</span></li>
+                <li>Відредагуйте <span class="inline-code">backend/.env.docker</span>:</li>
+            </ol>
+<pre><span class="lang-label">env</span>
+GDRIVE_CREDENTIALS_PATH=gdrive_credentials.json
+GDRIVE_FOLDER_ID=ваш_id_папки_на_google_drive</pre>
+            <ol start="3">
+                <li>Перезапустіть backend:</li>
+            </ol>
+<pre><span class="cmd">docker</span> compose restart backend</pre>
+
+            <h3>Крок 3 — Авторизація</h3>
+            <ol>
+                <li>Відкрийте веб-інтерфейс → «💾 Резервна копія»</li>
+                <li>У секції Google Drive натисніть «Підключити»</li>
+                <li>Пройдіть OAuth авторизацію через Google</li>
+                <li>Після успішного підключення з'явиться статус ✅</li>
+            </ol>
+
+            <h3>Крок 4 — ID папки Google Drive</h3>
+            <ol>
+                <li>Відкрийте <a href="https://drive.google.com/" target="_blank">Google Drive</a></li>
+                <li>Створіть папку для бекапів (наприклад, «Бекапи ОЗ»)</li>
+                <li>Відкрийте цю папку та скопіюйте ID з URL:</li>
+            </ol>
+<pre>https://drive.google.com/drive/folders/<span class="string">ЦЕЙ_ID_СКОПІЮЙТЕ</span></pre>
+        </section>
+
+        <!-- ===== 10. UPDATE ===== -->
+        <section class="section" id="update">
+            <h2 class="section-title"><span class="icon">🔄</span> Оновлення проекту</h2>
+
+            <h3>📦 Стандартне оновлення (після змін у коді)</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># 1. Зупинити сервіси</span>
+<span class="cmd">docker</span> compose down
+
+<span class="comment"># 2. Перезібрати образи</span>
+<span class="cmd">docker</span> compose build
+
+<span class="comment"># 3. Запустити з новими образами</span>
+<span class="cmd">docker</span> compose up <span class="flag">-d</span></pre>
+
+            <h3>⚡ Швидке оновлення (без зупинки)</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># Тільки backend</span>
+<span class="cmd">docker</span> compose build backend
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> backend
+
+<span class="comment"># Тільки frontend</span>
+<span class="cmd">docker</span> compose build frontend
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> frontend</pre>
+
+            <h3>🧹 Повне очищення та перезбірка</h3>
+<pre><span class="lang-label">bash</span>
+<span class="cmd">docker</span> compose down
+<span class="cmd">docker</span> compose build <span class="flag">--no-cache</span>
+<span class="cmd">docker</span> compose up <span class="flag">-d</span></pre>
+
+            <h3>📋 Після нових Python-залежностей</h3>
+            <p>Якщо змінився <span class="inline-code">requirements.txt</span>:</p>
+<pre><span class="cmd">docker</span> compose build backend
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> backend celery celery-beat</pre>
+
+            <h3>📋 Після нових Node.js залежностей</h3>
+            <p>Якщо змінився <span class="inline-code">package.json</span>:</p>
+<pre><span class="cmd">docker</span> compose build frontend
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> frontend</pre>
+        </section>
+
+        <!-- ===== 11. STOP ===== -->
+        <section class="section" id="stop">
+            <h2 class="section-title"><span class="icon">🛑</span> Зупинка та видалення</h2>
+
+            <h3>⏸️ Зупинка (дані зберігаються)</h3>
+<pre><span class="cmd">docker</span> compose down</pre>
+
+            <h3>🗑️ Повне видалення</h3>
+            <div class="alert alert-danger">
+                <span class="alert-icon">⚠️</span>
+                <div><strong>Увага!</strong> Наступні команди видалять ВСІ дані (база, файли, бекапи)! Спершу зробіть резервну копію!</div>
+            </div>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># Зупинити + видалити контейнери та volumes</span>
+<span class="cmd">docker</span> compose down <span class="flag">-v</span>
+
+<span class="comment"># Видалити також створені образи</span>
+<span class="cmd">docker</span> compose down <span class="flag">--rmi all</span> <span class="flag">-v</span></pre>
+
+            <h3>🧹 Очищення системи Docker</h3>
+<pre><span class="lang-label">bash</span>
+<span class="comment"># Видалити невикористані образи, контейнери, мережі</span>
+<span class="cmd">docker</span> system prune <span class="flag">-a</span>
+
+<span class="comment"># Видалити невикористані volumes (⚠️ обережно!)</span>
+<span class="cmd">docker</span> volume prune</pre>
+        </section>
+
+        <!-- ===== 12. TROUBLESHOOT ===== -->
+        <section class="section" id="troubleshoot">
+            <h2 class="section-title"><span class="icon">🐛</span> Вирішення проблем</h2>
+
+            <div class="accordion open" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Контейнер не запускається
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Перевірити логи проблемного сервісу</span>
+<span class="cmd">docker</span> compose logs backend
+<span class="cmd">docker</span> compose logs frontend
+
+<span class="comment"># Перевірити статус усіх контейнерів</span>
+<span class="cmd">docker</span> compose ps <span class="flag">-a</span></pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Помилка «port is already in use»
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+                    <p>Порт вже зайнятий іншою програмою:</p>
+<pre><span class="comment"># Windows — знайти процес на порту 80</span>
+<span class="cmd">netstat</span> <span class="flag">-ano</span> | findstr :80
+<span class="cmd">taskkill</span> /PID &lt;номер_процесу&gt; /F
+
+<span class="comment"># Linux — знайти та завершити</span>
+<span class="cmd">sudo</span> lsof <span class="flag">-i</span> :80
+<span class="cmd">sudo</span> kill &lt;PID&gt;</pre>
+                    <p>Або змініть порт у <span class="inline-code">docker-compose.yml</span>:</p>
+<pre>frontend:
+  ports:
+    - <span class="string">"3000:80"</span>    <span class="comment"># Замість 80 → 3000</span></pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Backend не підключається до БД
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Перевірити стан PostgreSQL</span>
+<span class="cmd">docker</span> compose ps db
+<span class="cmd">docker</span> compose logs db
+
+<span class="comment"># Перезапустити БД, потім backend</span>
+<span class="cmd">docker</span> compose restart db
+<span class="comment"># Зачекати 10 секунд...</span>
+<span class="cmd">docker</span> compose restart backend</pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Помилка міграцій
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Подивитись деталі помилки</span>
+<span class="cmd">docker</span> compose logs backend | grep <span class="flag">-A 5</span> <span class="string">"migrate"</span>
+
+<span class="comment"># Запустити міграції вручну</span>
+<span class="cmd">docker</span> exec buh_backend python manage.py migrate <span class="flag">--noinput</span></pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Frontend показує білий екран
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Перевірити логи frontend</span>
+<span class="cmd">docker</span> compose logs frontend
+
+<span class="comment"># Перезібрати frontend</span>
+<span class="cmd">docker</span> compose build frontend
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> frontend</pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> API повертає 502 Bad Gateway
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+                    <p>Backend ще не запустився або впав:</p>
+<pre><span class="cmd">docker</span> compose ps backend
+<span class="cmd">docker</span> compose logs <span class="flag">--tail=50</span> backend
+
+<span class="comment"># Перезапустити</span>
+<span class="cmd">docker</span> compose restart backend</pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Celery задачі не виконуються
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Перевірити стан Celery</span>
+<span class="cmd">docker</span> compose ps celery
+<span class="cmd">docker</span> compose logs <span class="flag">--tail=50</span> celery
+
+<span class="comment"># Перевірити Redis</span>
+<span class="cmd">docker</span> compose exec redis redis-cli ping
+<span class="output"># Очікувана відповідь: PONG</span>
+
+<span class="comment"># Перезапустити Celery</span>
+<span class="cmd">docker</span> compose restart celery celery-beat</pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>❌</span> Бекап SQL не працює (pg_dump error)
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="comment"># Перевірити pg_dump в контейнері</span>
+<span class="cmd">docker</span> exec buh_backend which pg_dump
+<span class="cmd">docker</span> exec buh_backend pg_dump <span class="flag">--version</span>
+
+<span class="comment"># Перевірити підключення до БД</span>
+<span class="cmd">docker</span> exec buh_backend python <span class="flag">-c</span> <span class="string">"
+import psycopg
+conn = psycopg.connect('host=db dbname=buh_assets user=postgres password=postgres')
+print('OK')
+conn.close()
+"</span></pre>
+                </div>
+            </div>
+
+            <div class="accordion" onclick="this.classList.toggle('open')">
+                <div class="accordion-header">
+                    <span>🔑</span> Забули пароль адміністратора
+                    <span class="arrow">▶</span>
+                </div>
+                <div class="accordion-body">
+<pre><span class="cmd">docker</span> exec <span class="flag">-it</span> buh_backend python manage.py changepassword admin</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== 13. ARCHITECTURE ===== -->
+        <section class="section" id="architecture">
+            <h2 class="section-title"><span class="icon">🏗️</span> Архітектура контейнерів</h2>
+
+            <div class="arch-diagram">
+                <div class="arch-grid">
+                    <div class="arch-node arch-node-frontend">
+                        <div class="node-icon">🌐</div>
+                        <div class="node-name">Frontend</div>
+                        <div class="node-desc">Nginx + React SPA</div>
+                        <div class="node-port">:80</div>
+                    </div>
+                    <div class="arch-node arch-node-backend">
+                        <div class="node-icon">⚙️</div>
+                        <div class="node-name">Backend</div>
+                        <div class="node-desc">Django + Gunicorn</div>
+                        <div class="node-port">:8000</div>
+                    </div>
+                    <div class="arch-node arch-node-db">
+                        <div class="node-icon">🗄️</div>
+                        <div class="node-name">PostgreSQL</div>
+                        <div class="node-desc">База даних</div>
+                        <div class="node-port">:5432</div>
+                    </div>
+                    <div class="arch-node arch-node-celery">
+                        <div class="node-icon">🔄</div>
+                        <div class="node-name">Celery Worker</div>
+                        <div class="node-desc">Асинхронні задачі</div>
+                        <div class="node-port">—</div>
+                    </div>
+                    <div class="arch-node arch-node-beat">
+                        <div class="node-icon">⏰</div>
+                        <div class="node-name">Celery Beat</div>
+                        <div class="node-desc">Планувальник</div>
+                        <div class="node-port">—</div>
+                    </div>
+                    <div class="arch-node arch-node-redis">
+                        <div class="node-icon">📮</div>
+                        <div class="node-name">Redis</div>
+                        <div class="node-desc">Брокер повідомлень</div>
+                        <div class="node-port">:6379</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>📦 Описи контейнерів</h3>
+            <table>
+                <thead>
+                    <tr><th>Контейнер</th><th>Образ</th><th>Призначення</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><span class="inline-code">buh_frontend</span></td><td>Node 20 → Nginx Alpine</td><td>🌐 SPA React + проксі до API</td></tr>
+                    <tr><td><span class="inline-code">buh_backend</span></td><td>Python 3.12-slim</td><td>⚙️ Django REST API + Gunicorn</td></tr>
+                    <tr><td><span class="inline-code">buh_postgres</span></td><td>PostgreSQL 16 Alpine</td><td>🗄️ Основна база даних</td></tr>
+                    <tr><td><span class="inline-code">buh_redis</span></td><td>Redis 7 Alpine</td><td>📮 Брокер повідомлень для Celery</td></tr>
+                    <tr><td><span class="inline-code">buh_celery</span></td><td>Python 3.12-slim</td><td>🔄 Воркер для асинхронних задач</td></tr>
+                    <tr><td><span class="inline-code">buh_celery_beat</span></td><td>Python 3.12-slim</td><td>⏰ Планувальник періодичних задач</td></tr>
+                </tbody>
+            </table>
+
+            <h3>💽 Docker Volumes (постійні дані)</h3>
+            <table>
+                <thead>
+                    <tr><th>Volume</th><th>Призначення</th><th>Що зберігає</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><span class="inline-code">postgres_data</span></td><td>🗄️ Дані PostgreSQL</td><td>Вся база даних</td></tr>
+                    <tr><td><span class="inline-code">backend_media</span></td><td>🖼️ Медіа-файли</td><td>Завантажені документи, фото</td></tr>
+                    <tr><td><span class="inline-code">backend_static</span></td><td>📁 Статичні файли</td><td>CSS/JS Django Admin</td></tr>
+                    <tr><td><span class="inline-code">backend_backups</span></td><td>💾 Бекапи</td><td>Тимчасові файли резервних копій</td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div><strong>Важливо:</strong> Доки ви не виконаєте <span class="inline-code">docker compose down -v</span>, всі дані (база, файли) зберігаються навіть після зупинки контейнерів.</div>
+            </div>
+        </section>
+
+        <!-- ===== 14. QUICK REF ===== -->
+        <section class="section" id="quickref">
+            <h2 class="section-title"><span class="icon">📞</span> Швидка довідка</h2>
+
+            <div class="quick-ref">
+                <div class="quick-ref-item">
+                    <div class="ref-label">🟢 Запустити</div>
+                    <div class="ref-cmd">docker compose up -d</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🔴 Зупинити</div>
+                    <div class="ref-cmd">docker compose down</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">📊 Статус</div>
+                    <div class="ref-cmd">docker compose ps</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">📋 Логи (слідкування)</div>
+                    <div class="ref-cmd">docker compose logs -f</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🔄 Перезібрати та запустити</div>
+                    <div class="ref-cmd">docker compose build && docker compose up -d</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🖥️ Термінал backend</div>
+                    <div class="ref-cmd">docker exec -it buh_backend bash</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🗄️ Термінал БД</div>
+                    <div class="ref-cmd">docker exec -it buh_postgres psql -U postgres -d buh_assets</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">💾 Бекап БД</div>
+                    <div class="ref-cmd">docker exec buh_postgres pg_dump -U postgres buh_assets > backup.sql</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🔑 Змінити пароль</div>
+                    <div class="ref-cmd">docker exec -it buh_backend python manage.py changepassword admin</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🐍 Django shell</div>
+                    <div class="ref-cmd">docker exec -it buh_backend python manage.py shell</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🗑️ Видалити все</div>
+                    <div class="ref-cmd">docker compose down -v --rmi all</div>
+                </div>
+                <div class="quick-ref-item">
+                    <div class="ref-label">🧹 Очистити Docker</div>
+                    <div class="ref-cmd">docker system prune -a</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <div style="text-align: center; padding: 32px 0; color: var(--text-secondary); font-size: 13px; border-top: 1px solid var(--border);">
+            📅 Останнє оновлення: Лютий 2026 &nbsp;|&nbsp; 🐳 Docker Guide v1.0 &nbsp;|&nbsp; Облік основних засобів
+        </div>
+
+    </div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+    // Highlight active sidebar link on scroll
+    const sections = document.querySelectorAll('.section');
+    const navLinks = document.querySelectorAll('.sidebar-nav a');
+
+    function updateActiveLink() {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop - 120;
+            if (window.scrollY >= sectionTop) {
+                current = section.getAttribute('id');
+            }
+        });
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + current) {
+                link.classList.add('active');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateActiveLink);
+    updateActiveLink();
+
+    // Close sidebar on mobile after clicking a link
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 900) {
+                document.querySelector('.sidebar').classList.remove('open');
+            }
+        });
+    });
+
+    // Smooth scroll for sidebar links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

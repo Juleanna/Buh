@@ -19,7 +19,8 @@
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(test:*)"
     ]
   }
 }
