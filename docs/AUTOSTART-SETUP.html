@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Налаштування автозапуску — Облік ОЗ</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #333;
+      line-height: 1.6;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #1a1a2e;
+      border-bottom: 3px solid #1677ff;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #1677ff;
+      margin-top: 30px;
+    }
+    h3 {
+      color: #444;
+    }
+    code {
+      background: #e8e8e8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.95em;
+    }
+    ol, ul {
+      padding-left: 24px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    a {
+      color: #1677ff;
+    }
+    .links {
+      background: #e6f4ff;
+      border-left: 4px solid #1677ff;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin: 16px 0;
+    }
+    .links strong {
+      display: inline-block;
+      width: 80px;
+    }
+    blockquote {
+      background: #fff8e1;
+      border-left: 4px solid #ffa000;
+      padding: 10px 16px;
+      margin: 16px 0;
+      border-radius: 4px;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #ddd;
+      margin: 30px 0;
+    }
+    .optional {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Налаштування автозапуску проекту "Облік ОЗ" при завантаженні Windows</h1>
+
+  <h2>Що робить скрипт</h2>
+  <p>Файл <code>start-docker-project.bat</code> автоматично:</p>
+  <ol>
+    <li>Чекає поки Docker Desktop повністю запуститься</li>
+    <li>Запускає всі контейнери проекту (<code>docker compose up -d</code>)</li>
+    <li>Закриває вікно через 10 секунд</li>
+  </ol>
+
+  <div class="links">
+    <p><strong>Frontend:</strong> <a href="http://localhost">http://localhost</a></p>
+    <p><strong>Backend:</strong> <a href="http://localhost:8000">http://localhost:8000</a></p>
+  </div>
+
+  <hr>
+
+  <h2>Передумови</h2>
+  <ul>
+    <li>Docker Desktop встановлено і налаштовано на автозапуск при завантаженні Windows</li>
+    <li>Відкрити Docker Desktop &rarr; Settings &rarr; General &rarr; <strong>Start Docker Desktop when you sign in</strong> (увімкнено)</li>
+  </ul>
+
+  <hr>
+
+  <h2>Як додати в автозавантаження</h2>
+
+  <h3>Спосіб 1: Через папку автозавантаження (найпростіший)</h3>
+  <ol>
+    <li>Натиснути <code>Win + R</code></li>
+    <li>Ввести <code>shell:startup</code> і натиснути Enter &mdash; відкриється папка автозавантаження</li>
+    <li>Скопіювати файл <code>C:\Buh\start-docker-project.bat</code> в цю папку</li>
+  </ol>
+  <blockquote>
+    Або створити ярлик: ПКМ по файлу &rarr; Створити ярлик &rarr; перемістити ярлик в папку <code>shell:startup</code>
+  </blockquote>
+
+  <h3>Спосіб 2: Через Планувальник завдань (більше контролю)</h3>
+  <ol>
+    <li>Натиснути <code>Win + R</code>, ввести <code>taskschd.msc</code>, натиснути Enter</li>
+    <li>В правій панелі натиснути <strong>"Створити просте завдання..."</strong></li>
+    <li>Назва: <code>Buh Docker Autostart</code>, натиснути Далі</li>
+    <li>Тригер: <strong>"При вході в систему"</strong>, натиснути Далі</li>
+    <li>Дія: <strong>"Запустити програму"</strong>, натиснути Далі</li>
+    <li>Програма: <code>C:\Buh\start-docker-project.bat</code>, натиснути Далі</li>
+    <li>Натиснути <strong>Готово</strong></li>
+  </ol>
+
+  <p class="optional">Додатково (необов'язково):</p>
+  <ul>
+    <li>Відкрити створене завдання &rarr; Властивості</li>
+    <li>Вкладка "Загальні" &rarr; поставити <strong>"Виконувати з найвищими правами"</strong></li>
+    <li>Вкладка "Параметри" &rarr; зняти <strong>"Зупиняти завдання, яке виконується довше"</strong></li>
+  </ul>
+
+  <hr>
+
+  <h2>Як видалити з автозавантаження</h2>
+
+  <h3>Якщо використовували Спосіб 1:</h3>
+  <ol>
+    <li><code>Win + R</code> &rarr; <code>shell:startup</code> &rarr; Enter</li>
+    <li>Видалити файл <code>start-docker-project.bat</code> (або ярлик)</li>
+  </ol>
+
+  <h3>Якщо використовували Спосіб 2:</h3>
+  <ol>
+    <li><code>Win + R</code> &rarr; <code>taskschd.msc</code> &rarr; Enter</li>
+    <li>Знайти завдання <code>Buh Docker Autostart</code></li>
+    <li>ПКМ &rarr; Видалити</li>
+  </ol>
+
+</body>
+</html>
