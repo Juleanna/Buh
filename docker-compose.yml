@@ -48,6 +48,7 @@ services:
       - backend_media:/app/media
       - backend_static:/app/staticfiles
       - backend_backups:/app/backups
+      - gdrive_data:/app/gdrive
     depends_on:
       db:
         condition: service_healthy
@@ -69,6 +70,7 @@ services:
     volumes:
       - backend_media:/app/media
       - backend_backups:/app/backups
+      - gdrive_data:/app/gdrive
     depends_on:
       db:
         condition: service_healthy
@@ -89,6 +91,8 @@ services:
       POSTGRES_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - gdrive_data:/app/gdrive
     depends_on:
       db:
         condition: service_healthy
@@ -111,3 +115,4 @@ volumes:
   backend_media:
   backend_static:
   backend_backups:
+  gdrive_data:

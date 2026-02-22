@@ -641,6 +641,7 @@
         <a href="#backup"><span class="nav-icon">💾</span> Резервне копіювання</a>
         <a href="#gdrive"><span class="nav-icon">☁️</span> Google Drive</a>
         <div class="nav-divider"></div>
+        <a href="#autostart"><span class="nav-icon">🖥️</span> Автозапуск Windows</a>
         <a href="#update"><span class="nav-icon">🔄</span> Оновлення проекту</a>
         <a href="#stop"><span class="nav-icon">🛑</span> Зупинка та видалення</a>
         <a href="#troubleshoot"><span class="nav-icon">🐛</span> Вирішення проблем</a>
@@ -1185,24 +1186,40 @@ Operations to perform:
 
             <h3>Крок 2 — Налаштування проекту</h3>
             <ol>
-                <li>Покладіть завантажений JSON файл у папку <span class="inline-code">backend/</span> з назвою <span class="inline-code">gdrive_credentials.json</span></li>
+                <li>Покладіть завантажений JSON файл у папку <span class="inline-code">backend/</span></li>
                 <li>Відредагуйте <span class="inline-code">backend/.env.docker</span>:</li>
             </ol>
 <pre><span class="lang-label">env</span>
-GDRIVE_CREDENTIALS_PATH=gdrive_credentials.json
+GDRIVE_CREDENTIALS_PATH=/app/gdrive/credentials.json
 GDRIVE_FOLDER_ID=ваш_id_папки_на_google_drive</pre>
             <ol start="3">
-                <li>Перезапустіть backend:</li>
+                <li>Пересоберіть та запустіть:</li>
             </ol>
-<pre><span class="cmd">docker</span> compose restart backend</pre>
+<pre><span class="cmd">docker</span> compose down
+<span class="cmd">docker</span> compose up <span class="flag">-d</span> <span class="flag">--build</span></pre>
+            <ol start="4">
+                <li>Скопіюйте credentials у спільний volume (замініть назву файлу на вашу):</li>
+            </ol>
+<pre><span class="cmd">docker</span> cp backend/ваш_client_secret_файл.json buh_backend:/app/gdrive/credentials.json</pre>
 
-            <h3>Крок 3 — Авторизація</h3>
-            <ol>
-                <li>Відкрийте веб-інтерфейс → «💾 Резервна копія»</li>
-                <li>У секції Google Drive натисніть «Підключити»</li>
-                <li>Пройдіть OAuth авторизацію через Google</li>
-                <li>Після успішного підключення з'явиться статус ✅</li>
-            </ol>
+            <h3>Крок 3 — Авторизація (одноразово)</h3>
+            <p>Авторизація через Google потребує браузера. Виконайте в окремому контейнері з прокинутим портом:</p>
+<pre><span class="cmd">docker</span> run <span class="flag">--rm -it</span> <span class="flag">--network</span> buh_default <span class="flag">-p</span> 8090:8090 \
+  <span class="flag">-v</span> buh_gdrive_data:/app/gdrive \
+  <span class="flag">--env-file</span> ./backend/.env.docker \
+  <span class="flag">-e</span> GDRIVE_CREDENTIALS_PATH=/app/gdrive/credentials.json \
+  buh-backend python manage.py gdrive_auth</pre>
+            <p>Відкрийте посилання яке з'явиться у терміналі, авторизуйтесь через Google — токен збережеться у спільному volume.</p>
+
+            <div class="alert alert-info">
+                <span class="alert-icon">💡</span>
+                <div>Якщо ви раніше запускали <span class="inline-code">gdrive_auth</span> всередині контейнера backend, перенесіть існуючий токен:
+<pre style="margin: 8px 0 0;"><span class="cmd">docker</span> exec buh_backend cp /app/gdrive_token.json /app/gdrive/token.json</pre>
+                </div>
+            </div>
+
+            <p>Після авторизації перезапустіть сервіси:</p>
+<pre><span class="cmd">docker</span> compose restart backend celery celery-beat</pre>
 
             <h3>Крок 4 — ID папки Google Drive</h3>
             <ol>
@@ -1211,6 +1228,83 @@ GDRIVE_FOLDER_ID=ваш_id_папки_на_google_drive</pre>
                 <li>Відкрийте цю папку та скопіюйте ID з URL:</li>
             </ol>
 <pre>https://drive.google.com/drive/folders/<span class="string">ЦЕЙ_ID_СКОПІЮЙТЕ</span></pre>
+        </section>
+
+        <!-- ===== 10. AUTOSTART ===== -->
+        <section class="section" id="autostart">
+            <h2 class="section-title"><span class="icon">🖥️</span> Автозапуск при завантаженні Windows</h2>
+
+            <p>Скрипт <span class="inline-code">start-docker-project.bat</span> автоматично чекає поки Docker Desktop запуститься, а потім піднімає всі контейнери проекту.</p>
+
+            <div class="alert alert-warning">
+                <span class="alert-icon">⚠️</span>
+                <div><strong>Передумова:</strong> Docker Desktop має бути налаштований на автозапуск: Docker Desktop → Settings → General → <strong>Start Docker Desktop when you sign in</strong> (увімкнено)</div>
+            </div>
+
+            <h3>Спосіб 1: Папка автозавантаження (найпростіший)</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Натиснути <span class="inline-code">Win + R</span></div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Ввести <span class="inline-code">shell:startup</span> і натиснути Enter</div>
+                    <p>Відкриється папка автозавантаження Windows</p>
+                </div>
+                <div class="step">
+                    <div class="step-title">Скопіювати файл <span class="inline-code">C:\Buh\start-docker-project.bat</span> в цю папку</div>
+                    <p>Або створити ярлик: ПКМ по файлу → Створити ярлик → перемістити ярлик в папку <span class="inline-code">shell:startup</span></p>
+                </div>
+            </div>
+
+            <h3>Спосіб 2: Планувальник завдань (більше контролю)</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Натиснути <span class="inline-code">Win + R</span>, ввести <span class="inline-code">taskschd.msc</span>, Enter</div>
+                </div>
+                <div class="step">
+                    <div class="step-title">В правій панелі натиснути <strong>"Створити просте завдання..."</strong></div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Назва: <span class="inline-code">Buh Docker Autostart</span>, натиснути Далі</div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Тригер: <strong>"При вході в систему"</strong> → Далі</div>
+                </div>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-title">Дія: <strong>"Запустити програму"</strong> → Далі</div>
+                </div>
+                <div class="step">
+                    <div class="step-title">Програма: <span class="inline-code">C:\Buh\start-docker-project.bat</span> → Далі → Готово</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Додатково (необов'язково):</div>
+                <ul>
+                    <li>Відкрити створене завдання → Властивості</li>
+                    <li>Вкладка "Загальні" → поставити <strong>"Виконувати з найвищими правами"</strong></li>
+                    <li>Вкладка "Параметри" → зняти <strong>"Зупиняти завдання, яке виконується довше"</strong></li>
+                </ul>
+            </div>
+
+            <h3>Як видалити з автозавантаження</h3>
+            <table>
+                <thead>
+                    <tr><th>Спосіб</th><th>Як видалити</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Папка автозавантаження</td>
+                        <td><span class="inline-code">Win + R</span> → <span class="inline-code">shell:startup</span> → видалити файл <span class="inline-code">start-docker-project.bat</span></td>
+                    </tr>
+                    <tr>
+                        <td>Планувальник завдань</td>
+                        <td><span class="inline-code">Win + R</span> → <span class="inline-code">taskschd.msc</span> → знайти <span class="inline-code">Buh Docker Autostart</span> → ПКМ → Видалити</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- ===== 10. UPDATE ===== -->
@@ -1504,6 +1598,7 @@ conn.close()
                     <tr><td><span class="inline-code">backend_media</span></td><td>🖼️ Медіа-файли</td><td>Завантажені документи, фото</td></tr>
                     <tr><td><span class="inline-code">backend_static</span></td><td>📁 Статичні файли</td><td>CSS/JS Django Admin</td></tr>
                     <tr><td><span class="inline-code">backend_backups</span></td><td>💾 Бекапи</td><td>Тимчасові файли резервних копій</td></tr>
+                    <tr><td><span class="inline-code">gdrive_data</span></td><td>☁️ Google Drive</td><td>OAuth credentials та токен (спільний між backend/celery)</td></tr>
                 </tbody>
             </table>
 

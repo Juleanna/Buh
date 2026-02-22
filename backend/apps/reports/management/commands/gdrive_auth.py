@@ -29,14 +29,18 @@ class Command(BaseCommand):
             ))
             return
 
-        token_path = os.path.join(settings.BASE_DIR, 'gdrive_token.json')
+        from apps.reports.gdrive import _token_path
+        token_path = _token_path()
 
-        self.stdout.write('Відкриваю браузер для авторизації Google Drive...\n')
+        self.stdout.write(
+            'Запуск авторизації Google Drive...\n'
+            'Відкрийте посилання нижче у браузері на цьому комп\'ютері:\n'
+        )
 
         flow = InstalledAppFlow.from_client_secrets_file(creds_path, [
             'https://www.googleapis.com/auth/drive.file',
         ])
-        creds = flow.run_local_server(port=8090)
+        creds = flow.run_local_server(port=8090, open_browser=False)
 
         with open(token_path, 'w') as f:
             f.write(creds.to_json())

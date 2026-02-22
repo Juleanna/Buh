@@ -50,6 +50,9 @@ const FILE_TYPE_OPTIONS = [
 
 const isImageFile = (name: string) => /\.(jpg|jpeg|png|gif|bmp|webp|tiff?)$/i.test(name)
 
+const fmtMoney = (v: string | number) =>
+  Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + ' грн'
+
 const AssetDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -113,59 +116,7 @@ const AssetDetailPage: React.FC = () => {
     }
   }, [id])
 
-  if (loading || !asset) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
-
-  const wearPercent = Number(asset.initial_cost) > 0
-    ? Number(((Number(asset.accumulated_depreciation) / Number(asset.initial_cost)) * 100).toFixed(1))
-    : 0
-
-  const fmtMoney = (v: string | number) =>
-    Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + ' грн'
-
-  const handleDownloadQR = () => {
-    if (!qrUrl) return
-    const link = document.createElement('a')
-    link.href = qrUrl
-    link.download = `qr_${asset.inventory_number}.png`
-    link.click()
-  }
-
-  const handleUploadSubmit = async (values: Record<string, string>) => {
-    if (!uploadFile) {
-      message.error('Оберіть файл')
-      return
-    }
-    setUploading(true)
-    const formData = new FormData()
-    formData.append('file', uploadFile)
-    formData.append('asset', String(id))
-    formData.append('name', values.name || uploadFile.name)
-    formData.append('file_type', values.file_type || 'other')
-    if (values.description) formData.append('description', values.description)
-    try {
-      await api.post('/assets/attachments/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      message.success('Файл завантажено')
-      setUploadModalOpen(false)
-      setUploadFile(null)
-      uploadForm.resetFields()
-      loadAttachments()
-    } catch {
-      message.error('Помилка завантаження файлу')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const openUploadModal = () => {
-    setUploadFile(null)
-    uploadForm.resetFields()
-    setUploadModalOpen(true)
-  }
-
   const handlePreview = (attach: AssetAttachment) => {
-    // For images, show preview; for others, open in new tab
     if (isImageFile(attach.name || attach.file)) {
       setPreviewImage(attach.file)
     } else {
@@ -193,7 +144,6 @@ const AssetDetailPage: React.FC = () => {
       link.click()
       URL.revokeObjectURL(link.href)
     } catch {
-      // Try opening in a new tab if download fails
       window.open(attach.file, '_blank')
     }
   }
@@ -323,6 +273,54 @@ const AssetDetailPage: React.FC = () => {
   const { columns: imprColumns, components: imprComponents } = useResizableColumns(baseImprColumns)
   const { columns: entryColumns, components: entryComponents } = useResizableColumns(baseEntryColumns)
   const { columns: attachColumns, components: attachComponents } = useResizableColumns(baseAttachColumns)
+
+  if (loading || !asset) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+
+  const wearPercent = Number(asset.initial_cost) > 0
+    ? Number(((Number(asset.accumulated_depreciation) / Number(asset.initial_cost)) * 100).toFixed(1))
+    : 0
+
+  const handleDownloadQR = () => {
+    if (!qrUrl) return
+    const link = document.createElement('a')
+    link.href = qrUrl
+    link.download = `qr_${asset.inventory_number}.png`
+    link.click()
+  }
+
+  const handleUploadSubmit = async (values: Record<string, string>) => {
+    if (!uploadFile) {
+      message.error('Оберіть файл')
+      return
+    }
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('file', uploadFile)
+    formData.append('asset', String(id))
+    formData.append('name', values.name || uploadFile.name)
+    formData.append('file_type', values.file_type || 'other')
+    if (values.description) formData.append('description', values.description)
+    try {
+      await api.post('/assets/attachments/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      message.success('Файл завантажено')
+      setUploadModalOpen(false)
+      setUploadFile(null)
+      uploadForm.resetFields()
+      loadAttachments()
+    } catch {
+      message.error('Помилка завантаження файлу')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const openUploadModal = () => {
+    setUploadFile(null)
+    uploadForm.resetFields()
+    setUploadModalOpen(true)
+  }
 
   return (
     <div>

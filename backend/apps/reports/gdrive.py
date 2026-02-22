@@ -10,9 +10,16 @@ logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 
+def _gdrive_dir():
+    """Директорія для Google Drive файлів (спільна між контейнерами)."""
+    gdir = os.path.join(settings.BASE_DIR, 'gdrive')
+    os.makedirs(gdir, exist_ok=True)
+    return gdir
+
+
 def _token_path():
     """Шлях до збереженого OAuth2 токену."""
-    return os.path.join(settings.BASE_DIR, 'gdrive_token.json')
+    return os.path.join(_gdrive_dir(), 'token.json')
 
 
 def has_credentials_file():
