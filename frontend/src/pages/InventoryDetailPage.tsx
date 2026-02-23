@@ -175,12 +175,7 @@ const InventoryDetailPage: React.FC = () => {
     }
   }
 
-  if (loading || !inventory) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
-
-  const isEditable = inventory.status !== 'completed'
-  const foundCount = items.filter(i => i.is_found).length
-  const shortages = items.filter(i => !i.is_found).length
-  const totalItems = items.length
+  const isEditable = inventory !== null && inventory.status !== 'completed'
 
   const baseColumns = useMemo(() => [
     { title: 'Інв. номер', dataIndex: 'asset_inventory_number', key: 'inv', width: 120, sorter: (a: InventoryItem, b: InventoryItem) => (a.asset_inventory_number || '').localeCompare(b.asset_inventory_number || '') },
@@ -239,6 +234,12 @@ const InventoryDetailPage: React.FC = () => {
     }] : []),
   ], [isEditable])
   const { columns, components } = useResizableColumns(baseColumns)
+
+  if (loading || !inventory) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+
+  const foundCount = items.filter(i => i.is_found).length
+  const shortages = items.filter(i => !i.is_found).length
+  const totalItems = items.length
 
   return (
     <div>
