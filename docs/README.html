@@ -888,6 +888,7 @@ hr {
             <tr><td>📦 <strong>Інвентаризація</strong></td><td>Створення, проведення, виявлення розбіжностей, комісія</td></tr>
             <tr><td>💰 <strong>Переоцінка</strong></td><td>Дооцінка та уцінка з перерахунком коефіцієнтів</td></tr>
             <tr><td>🔧 <strong>Поліпшення</strong></td><td>Капремонт, поточний ремонт, модернізація, реконструкція</td></tr>
+            <tr><td>🚚 <strong>Переміщення</strong></td><td>Внутрішнє переміщення між підрозділами та МВО (Акт переміщення ОЗ)</td></tr>
           </tbody>
         </table>
       </div>
@@ -901,6 +902,7 @@ hr {
             <tr><td>📥 Акт приймання-передачі</td><td>ОЗ-1</td><td>PDF + Excel</td></tr>
             <tr><td>📤 Акт списання ОЗ</td><td>ОЗ-3</td><td>PDF + Excel</td></tr>
             <tr><td>🚗 Акт списання автотранспорту</td><td>ОЗ-4</td><td>PDF + Excel</td></tr>
+            <tr><td>🚚 Акт переміщення ОЗ</td><td>Наказ №818</td><td>PDF + Excel</td></tr>
             <tr><td>📉 Відомість амортизації</td><td>—</td><td>PDF + Excel</td></tr>
             <tr><td>📦 Інвентаризаційний опис</td><td>Наказ №572</td><td>PDF + Excel</td></tr>
             <tr><td>📒 Журнал проводок</td><td>—</td><td>PDF + Excel</td></tr>
@@ -1096,8 +1098,8 @@ hr {
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# Login, Register, Profile</span>
 <br><span class="tree-connector">│   │   │   └── </span><span class="tree-file">serializers.py</span> <span class="tree-comment">&nbsp;&nbsp;# Серіалізатори</span>
 <br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">assets/</span> <span class="tree-comment">&nbsp;&nbsp;# 🏗️ Основна бізнес-логіка</span>
-<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">models.py</span> <span class="tree-comment">&nbsp;&nbsp;# 17 моделей (820+ рядків)</span>
-<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# 16 ViewSet-ів</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">models.py</span> <span class="tree-comment">&nbsp;&nbsp;# 19 моделей (820+ рядків)</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">views.py</span> <span class="tree-comment">&nbsp;&nbsp;# 17 ViewSet-ів</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">serializers.py</span> <span class="tree-comment">&nbsp;&nbsp;# Серіалізатори</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">depreciation.py</span> <span class="tree-comment">&nbsp;&nbsp;# Розрахунок амортизації</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">entries.py</span> <span class="tree-comment">&nbsp;&nbsp;# Формування проводок</span>
@@ -1114,7 +1116,7 @@ hr {
 <br><span class="tree-connector">│   └── </span><span class="tree-file">manage.py</span> <span class="tree-comment">&nbsp;&nbsp;# 🔧 Django CLI</span>
 <br><span class="tree-connector">├── </span><span class="tree-icon">📂</span> <span class="tree-folder">frontend/</span> <span class="tree-comment">&nbsp;&nbsp;# ⚛️ React-додаток</span>
 <br><span class="tree-connector">│   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">src/</span>
-<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">pages/</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 21 сторінка</span>
+<br><span class="tree-connector">│   │   ├── </span><span class="tree-icon">📂</span> <span class="tree-folder">pages/</span> <span class="tree-comment">&nbsp;&nbsp;# 📄 22 сторінки</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">LoginPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🔐 Авторизація</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">DashboardPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📊 Головна / Дашборд</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AssetsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📋 Реєстр ОЗ</span>
@@ -1130,6 +1132,7 @@ hr {
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">InventoryDetailPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📦 Деталі інвентаризації</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">RevaluationsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 💰 Переоцінки</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">ImprovementsPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🔧 Поліпшення</span>
+<br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">TransfersPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 🚚 Переміщення ОЗ</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">EntriesPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📒 Проводки</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">TurnoverReportPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📊 Оборотна відомість</span>
 <br><span class="tree-connector">│   │   │   ├── </span><span class="tree-file">AuditLogPage.tsx</span> <span class="tree-comment">&nbsp;&nbsp;# 📝 Журнал аудиту</span>
@@ -1256,7 +1259,7 @@ hr {
     <!-- 🗄️ Моделі бази даних -->
     <div class="section" id="models">
       <h2>🗄️ Моделі бази даних</h2>
-      <p>Система має <strong>17 моделей</strong> у додатку <code>assets</code>:</p>
+      <p>Система має <strong>19 моделей</strong> у додатку <code>assets</code>:</p>
 
       <h3>🔵 Основні сутності</h3>
       <div class="table-wrapper">
@@ -1269,6 +1272,8 @@ hr {
             <tr><td>📉 <code>DepreciationRecord</code></td><td>Запис амортизації</td><td>asset, period_year, period_month, amount, method, book_value_before/after</td></tr>
             <tr><td>💰 <code>AssetRevaluation</code></td><td>Переоцінка</td><td>asset, fair_value, revaluation_type, old/new_initial_cost, old/new_book_value</td></tr>
             <tr><td>🔧 <code>AssetImprovement</code></td><td>Поліпшення</td><td>asset, improvement_type, amount, increases_value</td></tr>
+            <tr><td>🚚 <code>AssetTransfer</code></td><td>Переміщення (акт)</td><td>document_number, document_date, from_location, to_location, from_person, to_person</td></tr>
+            <tr><td>📋 <code>AssetTransferItem</code></td><td>Рядок переміщення</td><td>transfer, asset, book_value, quantity</td></tr>
           </tbody>
         </table>
       </div>
@@ -1358,6 +1363,7 @@ hr {
                 <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/disposals/</code></td><td>📤 Вибуття</td></tr>
                 <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/revaluations/</code></td><td>💰 Переоцінки</td></tr>
                 <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/improvements/</code></td><td>🔧 Поліпшення</td></tr>
+                <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/transfers/</code></td><td>🚚 Переміщення ОЗ</td></tr>
                 <tr><td><span class="http-method http-crud">CRUD</span></td><td><code>/assets/attachments/</code></td><td>📎 Вкладення</td></tr>
               </tbody>
             </table>
@@ -1465,6 +1471,7 @@ hr {
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/receipt/{id}/act/</code></td><td>ОЗ-1</td><td>📥 Акт приймання-передачі</td></tr>
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/disposal/{id}/act/</code></td><td>ОЗ-3</td><td>📤 Акт списання ОЗ</td></tr>
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/disposal/{id}/vehicle-act/</code></td><td>ОЗ-4</td><td>🚗 Акт списання автотранспорту</td></tr>
+                <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/transfer/{id}/act/</code></td><td>Наказ №818</td><td>🚚 Акт переміщення ОЗ</td></tr>
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/depreciation-report/</code></td><td>—</td><td>📉 Відомість амортизації</td></tr>
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/inventory/{id}/report/</code></td><td>№572</td><td>📦 Інвентаризаційний опис</td></tr>
                 <tr><td><span class="http-method http-get">GET</span></td><td><code>/documents/entries-report/</code></td><td>—</td><td>📒 Журнал проводок</td></tr>
@@ -1519,6 +1526,11 @@ hr {
           <span class="card-icon">🚗</span>
           <div class="card-title">ОЗ-4 — Акт списання автотранспортних засобів</div>
           <div class="card-desc">Спеціалізована форма для транспорту. Додатково: VIN-код, номер двигуна/шасі/кузова, пробіг, результати списання.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🚚</span>
+          <div class="card-title">Акт внутрішнього переміщення ОЗ (Наказ Мінфіну №818)</div>
+          <div class="card-desc">Оформлює внутрішнє переміщення ОЗ між підрозділами. Включає: таблицю переміщуваних об'єктів (назва, інв. номер, кількість, вартість), дані про напрямок переміщення, підписи (Здав / Прийняв / Гол. бухгалтер).</div>
         </div>
         <div class="card">
           <span class="card-icon">📉</span>
@@ -1638,7 +1650,7 @@ hr {
               <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
             </tr>
             <tr>
-              <td>Переоцінки / Поліпшення</td>
+              <td>Переоцінки / Поліпшення / Переміщення</td>
               <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
               <td style="text-align:center"><span class="permission-yes">&#10003;</span></td>
               <td style="text-align:center"><span class="permission-no">&#10007;</span></td>
