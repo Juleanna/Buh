@@ -302,6 +302,36 @@ export interface AssetAttachment {
   uploaded_at: string
 }
 
+export interface AssetTransfer {
+  id: number
+  document_number: string
+  document_date: string
+  from_location: number | null
+  from_location_name: string
+  to_location: number | null
+  to_location_name: string
+  from_person: number | null
+  from_person_name: string
+  to_person: number | null
+  to_person_name: string
+  reason: string
+  notes: string
+  items_count: number
+  total_value: string
+  created_by: number | null
+  created_at: string
+}
+
+export interface AssetTransferItem {
+  id?: number
+  asset: number
+  asset_name?: string
+  asset_inventory_number?: string
+  book_value: string
+  quantity: number
+  notes: string
+}
+
 export interface AuditLogEntry {
   id: number
   user: number | null

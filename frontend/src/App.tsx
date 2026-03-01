@@ -26,6 +26,7 @@ const ResponsiblePersonsPage = lazy(() => import('./pages/ResponsiblePersonsPage
 const LocationsPage = lazy(() => import('./pages/LocationsPage'))
 const PositionsPage = lazy(() => import('./pages/PositionsPage'))
 const TurnoverReportPage = lazy(() => import('./pages/TurnoverReportPage'))
+const TransfersPage = lazy(() => import('./pages/TransfersPage'))
 const BackupPage = lazy(() => import('./pages/BackupPage'))
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -74,6 +75,7 @@ const App: React.FC = () => {
         <Route path="entries" element={<Suspense fallback={<Spin />}><EntriesPage /></Suspense>} />
         <Route path="revaluations" element={<Suspense fallback={<Spin />}><RevaluationsPage /></Suspense>} />
         <Route path="improvements" element={<Suspense fallback={<Spin />}><ImprovementsPage /></Suspense>} />
+        <Route path="transfers" element={<Suspense fallback={<Spin />}><TransfersPage /></Suspense>} />
         <Route path="organizations" element={<Suspense fallback={<Spin />}><OrganizationsPage /></Suspense>} />
         <Route path="responsible-persons" element={<Suspense fallback={<Spin />}><ResponsiblePersonsPage /></Suspense>} />
         <Route path="locations" element={<Suspense fallback={<Spin />}><LocationsPage /></Suspense>} />

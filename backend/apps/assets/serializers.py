@@ -6,6 +6,7 @@ from .models import (
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
     Location, ResponsiblePerson, Position,
+    AssetTransfer, AssetTransferItem,
 )
 
 
@@ -388,6 +389,88 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
         read_only_fields = ['recipient', 'created_at']
+
+
+# ---------------------------------------------------------------------------
+# Переміщення ОЗ
+# ---------------------------------------------------------------------------
+
+class AssetTransferItemSerializer(serializers.ModelSerializer):
+    asset_name = serializers.CharField(source='asset.name', read_only=True)
+    asset_inventory_number = serializers.CharField(
+        source='asset.inventory_number', read_only=True
+    )
+
+    class Meta:
+        model = AssetTransferItem
+        fields = [
+            'id', 'asset', 'asset_name', 'asset_inventory_number',
+            'book_value', 'quantity', 'notes',
+        ]
+
+
+class AssetTransferSerializer(serializers.ModelSerializer):
+    from_location_name = serializers.CharField(
+        source='from_location.name', read_only=True, default=''
+    )
+    to_location_name = serializers.CharField(
+        source='to_location.name', read_only=True, default=''
+    )
+    from_person_name = serializers.CharField(
+        source='from_person.full_name', read_only=True, default=''
+    )
+    to_person_name = serializers.CharField(
+        source='to_person.full_name', read_only=True, default=''
+    )
+    items_count = serializers.IntegerField(read_only=True, default=0)
+    total_value = serializers.DecimalField(
+        read_only=True, max_digits=15, decimal_places=2, default=0
+    )
+
+    class Meta:
+        model = AssetTransfer
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at']
+
+
+class AssetTransferDetailSerializer(serializers.ModelSerializer):
+    """Серіалізатор для створення/редагування переміщення з вкладеними items."""
+    from_location_name = serializers.CharField(
+        source='from_location.name', read_only=True, default=''
+    )
+    to_location_name = serializers.CharField(
+        source='to_location.name', read_only=True, default=''
+    )
+    from_person_name = serializers.CharField(
+        source='from_person.full_name', read_only=True, default=''
+    )
+    to_person_name = serializers.CharField(
+        source='to_person.full_name', read_only=True, default=''
+    )
+    items = AssetTransferItemSerializer(many=True)
+
+    class Meta:
+        model = AssetTransfer
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
+        transfer = AssetTransfer.objects.create(**validated_data)
+        for item_data in items_data:
+            AssetTransferItem.objects.create(transfer=transfer, **item_data)
+        return transfer
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if items_data is not None:
+            instance.items.all().delete()
+            for item_data in items_data:
+                AssetTransferItem.objects.create(transfer=instance, **item_data)
+        return instance
 
 
 class DepreciationCalcRequestSerializer(serializers.Serializer):

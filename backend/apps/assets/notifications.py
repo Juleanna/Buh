@@ -124,6 +124,22 @@ def notify_inventory_complete(inventory, results, user):
     )
 
 
+def notify_transfer(transfer, user):
+    """Сповіщення при переміщенні ОЗ."""
+    recipients = _get_recipients(['admin', 'accountant'], exclude_user=user)
+    items_count = transfer.items.count()
+    from_name = transfer.from_location.name if transfer.from_location else '—'
+    to_name = transfer.to_location.name if transfer.to_location else '—'
+    _notify(
+        recipients,
+        Notification.NotificationType.DEPRECIATION_DONE,
+        f'Переміщення ОЗ: {transfer.document_number}',
+        f'{user.get_full_name() or user.username} оформив переміщення '
+        f'{items_count} ОЗ з «{from_name}» до «{to_name}» '
+        f'(акт №{transfer.document_number} від {transfer.document_date}).',
+    )
+
+
 def check_high_wear_inline(assets_qs, user):
     """Перевірка зносу > 90% після нарахування амортизації (синхронно)."""
     threshold = Decimal('0.9')

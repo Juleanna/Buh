@@ -655,6 +655,7 @@ class AccountEntry(models.Model):
         REVALUATION = 'revaluation', 'Переоцінка'
         IMPROVEMENT = 'improvement', 'Поліпшення'
         REPAIR = 'repair', 'Ремонт'
+        TRANSFER = 'transfer', 'Переміщення ОЗ'
 
     entry_type = models.CharField(
         'Тип операції', max_length=20, choices=EntryType.choices
@@ -860,6 +861,7 @@ class AuditLog(models.Model):
         REVALUATION = 'revaluation', 'Переоцінка'
         IMPROVEMENT = 'improvement', 'Поліпшення'
         INVENTORY = 'inventory', 'Інвентаризація'
+        TRANSFER = 'transfer', 'Переміщення'
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -918,3 +920,74 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'{self.title} → {self.recipient}'
+
+
+# ---------------------------------------------------------------------------
+# Переміщення основних засобів
+# ---------------------------------------------------------------------------
+
+class AssetTransfer(models.Model):
+    """Акт внутрішнього переміщення основних засобів."""
+
+    document_number = models.CharField('Номер документа', max_length=100)
+    document_date = models.DateField('Дата документа')
+
+    from_location = models.ForeignKey(
+        Location, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='transfers_from', verbose_name='Звідки (місцезнаходження)',
+    )
+    to_location = models.ForeignKey(
+        Location, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='transfers_to', verbose_name='Куди (місцезнаходження)',
+    )
+    from_person = models.ForeignKey(
+        ResponsiblePerson, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='transfers_from', verbose_name='Здав (МВО)',
+    )
+    to_person = models.ForeignKey(
+        ResponsiblePerson, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='transfers_to', verbose_name='Прийняв (МВО)',
+    )
+
+    reason = models.TextField('Підстава', blank=True, default='')
+    notes = models.TextField('Примітки', blank=True, default='')
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, verbose_name='Створив',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Переміщення ОЗ'
+        verbose_name_plural = 'Переміщення ОЗ'
+        ordering = ['-document_date', '-id']
+
+    def __str__(self):
+        return f'Переміщення №{self.document_number} від {self.document_date}'
+
+
+class AssetTransferItem(models.Model):
+    """Рядок акту переміщення — конкретний ОЗ."""
+
+    transfer = models.ForeignKey(
+        AssetTransfer, on_delete=models.CASCADE,
+        related_name='items', verbose_name='Переміщення',
+    )
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE,
+        verbose_name='Основний засіб',
+    )
+    book_value = models.DecimalField(
+        'Вартість, грн', max_digits=15, decimal_places=2, default=0,
+    )
+    quantity = models.PositiveIntegerField('Кількість', default=1)
+    notes = models.CharField('Примітка', max_length=255, blank=True, default='')
+
+    class Meta:
+        verbose_name = 'Позиція переміщення'
+        verbose_name_plural = 'Позиції переміщення'
+        unique_together = ('transfer', 'asset')
+
+    def __str__(self):
+        return f'{self.asset.inventory_number} — {self.asset.name}'

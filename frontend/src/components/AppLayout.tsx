@@ -16,6 +16,7 @@ import {
   BookOutlined,
   SwapOutlined,
   ToolOutlined,
+  SendOutlined,
   BellOutlined,
   FileSearchOutlined,
   BankOutlined,
@@ -74,6 +75,7 @@ const AppLayout: React.FC = () => {
         { key: '/disposals', icon: <MinusCircleOutlined />, label: 'Вибуття' },
         { key: '/revaluations', icon: <SwapOutlined />, label: 'Переоцінки' },
         { key: '/improvements', icon: <ToolOutlined />, label: 'Поліпшення' },
+        { key: '/transfers', icon: <SendOutlined />, label: 'Переміщення' },
       ],
     },
     {

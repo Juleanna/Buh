@@ -14,6 +14,7 @@ from .models import (
     Organization, AccountEntry, AssetRevaluation,
     AssetImprovement, AssetAttachment, AuditLog, Notification,
     Location, ResponsiblePerson, Position,
+    AssetTransfer, AssetTransferItem,
 )
 from .serializers import (
     AssetGroupSerializer, AssetListSerializer, AssetDetailSerializer,
@@ -25,18 +26,20 @@ from .serializers import (
     AssetRevaluationSerializer, AssetImprovementSerializer,
     AssetAttachmentSerializer, AuditLogSerializer, NotificationSerializer,
     LocationSerializer, ResponsiblePersonSerializer, PositionSerializer,
+    AssetTransferSerializer, AssetTransferDetailSerializer,
 )
 from .depreciation import calculate_monthly_depreciation
 from .entries import (
     create_receipt_entries, create_depreciation_entries,
     create_disposal_entries, create_revaluation_entries,
-    create_improvement_entries,
+    create_improvement_entries, create_transfer_entries,
 )
 from .audit import log_action, get_client_ip
 from .notifications import (
     notify_receipt, notify_disposal, notify_depreciation,
     notify_revaluation, notify_inventory_complete,
     check_high_wear_inline, check_full_depreciation_inline,
+    notify_transfer,
 )
 
 
@@ -773,6 +776,87 @@ class AssetAttachmentViewSet(viewsets.ModelViewSet):
         uploaded_file = self.request.FILES.get('file')
         file_size = uploaded_file.size if uploaded_file else 0
         serializer.save(uploaded_by=self.request.user, file_size=file_size)
+
+
+class AssetTransferViewSet(viewsets.ModelViewSet):
+    """CRUD для переміщення основних засобів."""
+    queryset = AssetTransfer.objects.select_related(
+        'from_location', 'to_location', 'from_person', 'to_person', 'created_by',
+    ).annotate(
+        items_count=Count('items'),
+        total_value=Sum('items__book_value'),
+    )
+    permission_classes = [IsAccountant]
+    filterset_fields = ['from_location', 'to_location', 'from_person', 'to_person']
+    search_fields = ['document_number', 'reason']
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update', 'retrieve'):
+            return AssetTransferDetailSerializer
+        return AssetTransferSerializer
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        # Оновити location та responsible_person для кожного ОЗ
+        for item in instance.items.select_related('asset'):
+            asset = item.asset
+            if instance.to_location:
+                asset.location = instance.to_location
+            if instance.to_person:
+                asset.responsible_person = instance.to_person
+            asset.save()
+            create_transfer_entries(instance, item, user=self.request.user)
+        log_action(
+            self.request.user, AuditLog.Action.TRANSFER, instance,
+            ip_address=get_client_ip(self.request),
+        )
+        notify_transfer(instance, self.request.user)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        old = self.get_object()
+        # Повернути старі значення
+        for item in old.items.select_related('asset'):
+            asset = item.asset
+            if old.from_location:
+                asset.location = old.from_location
+            if old.from_person:
+                asset.responsible_person = old.from_person
+            asset.save()
+        # Видалити старі проводки
+        AccountEntry.objects.filter(
+            entry_type=AccountEntry.EntryType.TRANSFER,
+            document_number=old.document_number,
+        ).delete()
+        # Зберегти нові дані
+        instance = serializer.save()
+        # Застосувати нові значення
+        for item in instance.items.select_related('asset'):
+            asset = item.asset
+            if instance.to_location:
+                asset.location = instance.to_location
+            if instance.to_person:
+                asset.responsible_person = instance.to_person
+            asset.save()
+            create_transfer_entries(instance, item, user=self.request.user)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        # Повернути старі значення
+        for item in instance.items.select_related('asset'):
+            asset = item.asset
+            if instance.from_location:
+                asset.location = instance.from_location
+            if instance.from_person:
+                asset.responsible_person = instance.from_person
+            asset.save()
+        # Видалити проводки
+        AccountEntry.objects.filter(
+            entry_type=AccountEntry.EntryType.TRANSFER,
+            document_number=instance.document_number,
+        ).delete()
+        instance.delete()
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):

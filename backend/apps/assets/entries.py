@@ -397,3 +397,43 @@ def create_improvement_entries(asset, improvement, user=None):
         entries.append(entry)
 
     return entries
+
+
+# ---------------------------------------------------------------------------
+# 6. Переміщення основного засобу
+# ---------------------------------------------------------------------------
+
+def create_transfer_entries(transfer, transfer_item, user=None):
+    """
+    Створює інформаційну проводку при переміщенні ОЗ.
+
+    Переміщення всередині організації не змінює вартість ОЗ,
+    тому проводка має довідковий характер:
+        Дт <рахунок ОЗ>  Кт <рахунок ОЗ> (той самий)
+        на суму залишкової вартості.
+    """
+    entries = []
+    asset = transfer_item.asset
+    account_oz = asset.group.account_number
+
+    from_name = transfer.from_location.name if transfer.from_location else '—'
+    to_name = transfer.to_location.name if transfer.to_location else '—'
+
+    entry = _create_entry(
+        entry_type=AccountEntry.EntryType.TRANSFER,
+        date=transfer.document_date,
+        debit_account=account_oz,
+        credit_account=account_oz,
+        amount=transfer_item.book_value,
+        description=(
+            f'Переміщення ОЗ {asset.inventory_number} «{asset.name}» '
+            f'з «{from_name}» до «{to_name}».'
+        ),
+        asset=asset,
+        document_number=transfer.document_number,
+        document_date=transfer.document_date,
+        user=user,
+    )
+    entries.append(entry)
+
+    return entries

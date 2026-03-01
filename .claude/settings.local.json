@@ -20,7 +20,8 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(source:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(powershell -Command \":*)"
     ]
   }
 }

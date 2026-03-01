@@ -38,7 +38,7 @@ from apps.assets.models import (
     Asset, AssetGroup, AssetReceipt, AssetDisposal,
     DepreciationRecord, Inventory, InventoryItem,
     AccountEntry, AssetRevaluation, AssetImprovement,
-    Organization,
+    Organization, AssetTransfer,
 )
 from apps.documents.excel_utils import (
     create_workbook, write_header_row, write_data_row, write_total_row,
@@ -3564,4 +3564,207 @@ class TurnoverStatementPDFView(APIView):
         return _make_response(
             buf,
             f'turnover_statement_{date_from_str}_{date_to_str}.pdf',
+        )
+
+
+# ===================================================================
+# 9. AssetTransferActPDFView — Акт внутрішнього переміщення ОЗ
+# ===================================================================
+
+class AssetTransferActPDFView(APIView):
+    """
+    Акт внутрішнього переміщення основних засобів.
+    Затверджено наказом Мінфіну України від 13.09.2016 №818.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _build_xlsx(self, transfer, items, org):
+        wb = create_workbook()
+        ws = wb.active
+        ws.title = 'Переміщення ОЗ'
+
+        write_form_header(ws, org, 'ОЗ-1',
+                          'Акт внутрішнього переміщення основних засобів')
+        write_approval_block(ws, org)
+
+        r = ws.max_row + 1
+        write_text_row(ws, r,
+                       f'Акт №{transfer.document_number}  '
+                       f'від {transfer.document_date.strftime("%d.%m.%Y")}')
+        r = ws.max_row + 2
+
+        headers = ['Назва об\'єкта', 'Інвентарний\n(номенклатурний)\nномер',
+                    'Одиниця\nвиміру', 'Кількість',
+                    'Первісна\n(переоцінена)\nвартість', 'Сума', 'Примітка']
+        write_header_row(ws, r, headers)
+        r += 1
+        write_column_numbers_row(ws, r, len(headers))
+        r += 1
+
+        total_qty = 0
+        total_sum = Decimal('0.00')
+        for item in items:
+            asset = item.asset
+            row_data = [
+                asset.name,
+                asset.inventory_number,
+                asset.unit_of_measure,
+                item.quantity,
+                float(item.book_value),
+                float(item.book_value),
+                item.notes,
+            ]
+            write_data_row(ws, r, row_data)
+            total_qty += item.quantity
+            total_sum += item.book_value
+            r += 1
+
+        write_total_row(ws, r,
+                        ['Всього', '', '', total_qty,
+                         float(total_sum), float(total_sum), ''])
+        r += 2
+
+        to_name = transfer.to_location.name if transfer.to_location else ''
+        write_text_row(ws, r,
+                       f'Перемiщуванi об\'єкти направлено: {to_name}')
+        r += 2
+
+        from_person = transfer.from_person.full_name if transfer.from_person else ''
+        to_person = transfer.to_person.full_name if transfer.to_person else ''
+        accountant = org.accountant.full_name if org and org.accountant else ''
+        write_signatures_block(ws, r, [
+            ('Здав', from_person),
+            ('Прийняв', to_person),
+            ('Гол. бухгалтер', accountant),
+        ])
+
+        auto_width(ws)
+        return workbook_to_response(
+            wb, f'transfer_act_{transfer.document_number}')
+
+    def get(self, request, pk):
+        fmt = request.query_params.get('format', 'pdf')
+
+        transfer = AssetTransfer.objects.select_related(
+            'from_location', 'to_location',
+            'from_person', 'to_person', 'created_by',
+        ).get(pk=pk)
+
+        items = transfer.items.select_related(
+            'asset', 'asset__group',
+        ).order_by('id')
+
+        org = _get_org_from_request_or_default(request)
+
+        if fmt == 'xlsx':
+            return self._build_xlsx(transfer, items, org)
+
+        # -- PDF --
+        styles = _get_styles()
+        elements = []
+
+        # Шапка форми
+        elements.extend(_form_header_block(
+            org, 'ОЗ-1',
+            'АКТ внутрiшнього перемiщення<br/>основних засобiв',
+            styles,
+        ))
+        elements.extend(_approval_block(org, styles))
+
+        # Номер та дата
+        elements.append(Paragraph(
+            f'Акт №{transfer.document_number} '
+            f'вiд {transfer.document_date.strftime("%d.%m.%Y")}',
+            styles['UkrCenter'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+        # Місце складання
+        location_name = transfer.to_location.name if transfer.to_location else ''
+        if location_name:
+            elements.append(Paragraph(location_name, styles['UkrCenter']))
+            elements.append(Paragraph('(мiсце складання)', styles['UkrSmall']))
+            elements.append(Spacer(1, 2 * mm))
+
+        # Таблиця ОЗ
+        col_widths = [55 * mm, 28 * mm, 14 * mm, 14 * mm, 22 * mm, 22 * mm, 25 * mm]
+        header = [
+            _p('Назва об\'єкта', styles['UkrSmall']),
+            _p('Iнвентарний\n(номенклатурний)\nномер', styles['UkrSmall']),
+            _p('Одиниця\nвимiру', styles['UkrSmall']),
+            _p('Кiлькiсть', styles['UkrSmall']),
+            _p('Первiсна\n(переоцiнена)\nвартiсть', styles['UkrSmall']),
+            _p('Сума', styles['UkrSmall']),
+            _p('Примiтка', styles['UkrSmall']),
+        ]
+        num_row = [_p(str(i), styles['UkrSmall']) for i in range(1, 8)]
+
+        data_rows = [header, num_row]
+        total_qty = 0
+        total_sum = Decimal('0.00')
+
+        for item in items:
+            asset = item.asset
+            data_rows.append([
+                _p(asset.name, styles['UkrSmall']),
+                _p(asset.inventory_number, styles['UkrSmall']),
+                _p(asset.unit_of_measure, styles['UkrSmall']),
+                _p(str(item.quantity), styles['UkrSmall']),
+                _p(_fmt(item.book_value), styles['UkrSmall']),
+                _p(_fmt(item.book_value), styles['UkrSmall']),
+                _p(item.notes, styles['UkrSmall']),
+            ])
+            total_qty += item.quantity
+            total_sum += item.book_value
+
+        # Підсумок
+        data_rows.append([
+            _p('Всього', styles['UkrSmall']),
+            '', '',
+            _p(str(total_qty), styles['UkrSmall']),
+            _p(_fmt(total_sum), styles['UkrSmall']),
+            _p(_fmt(total_sum), styles['UkrSmall']),
+            '',
+        ])
+
+        tbl = Table(data_rows, colWidths=col_widths, repeatRows=2)
+        tbl.setStyle(_data_table_style(header_rows=2))
+        elements.append(tbl)
+        elements.append(Spacer(1, 4 * mm))
+
+        # Куди переміщено
+        to_name = transfer.to_location.name if transfer.to_location else ''
+        elements.append(Paragraph(
+            f'Перемiщуванi об\'єкти направлено: {to_name}',
+            styles['UkrNormal'],
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+        # Підстава
+        if transfer.reason:
+            elements.append(Paragraph(
+                f'Пiдстава: {transfer.reason}', styles['UkrNormal'],
+            ))
+            elements.append(Spacer(1, 2 * mm))
+
+        # Підписи
+        from_person_name = transfer.from_person.full_name if transfer.from_person else ''
+        to_person_name = transfer.to_person.full_name if transfer.to_person else ''
+        accountant_name = org.accountant.full_name if org and org.accountant else ''
+
+        elements.extend(_official_signatures([
+            ('Здав', from_person_name),
+            ('Прийняв', to_person_name),
+            ('Гол. бухгалтер', accountant_name),
+        ], styles, compact=True))
+
+        # Збірка PDF
+        buf = io.BytesIO()
+        _build_pdf(buf, elements, margins=dict(
+            topMargin=10 * mm, bottomMargin=10 * mm,
+            leftMargin=12 * mm, rightMargin=12 * mm,
+        ))
+        return _make_response(
+            buf,
+            f'transfer_act_{transfer.document_number}.pdf',
         )

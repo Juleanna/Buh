@@ -18,6 +18,7 @@ router.register(r'organizations', views.OrganizationViewSet, basename='organizat
 router.register(r'entries', views.AccountEntryViewSet, basename='entries')
 router.register(r'revaluations', views.AssetRevaluationViewSet, basename='revaluations')
 router.register(r'improvements', views.AssetImprovementViewSet, basename='improvements')
+router.register(r'transfers', views.AssetTransferViewSet, basename='transfers')
 router.register(r'attachments', views.AssetAttachmentViewSet, basename='attachments')
 router.register(r'audit-log', views.AuditLogViewSet, basename='audit-log')
 router.register(r'notifications', views.NotificationViewSet, basename='notifications')
